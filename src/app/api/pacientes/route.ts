@@ -3,6 +3,14 @@ import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 
+/**
+ * Maneja las peticiones GET para obtener la lista de pacientes con riesgo.
+ * Requiere autenticación. Aplica filtros por DNI, establecimiento y aplica
+ * reglas de seguridad (RBAC) según el rol del usuario conectado.
+ * 
+ * @param {Request} request - La solicitud HTTP que contiene los parámetros de búsqueda.
+ * @returns {Promise<NextResponse>} Respuesta JSON con los pacientes formateados para el frontend o un error.
+ */
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   
@@ -14,10 +22,71 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const dni = searchParams.get("dni");
   const establecimiento = searchParams.get("establecimiento");
+  const riesgo = searchParams.get("riesgo") || "Si";
+  const dias = searchParams.get("dias") || "0";
+  const fppDesde = searchParams.get("fppDesde");
+  const fppHasta = searchParams.get("fppHasta");
 
   try {
-    // 1. Base de la Query (Capa Gold)
-    // Seleccionamos nombre_establecimiento para que coincida con el filtro lateral
+    let whereClause = `WHERE 1=1`;
+    const params: any[] = [];
+
+    // Lógica de Seguridad de Tony (RBAC) para ambas consultas
+    let securityClause = ``;
+    if (session.user?.role === 'Centro de Salud' && session.user?.cuie_code) {
+      securityClause += ` AND cuie_seguimiento = '${session.user.cuie_code}'`;
+    } 
+    else if (session.user?.role === 'Maternidad' && session.user?.maternidad_id) {
+      securityClause += ` AND (cuie_seguimiento = '${session.user.cuie_code}' OR derivacion_maternidad_id = '${session.user.maternidad_id}')`;
+    }
+    
+    // Primero, obtener el total de embarazadas para el contraste (sin aplicar los otros filtros de búsqueda)
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM pacientes_gold 
+      WHERE fecha_probable_parto >= CURRENT_DATE ${securityClause}
+    `;
+    const totalRes = await query(countQuery);
+    const totalGlobal = parseInt(totalRes.rows[0].count, 10);
+
+    // 1. Filtros de la Query principal (Capa Gold)
+    whereClause += securityClause;
+
+    if (riesgo !== "Todas") {
+      whereClause += ` AND LOWER(riesgo) IN ('si', 's', 'alto', 'moderado')`;
+    }
+
+    if (dias && dias !== "0") {
+      const diasNum = parseInt(dias, 10);
+      if (!isNaN(diasNum)) {
+        params.push(diasNum);
+        whereClause += ` AND (CURRENT_DATE - fecha_ultimo_control) >= $${params.length}`;
+      }
+    }
+
+    if (fppDesde) {
+      params.push(fppDesde);
+      whereClause += ` AND fecha_probable_parto >= $${params.length}`;
+    } else if (!fppDesde && !fppHasta) {
+      // Default si no hay filtros explícitos de fecha
+      whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`;
+    }
+
+    if (fppHasta) {
+      params.push(fppHasta);
+      whereClause += ` AND fecha_probable_parto <= $${params.length}`;
+    }
+
+    if (dni) {
+      params.push(`${dni}%`);
+      whereClause += ` AND dni LIKE $${params.length}`;
+    }
+
+    if (establecimiento && establecimiento !== "Todos") {
+      params.push(establecimiento);
+      whereClause += ` AND nombre_establecimiento = $${params.length}`;
+    }
+
     let sql = `
       SELECT 
         id, 
@@ -30,56 +99,45 @@ export async function GET(request: Request) {
         riesgo,
         nombre_establecimiento,
         (CURRENT_DATE - fecha_ultimo_control) as dias_atraso,
-        ultimo_contacto_at
+        ultimo_contacto_at,
+        calle_domicilio,
+        nro_puerta_domicilio,
+        localidad_domicilio
       FROM pacientes_gold
-      WHERE (LOWER(riesgo) IN ('si', 's', 'alto', 'moderado'))
-        AND fecha_probable_parto >= CURRENT_DATE
+      ${whereClause}
+      ORDER BY dias_atraso DESC NULLS FIRST
     `;
-
-    const params: any[] = [];
-
-    // 2. Filtro dinámico: Búsqueda por DNI
-    if (dni) {
-      sql += ` AND dni LIKE $${params.length + 1}`;
-      params.push(`${dni}%`); // Busca DNIs que empiecen con esos números
-    }
-
-    // 3. Filtro dinámico: Establecimiento
-    if (establecimiento && establecimiento !== "Todos") {
-      sql += ` AND nombre_establecimiento = $${params.length + 1}`;
-      params.push(establecimiento);
-    }
-
-    // 4. Lógica de Seguridad de Tony (RBAC)
-    // Nota: Usamos session.user?.role para limitar qué registros puede ver cada usuario
-    if (session.user?.role === 'Centro de Salud' && session.user?.cuie_code) {
-      sql += ` AND cuie_seguimiento = $${params.length + 1}`;
-      params.push(session.user.cuie_code);
-    } 
-    else if (session.user?.role === 'Maternidad' && session.user?.maternidad_id) {
-      sql += ` AND (cuie_seguimiento = $${params.length + 1} OR derivacion_maternidad_id = $${params.length + 2})`;
-      params.push(session.user.cuie_code, session.user.maternidad_id);
-    }
-
-    // Ordenamos por días de atraso (Prioridad para los que llevan más tiempo sin control)
-    sql += ` ORDER BY dias_atraso DESC NULLS FIRST`;
 
     const result = await query(sql, params);
     
-    // 5. Mapeo para el Frontend
-    const pacientes = result.rows.map(p => ({
-        id: p.id,
-        dni: p.dni,
-        nombre: `${p.apellido}, ${p.nombre}`,
-        telefono: p.telefono || "-",
-        fpp: p.fecha_probable_parto,
-        ult_control: p.fecha_ultimo_control,
-        establecimiento: p.nombre_establecimiento || "No asignado",
-        dias: p.dias_atraso !== null ? p.dias_atraso : 999,
-        contactada: p.ultimo_contacto_at ? "✅" : ""
-      }));
+    // Mapeo para el Frontend
+    const pacientes = result.rows.map(p => {
+        let dom = "";
+        if (p.calle_domicilio) {
+          dom = `${p.calle_domicilio} ${p.nro_puerta_domicilio || ''}`.trim();
+        }
+        if (p.localidad_domicilio) {
+          dom = dom ? `${dom} | Localidad: ${p.localidad_domicilio}` : `Localidad: ${p.localidad_domicilio}`;
+        }
+        
+        return {
+          id: p.id,
+          dni: p.dni,
+          nombre: `${p.apellido}, ${p.nombre}`,
+          telefono: p.telefono || "-",
+          fpp: p.fecha_probable_parto,
+          ult_control: p.fecha_ultimo_control,
+          establecimiento: p.nombre_establecimiento || "No asignado",
+          dias: p.dias_atraso !== null ? p.dias_atraso : 999,
+          contactada: p.ultimo_contacto_at ? "✅" : "",
+          domicilio: dom || "No registrado"
+        };
+      });
 
-    return NextResponse.json(pacientes);
+    return NextResponse.json({
+      data: pacientes,
+      totalGlobal
+    });
   } catch (error) {
     console.error("Error en API Pacientes:", error);
     return NextResponse.json({ error: "Error en la base de datos" }, { status: 500 });

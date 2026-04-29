@@ -1,0 +1,112 @@
+.container {
+  padding: 2rem;
+  background-color: #f8fafc;
+  min-height: calc(100vh - 64px);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.header {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.header h1 {
+  color: #1e293b;
+  font-size: 1.875rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.header p {
+  color: #64748b;
+  margin: 5px 0 0 0;
+  font-size: 1rem;
+}
+
+/* KPIs */
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.kpiRow {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpiCard {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  flex: 1;
+  text-align: center;
+  box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+}
+
+.kpiCard.mainCard {
+  flex: 1.5;
+  background-color: #f8fafc;
+}
+
+.kpiLabel {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+.kpiValue {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Modifiers */
+.genTotal { border-bottom: 3px solid #3b82f6; }
+.rsgTotal { border-bottom: 3px solid #ef4444; }
+
+.valBlack { color: #1e293b; }
+.valOrange { color: #f97316; }
+.valGreen { color: #10b981; }
+.valRed { color: #ef4444; }
+
+/* Charts */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.chartCard {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);
+  height: 550px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chartTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.75rem;
+}
+
+.chartWrapper {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  font-size: 0.7rem;
+}

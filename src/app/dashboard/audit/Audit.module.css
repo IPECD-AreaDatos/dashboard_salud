@@ -1,0 +1,87 @@
+.container {
+  padding: 2rem;
+  background-color: #f8fafc;
+  min-height: calc(100vh - 64px);
+  font-family: system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.header {
+  width: 100%;
+  max-width: 800px;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.header h1 {
+  color: #c2410c; /* orange-700 similar to Tony's image */
+  font-size: 2rem;
+  font-weight: 400;
+  margin: 0;
+}
+
+.header p {
+  color: #64748b;
+  margin: 5px 0 0 0;
+  font-size: 1rem;
+}
+
+.placeholderCard {
+  background: white;
+  padding: 4rem 2rem;
+  border-radius: 1rem;
+  border: 1px dashed #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.iconWrapper {
+  background-color: #f1f5f9;
+  padding: 1.5rem;
+  border-radius: 50%;
+  margin-bottom: 1.5rem;
+}
+
+.mainIcon {
+  color: #94a3b8;
+}
+
+.placeholderCard h2 {
+  color: #1e293b;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.description {
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+}
+
+.featuresPreview {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.featureItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.fIcon {
+  color: #cbd5e1;
+}

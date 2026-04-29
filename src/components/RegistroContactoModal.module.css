@@ -1,0 +1,206 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modalContent {
+  background-color: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+.closeBtn:hover { background-color: #f1f5f9; color: #0f172a; }
+
+.modalBody {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.pacienteInfoCard {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pacienteName {
+  margin: 0 0 0.5rem 0;
+  color: #0f172a;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.pacienteInfoCard p {
+  margin: 0.25rem 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.form { display: flex; flex-direction: column; gap: 1rem; }
+
+.formRow {
+  display: flex;
+  gap: 1rem;
+}
+
+.formRow > div { flex: 1; }
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.radioGroup {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 0;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #1e293b;
+}
+
+.input, .textarea {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input:focus, .textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.textarea { resize: vertical; }
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 0.5rem;
+}
+
+.btnCancel {
+  padding: 0.6rem 1rem;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btnCancel:hover { background-color: #e2e8f0; }
+
+.btnSave {
+  padding: 0.6rem 1.25rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.btnSave:hover { background-color: #2563eb; }
+.btnSave:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.historialContainer { margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 1rem; }
+
+.historialDetails {
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.historialSummary {
+  padding: 0.75rem 1rem;
+  background-color: #f8fafc;
+  cursor: pointer;
+  font-weight: 600;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  user-select: none;
+}
+
+.historialList {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.historialItem {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.historialItem:last-child { border-bottom: none; padding-bottom: 0; }
+
+.hHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.tagSuccess { background-color: #dcfce7; color: #166534; padding: 0.1rem 0.5rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600;}
+.tagError { background-color: #fee2e2; color: #991b1b; padding: 0.1rem 0.5rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600;}
+
+.hBody { font-size: 0.9rem; color: #334155; margin: 0; }

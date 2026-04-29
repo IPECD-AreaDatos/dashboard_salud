@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import styles from "./Dashboard.module.css";
 import Navbar from "@/components/Navbar";
 import { Search, Filter, Phone, CheckCircle2, AlertCircle, RefreshCcw } from "lucide-react";
+import RegistroContactoModal from "@/components/RegistroContactoModal";
 
 interface Paciente {
   id: number;
@@ -23,7 +24,14 @@ export default function SeguimientoPage() {
   // Estados para los filtros (Como Tony)
   const [filterDni, setFilterDni] = useState("");
   const [filterEst, setFilterEst] = useState("Todos");
+  const [filterRiesgo, setFilterRiesgo] = useState("Si");
   const [filterDias, setFilterDias] = useState("30");
+  const [filterFppDesde, setFilterFppDesde] = useState("");
+  const [filterFppHasta, setFilterFppHasta] = useState("");
+  const [totalGlobal, setTotalGlobal] = useState(0);
+
+  // Modal de Contacto
+  const [selectedPaciente, setSelectedPaciente] = useState<Paciente | null>(null);
 
   // Carga inicial
   useEffect(() => {
@@ -45,16 +53,23 @@ export default function SeguimientoPage() {
     setLoading(true);
     try {
       // Pasamos los filtros reales a la API
-      const query = new URLSearchParams({
+      const queryParams: any = {
         dni: filterDni,
         establecimiento: filterEst,
+        riesgo: filterRiesgo,
         dias: filterDias
-      });
+      };
+      if (filterFppDesde) queryParams.fppDesde = filterFppDesde;
+      if (filterFppHasta) queryParams.fppHasta = filterFppHasta;
+
+      const query = new URLSearchParams(queryParams);
       
       const res = await fetch(`/api/pacientes?${query}`);
       if (!res.ok) throw new Error("Error en la carga");
       const data = await res.json();
-      setPacientes(data);
+      
+      setPacientes(data.data || []);
+      setTotalGlobal(data.totalGlobal || 0);
     } catch (error) {
       console.error("Error al obtener pacientes:", error);
     } finally {
@@ -66,21 +81,6 @@ export default function SeguimientoPage() {
     <>
       <Navbar />
       <div className={styles.container}>
-        <header className={styles.header}>
-          <div className={styles.titleArea}>
-            <h1>Seguimiento de Pacientes</h1>
-            <p>Gestión de alertas obstétricas de alto riesgo.</p>
-          </div>
-          <button 
-            className={styles.btnRefresh}
-            onClick={fetchPacientes}
-            disabled={loading}
-          >
-            <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? "Actualizando..." : "Actualizar Datos"}
-          </button>
-        </header>
-
         <div className={styles.mainGrid}>
           {/* Panel Lateral de Filtros */}
           <aside className={styles.filterCard}>
@@ -119,17 +119,49 @@ export default function SeguimientoPage() {
             </div>
             
             <div className={styles.filterGroup}>
+              <label className={styles.filterLabel}>Riesgo</label>
+              <select 
+                className={styles.selectInput}
+                value={filterRiesgo}
+                onChange={(e) => setFilterRiesgo(e.target.value)}
+              >
+                <option value="Si">Si</option>
+                <option value="Todas">Todas</option>
+              </select>
+            </div>
+            
+            <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>Días sin Control</label>
               <select 
                 className={styles.selectInput}
                 value={filterDias}
                 onChange={(e) => setFilterDias(e.target.value)}
               >
-                <option value="30">{">"} 30 días</option>
-                <option value="60">{">"} 60 días</option>
-                <option value="90">{">"} 90 días</option>
+                <option value="30">+ 30 días</option>
+                <option value="60">+ 60 días</option>
+                <option value="90">+ 90 días</option>
                 <option value="0">Ver todas</option>
               </select>
+            </div>
+
+            <div className={styles.filterGroup}>
+              <label className={styles.filterLabel}>FPP Desde</label>
+              <input 
+                type="date" 
+                className={styles.searchInput}
+                value={filterFppDesde}
+                onChange={(e) => setFilterFppDesde(e.target.value)}
+              />
+            </div>
+
+            <div className={styles.filterGroup}>
+              <label className={styles.filterLabel}>FPP Hasta</label>
+              <input 
+                type="date" 
+                className={styles.searchInput}
+                value={filterFppHasta}
+                onChange={(e) => setFilterFppHasta(e.target.value)}
+              />
             </div>
 
             <button 
@@ -145,8 +177,16 @@ export default function SeguimientoPage() {
           <main className={styles.tableContainer}>
             <div className={styles.tableHeader}>
               <span className={styles.counterBadge}>
-                {pacientes.length} Pacientes encontradas
+                {pacientes.length} Pacientes encontradas de {totalGlobal} totales
               </span>
+              <button 
+                className={styles.btnRefresh}
+                onClick={fetchPacientes}
+                disabled={loading}
+              >
+                <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? "Actualizando..." : "Actualizar"}
+              </button>
             </div>
 
             <div className={styles.tableResponsive}>
@@ -205,7 +245,7 @@ export default function SeguimientoPage() {
                         <td>
                           <button 
                             className={styles.btnAction}
-                            onClick={() => alert(`Iniciando seguimiento para: ${p.nombre}`)}
+                            onClick={() => setSelectedPaciente(p)}
                           >
                             REGISTRAR
                           </button>
@@ -226,6 +266,18 @@ export default function SeguimientoPage() {
           </main>
         </div>
       </div>
+      
+      {/* Modal de Contacto */}
+      {selectedPaciente && (
+        <RegistroContactoModal
+          paciente={selectedPaciente}
+          onClose={() => setSelectedPaciente(null)}
+          onSuccess={() => {
+            setSelectedPaciente(null);
+            fetchPacientes();
+          }}
+        />
+      )}
     </>
   );
 }
