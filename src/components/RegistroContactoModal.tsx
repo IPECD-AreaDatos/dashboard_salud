@@ -156,28 +156,31 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
           </form>
 
           <div className={styles.historialContainer}>
-            <details className={styles.historialDetails}>
-              <summary className={styles.historialSummary}>
-                <Clock size={16} /> Últimos contactos ({historial.length})
-              </summary>
-              <div className={styles.historialList}>
-                {loading ? <p>Cargando historial...</p> : historial.length === 0 ? <p>No hay contactos previos registrados.</p> : (
-                  historial.map((h: any) => (
-                    <div key={h.id} className={styles.historialItem}>
-                      <div className={styles.hHeader}>
-                        <strong>{new Date(h.fecha_contacto).toLocaleDateString('es-AR')}</strong> - {h.personal_salud}
-                        <span className={h.contacto_logrado ? styles.tagSuccess : styles.tagError}>
-                          {h.contacto_logrado ? 'Logrado' : 'Fallido'}
-                        </span>
-                      </div>
-                      <div className={styles.hBody}>
-                        <p>{h.observaciones}</p>
-                      </div>
+            <h4 className={styles.historialTitle}>
+              <Clock size={16} /> Últimos contactos ({historial.length})
+            </h4>
+            
+            <div className={styles.historialList}>
+              {loading ? (
+                <p className={styles.historialStatus}>Cargando historial...</p>
+              ) : historial.length === 0 ? (
+                <p className={styles.historialStatus}>No hay contactos previos registrados.</p>
+              ) : (
+                historial.map((h: any) => (
+                  <div key={h.id} className={styles.historialItem}>
+                    <div className={styles.hHeader}>
+                      <strong>{new Date(h.fecha_contacto).toLocaleDateString('es-AR')}</strong> - {h.personal_salud}
+                      <span className={h.contacto_logrado ? styles.tagSuccess : styles.tagError}>
+                        {h.contacto_logrado ? 'Logrado' : 'Fallido'}
+                      </span>
                     </div>
-                  ))
-                )}
-              </div>
-            </details>
+                    <div className={styles.hBody}>
+                      <p>{h.observaciones}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

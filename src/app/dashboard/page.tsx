@@ -39,6 +39,44 @@ export default function SeguimientoPage() {
     fetchPacientes();
   }, []);
 
+  // Nuevos estados para el Autocomplete
+  const [sugerencias, setSugerencias] = useState<any[]>([]);
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
+
+  // Función para buscar sugerencias (sin filtros, a toda la base)
+  const fetchSugerencias = async (busqueda: string) => {
+    // Si borra el texto, ocultamos la lista
+    if (busqueda.length < 1) {
+      setSugerencias([]);
+      setMostrarSugerencias(false); // <--- Agregá esto
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/pacientes/sugerencias?q=${busqueda}`);
+      
+      // Si la API responde bien (200), procesamos
+      if (res.ok) {
+        const data = await res.json();
+        setSugerencias(data);
+        setMostrarSugerencias(true);
+      } else {
+        setMostrarSugerencias(false);
+      }
+    } catch (error) {
+      console.error("Error en sugerencias");
+      setMostrarSugerencias(false);
+    }
+  };
+
+  const seleccionarPaciente = (dni: string) => {
+    setFilterDni(dni);
+    setMostrarSugerencias(false);
+    
+    // Al seleccionar una sugerencia, forzamos la búsqueda exacta
+    fetchPacientes(dni, true); 
+  };
+
   const fetchFiltros = async () => {
     try {
       const res = await fetch("/api/filtros");
@@ -49,23 +87,27 @@ export default function SeguimientoPage() {
     }
   };
 
-  const fetchPacientes = async () => {
+  const fetchPacientes = async (dniDirecto?: string, esExacto: boolean = false) => {
     setLoading(true);
     try {
-      // Pasamos los filtros reales a la API
+      const dniABuscar = dniDirecto !== undefined ? dniDirecto : filterDni;
       const queryParams: any = {
-        dni: filterDni,
+        dni: dniABuscar,
         establecimiento: filterEst,
         riesgo: filterRiesgo,
         dias: filterDias
       };
+
+      // Si es una búsqueda exacta por DNI, agregamos el flag para el backend
+      if (esExacto || (dniABuscar && dniABuscar.length > 7)) {
+        queryParams.exact = "true";
+      }
+
       if (filterFppDesde) queryParams.fppDesde = filterFppDesde;
       if (filterFppHasta) queryParams.fppHasta = filterFppHasta;
 
       const query = new URLSearchParams(queryParams);
-      
       const res = await fetch(`/api/pacientes?${query}`);
-      if (!res.ok) throw new Error("Error en la carga");
       const data = await res.json();
       
       setPacientes(data.data || []);
@@ -76,6 +118,7 @@ export default function SeguimientoPage() {
       setLoading(false);
     }
   };
+  
 
   return (
     <>
@@ -90,19 +133,35 @@ export default function SeguimientoPage() {
             </div>
 
             <div className={styles.filterGroup}>
-              <label className={styles.filterLabel}>Buscar por DNI</label>
-              <div className={styles.searchWrapper} style={{maxWidth: '100%'}}>
+            <label className={styles.filterLabel}>Buscar por DNI</label>
+            <div className={styles.autocompleteWrapper}>
+              <div className={styles.searchWrapper}>
                 <Search className={styles.searchIcon} />
                 <input 
                   type="text" 
                   placeholder="DNI de la paciente..." 
                   className={styles.searchInput}
                   value={filterDni}
-                  onChange={(e) => setFilterDni(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && fetchPacientes()}
+                  onChange={(e) => {
+                    setFilterDni(e.target.value);
+                    fetchSugerencias(e.target.value);
+                  }}
                 />
               </div>
+
+              {/* Lista Desplegable de Sugerencias */}
+              {mostrarSugerencias && sugerencias.length > 0 && (
+                <ul className={styles.suggestionList}>
+                  {sugerencias.map((s) => (
+                    <li key={s.dni} onClick={() => seleccionarPaciente(s.dni)}>
+                      <span className={styles.suggestDni}>{s.dni}</span>
+                      <span className={styles.suggestNombre}>{s.nombre}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
+          </div>
 
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>Establecimiento</label>
@@ -175,19 +234,41 @@ export default function SeguimientoPage() {
 
           {/* Sección de Tabla */}
           <main className={styles.tableContainer}>
-            <div className={styles.tableHeader}>
-              <span className={styles.counterBadge}>
-                {pacientes.length} Pacientes encontradas de {totalGlobal} totales
-              </span>
-              <button 
-                className={styles.btnRefresh}
-                onClick={fetchPacientes}
-                disabled={loading}
-              >
-                <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                {loading ? "Actualizando..." : "Actualizar"}
-              </button>
+          <div className={styles.statsGrid}>
+            <div className={styles.statCard}>
+              <span className={styles.statLabel}>Pacientes Encontradas</span>
+              <div className={styles.statValueContainer}>
+                <span className={`${styles.statValue} ${styles.textHighlight}`}>
+                  {pacientes.length}
+                </span>
+                <Filter className="w-6 h-6 text-emerald-500 opacity-20" />
+              </div>
+              <p className={styles.statSubtext}>Según filtros aplicados</p>
             </div>
+
+            <div className={styles.statCard}>
+              <span className={styles.statLabel}>Total en Padrón</span>
+              <div className={styles.statValueContainer}>
+                <span className={styles.statValue}>
+                  {totalGlobal}
+                </span>
+                <Search className="w-6 h-6 text-slate-400 opacity-20" />
+              </div>
+              <p className={styles.statSubtext}>Base de datos consolidada</p>
+            </div>
+          </div>
+
+          <div className={styles.tableHeader}>
+            <h2 className={styles.tableTitle}>Listado de Seguimiento</h2>
+            <button 
+              className={styles.btnRefresh}
+              onClick={fetchPacientes}
+              disabled={loading}
+            >
+              <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? "Actualizando..." : "Actualizar"}
+            </button>
+          </div>
 
             <div className={styles.tableResponsive}>
               <table className={styles.pacientesTable}>

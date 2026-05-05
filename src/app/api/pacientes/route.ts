@@ -20,6 +20,7 @@ export async function GET(request: Request) {
 
   // Extraemos los parámetros de búsqueda de la URL
   const { searchParams } = new URL(request.url);
+  const exact = searchParams.get("exact") === "true"; // Capturamos el flag
   const dni = searchParams.get("dni");
   const establecimiento = searchParams.get("establecimiento");
   const riesgo = searchParams.get("riesgo") || "Si";
@@ -52,34 +53,41 @@ export async function GET(request: Request) {
     // 1. Filtros de la Query principal (Capa Gold)
     whereClause += securityClause;
 
-    if (riesgo !== "Todas") {
-      whereClause += ` AND LOWER(riesgo) IN ('si', 's', 'alto', 'moderado')`;
-    }
+    // SI HAY DNI EXACTO, IGNORAMOS EL RESTO DE LOS FILTROS DE GESTIÓN
+    if (dni && exact) {
+        params.push(dni.trim());
+        whereClause += ` AND dni = $${params.length}`;
+    } 
+    else {
+        // Solo si NO es búsqueda exacta, aplicamos filtros de Riesgo, Días y FPP
+        if (riesgo !== "Todas") {
+            whereClause += ` AND LOWER(riesgo) IN ('si', 's', 'alto', 'moderado')`;
+        }
 
-    if (dias && dias !== "0") {
-      const diasNum = parseInt(dias, 10);
-      if (!isNaN(diasNum)) {
-        params.push(diasNum);
-        whereClause += ` AND (CURRENT_DATE - fecha_ultimo_control) >= $${params.length}`;
-      }
-    }
+        if (dias && dias !== "0") {
+            const diasNum = parseInt(dias, 10);
+            if (!isNaN(diasNum)) {
+                params.push(diasNum);
+                whereClause += ` AND (CURRENT_DATE - fecha_ultimo_control) >= $${params.length}`;
+            }
+        }
 
-    if (fppDesde) {
-      params.push(fppDesde);
-      whereClause += ` AND fecha_probable_parto >= $${params.length}`;
-    } else if (!fppDesde && !fppHasta) {
-      // Default si no hay filtros explícitos de fecha
-      whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`;
-    }
+        if (fppDesde) {
+            params.push(fppDesde);
+            whereClause += ` AND fecha_probable_parto >= $${params.length}`;
+        } else if (!fppDesde && !fppHasta && !dni) {
+            whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`;
+        }
 
-    if (fppHasta) {
-      params.push(fppHasta);
-      whereClause += ` AND fecha_probable_parto <= $${params.length}`;
-    }
+        if (fppHasta) {
+            params.push(fppHasta);
+            whereClause += ` AND fecha_probable_parto <= $${params.length}`;
+        }
 
-    if (dni) {
-      params.push(`${dni}%`);
-      whereClause += ` AND dni LIKE $${params.length}`;
+        if (dni) {
+            params.push(`${dni}%`);
+            whereClause += ` AND dni LIKE $${params.length}`;
+        }
     }
 
     if (establecimiento && establecimiento !== "Todos") {

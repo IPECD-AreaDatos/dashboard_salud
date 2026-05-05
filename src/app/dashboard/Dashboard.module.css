@@ -123,12 +123,67 @@
 }
 
 .tableHeader {
-  padding: 1.25rem;
-  border-bottom: 1px solid #f1f5f9;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Dos columnas iguales */
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.statValueContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.statValue {
+  font-size: 2.5rem; /* Bien grande para que resalte */
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1;
+}
+
+/* Color Verde IPECD/Salud para el resultado del filtro */
+.textHighlight {
+  color: #059669; 
+}
+
+.statSubtext {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin-top: 0.5rem;
+}
+
+.tableTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #334155;
 }
 
 .searchWrapper {
@@ -283,4 +338,55 @@
 
 .btnAction:active {
   transform: scale(0.97);
+}
+
+
+.autocompleteWrapper {
+  position: relative; /* Para que la lista se posicione respecto a esto */
+  width: 100%;
+}
+
+.suggestionList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 50; /* Por encima de todo */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 0;
+  list-style: none;
+}
+
+.suggestionList li {
+  padding: 10px 15px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.suggestionList li:hover {
+  background-color: #f8fafc;
+}
+
+.suggestDni {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #059669; /* Verde Salud */
+}
+
+.suggestNombre {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.suggestionList li:hover {
+  background-color: #ecfdf5; /* Un verde clarito de Salud Corrientes */
+  border-left: 4px solid #10b981; /* Una marquita verde al costado */
 }
