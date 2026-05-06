@@ -59,23 +59,23 @@ export default function StatsPage() {
         <div className={styles.kpiRow}>
           <div className={`${styles.kpiCard} ${styles.mainCard} ${styles.genTotal}`}>
             <span className={styles.kpiLabel}>Total</span>
-            <span className={`${styles.kpiValue} ${styles.valBlack}`}>{data.general?.total || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.general?.total || 0).toLocaleString('es-AR')}</span>
           </div>
           <div className={styles.kpiCard}>
             <span className={styles.kpiLabel}>Menores a 15 años</span>
-            <span className={`${styles.kpiValue} ${styles.valRed}`}>{data.general?.sub15 || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valRed}`}>{(data.general?.sub15 || 0).toLocaleString('es-AR')}</span>
           </div>
           <div className={styles.kpiCard}>
             <span className={styles.kpiLabel}>15 a 19 años</span>
-            <span className={`${styles.kpiValue} ${styles.valOrange}`}>{data.general?.age15_19 || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.general?.age15_19 || 0).toLocaleString('es-AR')}</span>
           </div>
           <div className={styles.kpiCard}>
             <span className={styles.kpiLabel}>20 a 34 años</span>
-            <span className={`${styles.kpiValue} ${styles.valGreen}`}>{data.general?.age20_34 || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.general?.age20_34 || 0).toLocaleString('es-AR')}</span>
           </div>
           <div className={styles.kpiCard}>
             <span className={styles.kpiLabel}>Mayores a 34 años</span>
-            <span className={`${styles.kpiValue} ${styles.valOrange}`}>{data.general?.age34plus || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valRed}`}>{(data.general?.age34plus || 0).toLocaleString('es-AR')}</span>
           </div>
         </div>
 
@@ -83,23 +83,23 @@ export default function StatsPage() {
         <div className={styles.kpiRow}>
           <div className={`${styles.kpiCard} ${styles.mainCard} ${styles.rsgTotal}`}>
             <span className={styles.kpiLabel}>Total Riesgo</span>
-            <span className={`${styles.kpiValue} ${styles.valBlack}`}>{data.riesgo?.total || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valRed}`}>{(data.riesgo?.total || 0).toLocaleString('es-AR')}</span>
           </div>
           <div className={styles.kpiCard}>
             <span className={styles.kpiLabel}>Menores a 15 años</span>
-            <span className={`${styles.kpiValue} ${styles.valRed}`}>{data.riesgo?.sub15 || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.riesgo?.sub15 || 0).toLocaleString('es-AR')}</span>
           </div>
           <div className={styles.kpiCard}>
             <span className={styles.kpiLabel}>15 a 19 años</span>
-            <span className={`${styles.kpiValue} ${styles.valOrange}`}>{data.riesgo?.age15_19 || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.riesgo?.age15_19 || 0).toLocaleString('es-AR')}</span>
           </div>
           <div className={styles.kpiCard}>
             <span className={styles.kpiLabel}>20 a 34 años</span>
-            <span className={`${styles.kpiValue} ${styles.valGreen}`}>{data.riesgo?.age20_34 || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.riesgo?.age20_34 || 0).toLocaleString('es-AR')}</span>
           </div>
           <div className={styles.kpiCard}>
             <span className={styles.kpiLabel}>Mayores a 34 años</span>
-            <span className={`${styles.kpiValue} ${styles.valOrange}`}>{data.riesgo?.age34plus || 0}</span>
+            <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.riesgo?.age34plus || 0).toLocaleString('es-AR')}</span>
           </div>
         </div>
 

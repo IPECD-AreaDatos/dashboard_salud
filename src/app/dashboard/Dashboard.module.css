@@ -148,8 +148,27 @@
   flex-direction: column;
 }
 
+.sortableHeader {
+  cursor: pointer;
+  white-space: nowrap; /* Evita que el título se parta en dos renglones */
+  font-size: 0.85rem;  /* Letra un poquito más chica para que entre todo */
+  user-select: none;   /* Evita que se resalte el texto al hacer muchos clics */
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 4px;            /* Espacio fijo entre el texto y la flecha */
+}
+
+.sortIcon {
+  font-size: 0.8rem;
+  color: #94a3b8;      /* Un color gris más suave para que no distraiga tanto */
+  min-width: 12px;     /* Reserva el espacio para que el título no salte al cambiar de flecha */
+}
+
 .statLabel {
-  font-size: 0.75rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;

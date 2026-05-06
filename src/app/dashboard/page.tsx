@@ -22,6 +22,16 @@ export default function SeguimientoPage() {
   const [establecimientos, setEstablecimientos] = useState<{value: string, label: string}[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   // Estados para los filtros (Como Tony)
   const [filterDni, setFilterDni] = useState("");
   const [filterEst, setFilterEst] = useState("Todos");
@@ -127,6 +137,18 @@ export default function SeguimientoPage() {
       setLoading(false);
     }
   };
+
+  const sortedPacientes = [...pacientes].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    const aValue = a[sortConfig.key];
+    const bValue = b[sortConfig.key];
+
+    // Lógica para manejar fechas o números
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
   
 
   return (
@@ -272,9 +294,8 @@ export default function SeguimientoPage() {
               <span className={styles.statLabel}>Pacientes Encontradas</span>
               <div className={styles.statValueContainer}>
                 <span className={`${styles.statValue} ${styles.textHighlight}`}>
-                  {pacientes.length}
+                  {pacientes.length.toLocaleString('es-AR')}
                 </span>
-                <Filter className="w-6 h-6 text-emerald-500 opacity-20" />
               </div>
               <p className={styles.statSubtext}>Según filtros aplicados</p>
             </div>
@@ -283,9 +304,8 @@ export default function SeguimientoPage() {
               <span className={styles.statLabel}>Total en Padrón</span>
               <div className={styles.statValueContainer}>
                 <span className={styles.statValue}>
-                  {totalGlobal}
+                  {totalGlobal.toLocaleString('es-AR')}
                 </span>
-                <Search className="w-6 h-6 text-slate-400 opacity-20" />
               </div>
               <p className={styles.statSubtext}>Base de datos consolidada</p>
             </div>
@@ -307,12 +327,45 @@ export default function SeguimientoPage() {
               <table className={styles.pacientesTable}>
                 <thead>
                   <tr>
-                    <th>Paciente</th>
-                    <th>DNI</th>
-                    <th>FPP</th>
-                    <th>Últ. Control</th>
-                    <th>Días S/C</th>
-                    <th>Estado</th>
+                    <th className={styles.sortableHeader}>Paciente</th>
+                    
+                    <th onClick={() => handleSort('dni')} className={styles.sortableHeader}>
+                      <div className={styles.headerContent}>
+                        <span>DNI</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfig.key === 'dni' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
+                    </th>
+
+                    <th onClick={() => handleSort('fpp')} className={styles.sortableHeader}>
+                      <div className={styles.headerContent}>
+                        <span>FPP</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfig.key === 'fpp' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
+                    </th>
+
+                    <th onClick={() => handleSort('ult_control')} className={styles.sortableHeader}>
+                      <div className={styles.headerContent}>
+                        <span>Último Control</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfig.key === 'ult_control' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
+                    </th>
+
+                    <th onClick={() => handleSort('dias')} className={styles.sortableHeader}>
+                      <div className={styles.headerContent}>
+                        <span>Días sin Control</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfig.key === 'dias' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
+                    </th>
+                    
+                    <th className={styles.sortableHeader}>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -322,8 +375,8 @@ export default function SeguimientoPage() {
                         Cargando base de datos Gold...
                       </td>
                     </tr>
-                  ) : pacientes.length > 0 ? (
-                    pacientes.map((p) => (
+                  ) : sortedPacientes.length > 0 ? (
+                    sortedPacientes.map((p) => (
                       <tr key={p.id} 
                             onDoubleClick={() => setSelectedPaciente(p)} // <--- DOBLE CLIC AQUÍ
                       >
@@ -335,7 +388,9 @@ export default function SeguimientoPage() {
                             </div>
                           </div>
                         </td>
-                        <td style={{ color: '#475569' }}>{p.dni}</td>
+                        <td style={{ color: '#475569' }}>
+                          {p.dni ? Number(p.dni).toLocaleString('es-AR') : "-"}
+                        </td>
                         <td className={styles.fppCell}>
                           {p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : "-"}
                         </td>
