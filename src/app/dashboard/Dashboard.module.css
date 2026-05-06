@@ -166,7 +166,7 @@
 .statValue {
   font-size: 2rem; /* Bien grande para que resalte */
   font-weight: 800;
-  color: #1e293b;
+  color: #024d37;
   line-height: 1;
 }
 
@@ -184,7 +184,7 @@
 .tableTitle {
   font-size: 1.5rem; /* Un poco más grande */
   font-weight: 600;
-  color: #1e293b;
+  color: #046147;
   letter-spacing: -0.025em; /* Estilo moderno */
   margin: 0;
   font-family: 'Outfit', sans-serif; /* Si la tenés cargada, sino usa la del sistema */
@@ -293,7 +293,7 @@
 .pacienteNombre {
   /* Usamos 800 para que sea bien marcado como querés */
   font-weight: 800; 
-  color: #0f172a; /* Slate-900 para que sea un negro profundo */
+  color: #035a41; /* Slate-900 para que sea un negro profundo */
   font-size: 0.85rem;
   /* Un pequeño margen para separarlo del teléfono */
   margin-bottom: 2px; /* slate-900 */
