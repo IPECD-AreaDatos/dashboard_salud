@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styles from "./RegistroContactoModal.module.css";
 import { X, Save, Clock } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 export default function RegistroContactoModal({ paciente, onClose, onSuccess }: any) {
   const [formData, setFormData] = useState({
@@ -13,7 +14,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
     observaciones: ""
   });
   
-  const [historial, setHistorial] = useState([]);
+  const [historial, setHistorial] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -24,7 +25,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
   const fetchHistorial = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/seguimientos?pacienteId=${paciente.id}`);
+      const res = await apiFetch(`/seguimientos?pacienteId=${paciente.id}`);
       const data = await res.json();
       if (Array.isArray(data)) setHistorial(data);
     } catch (error) {
@@ -47,7 +48,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("/api/seguimientos", {
+      const res = await apiFetch("/seguimientos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -12,13 +12,14 @@ import {
   ResponsiveContainer
 } from "recharts";
 import { Loader2 } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 export default function StatsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/stats")
+    apiFetch("/stats")
       .then(res => res.json())
       .then(resData => {
         setData(resData);

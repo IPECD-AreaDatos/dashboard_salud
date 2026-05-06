@@ -4,6 +4,7 @@ import styles from "./Dashboard.module.css";
 import Navbar from "@/components/Navbar";
 import { Search, Filter, Phone, CheckCircle2, AlertCircle, RefreshCcw } from "lucide-react";
 import RegistroContactoModal from "@/components/RegistroContactoModal";
+import { apiFetch } from "@/lib/api";
 
 interface Paciente {
   id: number;
@@ -53,7 +54,7 @@ export default function SeguimientoPage() {
     }
     
     try {
-      const res = await fetch(`/api/pacientes/sugerencias?q=${busqueda}`);
+      const res = await apiFetch(`/pacientes/sugerencias?q=${busqueda}`);
       
       // Si la API responde bien (200), procesamos
       if (res.ok) {
@@ -79,7 +80,7 @@ export default function SeguimientoPage() {
 
   const fetchFiltros = async () => {
     try {
-      const res = await fetch("/api/filtros");
+      const res = await apiFetch("/filtros");
       const data = await res.json();
       setEstablecimientos(data);
     } catch (error) {
@@ -107,7 +108,7 @@ export default function SeguimientoPage() {
       if (filterFppHasta) queryParams.fppHasta = filterFppHasta;
 
       const query = new URLSearchParams(queryParams);
-      const res = await fetch(`/api/pacientes?${query}`);
+      const res = await apiFetch(`/pacientes?${query}`);
       const data = await res.json();
       
       setPacientes(data.data || []);
@@ -223,10 +224,10 @@ export default function SeguimientoPage() {
               />
             </div>
 
-            <button 
+              <button 
               className={styles.btnAction} 
               style={{ width: '100%', marginTop: '1rem' }}
-              onClick={fetchPacientes}
+              onClick={() => fetchPacientes()}
             >
               Aplicar Filtros
             </button>
@@ -262,7 +263,7 @@ export default function SeguimientoPage() {
             <h2 className={styles.tableTitle}>Listado de Seguimiento</h2>
             <button 
               className={styles.btnRefresh}
-              onClick={fetchPacientes}
+              onClick={() => fetchPacientes()}
               disabled={loading}
             >
               <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
