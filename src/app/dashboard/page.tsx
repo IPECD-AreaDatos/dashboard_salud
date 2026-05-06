@@ -19,7 +19,7 @@ interface Paciente {
 
 export default function SeguimientoPage() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
-  const [establecimientos, setEstablecimientos] = useState<string[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<{value: string, label: string}[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Estados para los filtros (Como Tony)
@@ -173,7 +173,7 @@ export default function SeguimientoPage() {
               >
                 <option value="Todos">Todos los Centros</option>
                 {establecimientos.map(est => (
-                  <option key={est} value={est}>{est}</option>
+                  <option key={est.value} value={est.value}>{est.label}</option>
                 ))}
               </select>
             </div>
