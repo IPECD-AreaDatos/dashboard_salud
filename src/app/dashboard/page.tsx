@@ -260,7 +260,7 @@ export default function SeguimientoPage() {
           </div>
 
           <div className={styles.tableHeader}>
-            <h2 className={styles.tableTitle}>Listado de Seguimiento</h2>
+            <h2 className={styles.tableTitle}>  Listado de Seguimiento</h2>
             <button 
               className={styles.btnRefresh}
               onClick={() => fetchPacientes()}
@@ -281,19 +281,20 @@ export default function SeguimientoPage() {
                     <th>Últ. Control</th>
                     <th>Días S/C</th>
                     <th>Estado</th>
-                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         Cargando base de datos Gold...
                       </td>
                     </tr>
                   ) : pacientes.length > 0 ? (
                     pacientes.map((p) => (
-                      <tr key={p.id}>
+                      <tr key={p.id} 
+                            onDoubleClick={() => setSelectedPaciente(p)} // <--- DOBLE CLIC AQUÍ
+                      >
                         <td>
                           <div className={styles.pacienteInfo}>
                             <div className={styles.pacienteNombre}>{p.nombre}</div>
@@ -323,14 +324,6 @@ export default function SeguimientoPage() {
                               Contactada
                             </span>
                           )}
-                        </td>
-                        <td>
-                          <button 
-                            className={styles.btnAction}
-                            onClick={() => setSelectedPaciente(p)}
-                          >
-                            REGISTRAR
-                          </button>
                         </td>
                       </tr>
                     ))
