@@ -62,7 +62,7 @@ export default function StatsPage() {
             <span className={`${styles.kpiValue} ${styles.valBlack}`}>{data.general?.total || 0}</span>
           </div>
           <div className={styles.kpiCard}>
-            <span className={styles.kpiLabel}>&lt; 15 años</span>
+            <span className={styles.kpiLabel}>Menores a 15 años</span>
             <span className={`${styles.kpiValue} ${styles.valRed}`}>{data.general?.sub15 || 0}</span>
           </div>
           <div className={styles.kpiCard}>
@@ -74,7 +74,7 @@ export default function StatsPage() {
             <span className={`${styles.kpiValue} ${styles.valGreen}`}>{data.general?.age20_34 || 0}</span>
           </div>
           <div className={styles.kpiCard}>
-            <span className={styles.kpiLabel}>&gt; 34 años</span>
+            <span className={styles.kpiLabel}>Mayores a 34 años</span>
             <span className={`${styles.kpiValue} ${styles.valOrange}`}>{data.general?.age34plus || 0}</span>
           </div>
         </div>
@@ -86,7 +86,7 @@ export default function StatsPage() {
             <span className={`${styles.kpiValue} ${styles.valBlack}`}>{data.riesgo?.total || 0}</span>
           </div>
           <div className={styles.kpiCard}>
-            <span className={styles.kpiLabel}>&lt; 15 años</span>
+            <span className={styles.kpiLabel}>Menores a 15 años</span>
             <span className={`${styles.kpiValue} ${styles.valRed}`}>{data.riesgo?.sub15 || 0}</span>
           </div>
           <div className={styles.kpiCard}>
@@ -98,7 +98,7 @@ export default function StatsPage() {
             <span className={`${styles.kpiValue} ${styles.valGreen}`}>{data.riesgo?.age20_34 || 0}</span>
           </div>
           <div className={styles.kpiCard}>
-            <span className={styles.kpiLabel}>&gt; 34 años</span>
+            <span className={styles.kpiLabel}>Mayores a 34 años</span>
             <span className={`${styles.kpiValue} ${styles.valOrange}`}>{data.riesgo?.age34plus || 0}</span>
           </div>
         </div>

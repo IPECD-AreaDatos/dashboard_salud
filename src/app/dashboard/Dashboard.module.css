@@ -408,3 +408,29 @@
   background-color: #ecfdf5; /* Un verde clarito de Salud Corrientes */
   border-left: 4px solid #10b981; /* Una marquita verde al costado */
 }
+
+
+.customDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white; /* Fondo blanco siempre */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.dropdownOption {
+  padding: 10px;
+  cursor: pointer;
+  color: #333; /* Texto oscuro sobre fondo blanco */
+  font-size: 14px;
+}
+
+.dropdownOption:hover {
+  background-color: #f0f0f0;
+}

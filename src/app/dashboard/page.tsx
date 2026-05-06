@@ -31,6 +31,14 @@ export default function SeguimientoPage() {
   const [filterFppHasta, setFilterFppHasta] = useState("");
   const [totalGlobal, setTotalGlobal] = useState(0);
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Filtramos la lista de establecimientos según lo que el usuario escribe
+  const filteredEsts = establecimientos.filter(est =>
+    est.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   // Modal de Contacto
   const [selectedPaciente, setSelectedPaciente] = useState<Paciente | null>(null);
 
@@ -164,19 +172,43 @@ export default function SeguimientoPage() {
             </div>
           </div>
 
-            <div className={styles.filterGroup}>
-              <label className={styles.filterLabel}>Establecimiento</label>
-              <select 
-                className={styles.selectInput}
-                value={filterEst}
-                onChange={(e) => setFilterEst(e.target.value)}
-              >
-                <option value="Todos">Todos los Centros</option>
-                {establecimientos.map(est => (
-                  <option key={est.value} value={est.value}>{est.label}</option>
+          <div className={styles.filterGroup} style={{ position: 'relative' }}>
+            <label className={styles.filterLabel}>Establecimiento</label>
+            
+            <input
+              type="text"
+              className={styles.selectInput}
+              placeholder="Buscar establecimiento..."
+              value={isOpen ? searchTerm : (establecimientos.find(e => e.value === filterEst)?.label || "Todos los Centros")}
+              onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
+            />
+
+            {isOpen && (
+              <div className={styles.customDropdown}>
+                <div 
+                  className={styles.dropdownOption} 
+                  onClick={() => { setFilterEst("Todos"); setIsOpen(false); }}
+                >
+                  Todos los Centros
+                </div>
+                {filteredEsts.map(est => (
+                  <div 
+                    key={est.value} 
+                    className={styles.dropdownOption}
+                    onClick={() => {
+                      setFilterEst(est.value);
+                      setSearchTerm(est.label);
+                      setIsOpen(false);
+                    }}
+                  >
+                    {est.label}
+                  </div>
                 ))}
-              </select>
-            </div>
+              </div>
+            )}
+          </div>
             
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>Riesgo</label>
