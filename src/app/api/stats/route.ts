@@ -96,8 +96,8 @@ export async function GET(request: Request) {
         age20_34: parseInt(kpis.rsg_20_34) || 0,
         age34plus: parseInt(kpis.rsg_34_plus) || 0
       },
-      topGeneral: topGenRes.rows.map(r => ({ name: r.name.trim(), value: parseInt(r.value) })),
-      topRiesgoAtraso: topRsgRes.rows.map(r => ({ name: r.name.trim(), value: parseInt(r.value) }))
+      topGeneral: topGenRes.rows.map(r => ({ name: r.name.trim(), value: parseInt(r.value) || 0 })),
+      topRiesgoAtraso: topRsgRes.rows.map(r => ({ name: r.name.trim(), value: parseInt(r.value) || 0 }))
     });
   } catch (error) {
     console.error("Error obteniendo estadísticas:", error);

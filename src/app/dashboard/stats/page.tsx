@@ -42,8 +42,9 @@ export default function StatsPage() {
     );
   }
 
-  const topGeneral = [...(data.topGeneral || [])].reverse();
-  const topRiesgo = [...(data.topRiesgoAtraso || [])].reverse();
+  // Sort explícito, no depende del orden de la API):
+  const topGeneral = [...(data.topGeneral || [])].sort((a, b) => b.value - a.value);
+  const topRiesgo = [...(data.topRiesgoAtraso || [])].sort((a, b) => b.value - a.value);
 
   return (
     <>
