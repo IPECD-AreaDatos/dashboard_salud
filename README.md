@@ -111,7 +111,7 @@ npm install
 \`\`\`bash
 npm run dev
 \`\`\`
-El proyecto levantará en \`http://localhost:3000\`.
+El proyecto levantará en \`http://localhost:3000/salud-dashboard\`.
 *(Nota: Si recibes errores de redirección al intentar cerrar sesión o logearte, verifica que tu puerto de ejecución coincida con el puerto declarado en `NEXTAUTH_URL`).*
 
 ### 4. Compilación de Producción

@@ -355,7 +355,7 @@
 
 /* Botón de Acción en la Tabla */
 .btnAction {
-  background-color: #16a34a; /* emerald-600 */
+  background-color: #129c6e; /* emerald-600 */
   color: white;
   border: none;
   padding: 0.625rem 1.25rem;
@@ -452,4 +452,69 @@
 
 .dropdownOption:hover {
   background-color: #f0f0f0;
+}
+
+.labelWithTooltip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0.5rem;
+}
+
+/* Reajustamos el margen del label original */
+.labelWithTooltip .filterLabel {
+  margin-bottom: 0;
+}
+
+.tooltipContainer {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+}
+
+.infoIcon {
+  color: #94a3b8; /* slate-400 */
+  transition: color 0.2s;
+}
+
+.infoIcon:hover {
+  color: #09694b; /* emerald-600 */
+}
+
+.tooltipText {
+  visibility: hidden;
+  width: 220px;
+  background-color: #086648; /* slate-800 */
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px;
+  position: absolute;
+  z-index: 100;
+  bottom: 125%; /* Aparece arriba del icono */
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.2;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* Triángulo del tooltip */
+.tooltipText::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #085c4e transparent transparent transparent;
+}
+
+.tooltipContainer:hover .tooltipText {
+  visibility: visible;
+  opacity: 1;
 }

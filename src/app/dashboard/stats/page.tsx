@@ -14,6 +14,22 @@ import {
 import { Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
+const romanToArabic = (text: string) => {
+  if (!text) return text;
+  const map: { [key: string]: string } = {
+    ' XVII': ' 17', ' XVI': ' 16', ' XV': ' 15', ' XIV': ' 14', ' XIII': ' 13',
+    ' XII': ' 12', ' XI': ' 11', ' IX': ' 9', ' VIII': ' 8', ' VII': ' 7',
+    ' VI': ' 6', ' IV': ' 4', ' V': ' 5', ' III': ' 3', ' II': ' 2', ' I': ' 1'
+  };
+
+  let newText = text;
+  Object.keys(map).forEach(key => {
+    const regex = new RegExp(`${key}(\\b|\\s|$)`, 'g');
+    newText = newText.replace(regex, `${map[key]}$1`);
+  });
+  return newText;
+};
+
 export default function StatsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -43,8 +59,19 @@ export default function StatsPage() {
   }
 
   // Sort explícito, no depende del orden de la API):
-  const topGeneral = [...(data.topGeneral || [])].sort((a, b) => b.value - a.value);
-  const topRiesgo = [...(data.topRiesgoAtraso || [])].sort((a, b) => b.value - a.value);
+  const topGeneral = [...(data.topGeneral || [])]
+    .sort((a, b) => b.value - a.value)
+    .map(item => ({
+      ...item,
+      name: romanToArabic(item.name) // <--- Aplicamos la unificación aquí
+    }));
+
+  const topRiesgo = [...(data.topRiesgoAtraso || [])]
+    .sort((a, b) => b.value - a.value)
+    .map(item => ({
+      ...item,
+      name: romanToArabic(item.name) // <--- Y aquí también
+    }));
 
   return (
     <>
@@ -111,9 +138,10 @@ export default function StatsPage() {
                 <BarChart data={topGeneral} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={180} tick={{fill: '#475569'}} />
+                  <YAxis dataKey="name" type="category" width={250} tick={{fill: '#475569', fontSize: 12}} />
                   <Tooltip cursor={{fill: '#f1f5f9'}} />
-                  <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" fill="#129c6e" radius={[0, 7, 7, 0]} 
+                                                      barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -126,9 +154,10 @@ export default function StatsPage() {
                 <BarChart data={topRiesgo} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={180} tick={{fill: '#475569'}} />
+                  <YAxis dataKey="name" type="category" width={250} tick={{fill: '#475569', fontSize: 12}} />
                   <Tooltip cursor={{fill: '#f1f5f9'}} />
-                  <Bar dataKey="value" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" fill="#ef4444" radius={[0, 7, 7, 0]} 
+                                                      barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

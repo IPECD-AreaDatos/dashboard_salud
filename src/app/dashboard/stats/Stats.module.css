@@ -35,18 +35,35 @@
 
 .kpiRow {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  padding: 0.75rem; /* Espacio para que la sombra no se corte al borde */
 }
 
 .kpiCard {
   background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  padding: 1rem;
+  border: 1px solid rgba(226, 232, 240, 0.5); /* Borde casi invisible */
+  border-radius: 1.25rem; /* Un poco más redondeado queda más moderno */
+  padding: 1.5rem 1rem;
   flex: 1;
   text-align: center;
-  box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+  
+  /* SOMBRA PROFUNDA Y SUAVE (Efecto Elevación) */
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.04), 
+    0 4px 6px -4px rgba(0, 0, 0, 0.02),
+    0 20px 25px -5px rgba(0, 0, 0, 0.03);
+    
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpiCard:hover {
+  /* Al pasar el mouse, la sombra se expande y la card sube */
+  transform: translateY(-5px);
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 
+    0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
 }
 
 .kpiCard.mainCard {
@@ -55,25 +72,38 @@
 }
 
 .kpiLabel {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: #64748b;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
   display: block;
+  font-weight: 600;
+  text-transform: uppercase; /* Le da un look de reporte oficial */
+  letter-spacing: 0.025em;
 }
 
 .kpiValue {
-  font-size: 1.9rem;
-  font-weight: 760;
+  font-size: 2.2rem;
+  font-weight: 900; /* Extra bold */
   color: #0f172a;
+  display: block;
+  margin-top: 0.25rem;
+  /* Un pequeño reflejo en el número ayuda a la estética */
+  text-shadow: 0 1px 1px rgba(255,255,255,0.8); 
 }
 
-/* Modifiers */
-.genTotal { border-bottom: 3px solid #3b82f6; }
-.rsgTotal { border-bottom: 3px solid #ef4444; }
+/* Remarcado Verde para General */
+.genTotal { 
+  border-top: 4px solid #129c6e; /* Verde Salud */
+  background: linear-gradient(to bottom, #f0fdf4, #ffffff); /* Fondo verdoso muy tenue */
+}
+
+.rsgTotal { 
+  border-top: 4px solid #ef4444; 
+  background: linear-gradient(to bottom, #fef2f2, #ffffff); /* Degradado suave rojo */
+}
 
 .valBlack { color: #1e293b; }
-.valOrange { color: #f97316; }
-.valGreen { color: #10b981; }
+.valGreen { color: #129c6e; }
 .valRed { color: #ef4444; }
 
 /* Charts */
@@ -86,11 +116,11 @@
 
 .chartCard {
   background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);
-  height: 550px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  height: 500px;
   display: flex;
   flex-direction: column;
 }

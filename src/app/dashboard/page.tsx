@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import styles from "./Dashboard.module.css";
 import Navbar from "@/components/Navbar";
-import { Search, Filter, Phone, CheckCircle2, AlertCircle, RefreshCcw } from "lucide-react";
+import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw } from "lucide-react";
 import RegistroContactoModal from "@/components/RegistroContactoModal";
 import { apiFetch } from "@/lib/api";
 
@@ -16,6 +16,25 @@ interface Paciente {
   dias: number;
   contactada: string;
 }
+
+const romanToArabic = (text: string) => {
+  const map: { [key: string]: string } = {
+    ' XVII': ' 17', ' XVI': ' 16', ' XV': ' 15', ' XIV': ' 14', ' XIII': ' 13',
+    ' XII': ' 12', ' XI': ' 11', ' IX': ' 9', ' VIII': ' 8', ' VII': ' 7',
+    ' VI': ' 6', ' IV': ' 4', ' V': ' 5', ' III': ' 3', ' II': ' 2', ' I': ' 1',
+    ' Nº ': ' Nº ', ' No ': ' Nº ' // Normaliza el símbolo de número
+  };
+
+  let newText = text;
+  // Reemplazamos cada ocurrencia romana por su número
+  Object.keys(map).forEach(key => {
+    // Usamos regex para asegurar que el número romano esté aislado (evita errores en palabras)
+    const regex = new RegExp(`${key}(\\b|\\s|$)`, 'g');
+    newText = newText.replace(regex, `${map[key]}$1`);
+  });
+
+  return newText;
+};
 
 export default function SeguimientoPage() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
@@ -100,7 +119,14 @@ export default function SeguimientoPage() {
     try {
       const res = await apiFetch("/filtros");
       const data = await res.json();
-      setEstablecimientos(data);
+      
+      // Mapeamos los establecimientos para unificar sus nombres
+      const estsUnificados = data.map((est: {value: string, label: string}) => ({
+        ...est,
+        label: romanToArabic(est.label) // <--- Aplicamos la limpieza aquí
+      }));
+  
+      setEstablecimientos(estsUnificados);
     } catch (error) {
       console.error("Error cargando establecimientos");
     }
@@ -201,7 +227,7 @@ export default function SeguimientoPage() {
               type="text"
               className={styles.selectInput}
               placeholder="Buscar establecimiento..."
-              value={isOpen ? searchTerm : (establecimientos.find(e => e.value === filterEst)?.label || "Todos los Centros")}
+              value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos los Centros")}
               onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
               onChange={(e) => setSearchTerm(e.target.value)}
               onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
@@ -221,7 +247,7 @@ export default function SeguimientoPage() {
                     className={styles.dropdownOption}
                     onClick={() => {
                       setFilterEst(est.value);
-                      setSearchTerm(est.label);
+                      setSearchTerm(romanToArabic(est.label));
                       setIsOpen(false);
                     }}
                   >
@@ -233,7 +259,15 @@ export default function SeguimientoPage() {
           </div>
             
             <div className={styles.filterGroup}>
-              <label className={styles.filterLabel}>Riesgo</label>
+              <div className={styles.labelWithTooltip}>
+                <label className={styles.filterLabel}>Riesgo</label>
+                <div className={styles.tooltipContainer}>
+                  <Info size={14} className={styles.infoIcon} />
+                  <span className={styles.tooltipText}>
+                    Muestra pacientes con derivación y/o factores de riesgo cargados.
+                  </span>
+                </div>
+              </div>
               <select 
                 className={styles.selectInput}
                 value={filterRiesgo}
