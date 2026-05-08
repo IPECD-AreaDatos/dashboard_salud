@@ -14,8 +14,18 @@ interface Paciente {
   fpp: string;
   ult_control: string;
   dias: number;
-  contactada: string;
+  // Cambiamos 'contactada' por el dato real que traeremos de la tabla seguimientos
+  fecha_ultimo_contacto: string | null;
 }
+
+// Función helper para calcular la diferencia de días
+const calcularDiasSinContacto = (fechaContacto: string) => {
+  if (!fechaContacto || fechaContacto === "null") return 999; // Caso nunca contactada
+  const inicio = new Date(fechaContacto);
+  const hoy = new Date();
+  const diferencia = hoy.getTime() - inicio.getTime();
+  return Math.floor(diferencia / (1000 * 60 * 60 * 24));
+};
 
 const romanToArabic = (text: string) => {
   const map: { [key: string]: string } = {
@@ -176,6 +186,30 @@ export default function SeguimientoPage() {
     return 0;
   });
   
+  // Generar el texto dinámico de filtros
+  const getFiltrosAplicadosTexto = () => {
+    const partes = [];
+
+    // Filtro de Riesgo
+    if (filterRiesgo === "Si") {
+      partes.push("Embarazadas de Riesgo");
+    }
+
+    // Filtro de Días sin Control
+    if (filterDias !== "0") {
+      partes.push(`+${filterDias} días sin control`);
+    }
+
+    // Filtro de Establecimiento
+    if (filterEst !== "Todos") {
+      // Buscamos el nombre limpio usando la función romanToArabic que ya definimos
+      const estNombre = establecimientos.find(e => e.value === filterEst)?.label;
+      if (estNombre) partes.push(estNombre);
+    }
+
+    // Si no hay filtros aplicados, devolvemos vacío o un texto base
+    return partes.length > 0 ? ` — ${partes.join(" — ")}` : "";
+  };
 
   return (
     <>
@@ -346,7 +380,12 @@ export default function SeguimientoPage() {
           </div>
 
           <div className={styles.tableHeader}>
-            <h2 className={styles.tableTitle}>  Listado de Seguimiento</h2>
+            <h2 className={styles.tableTitle}>
+              Listado de Seguimiento 
+              <span className={styles.filtrosBadge}>
+                {getFiltrosAplicadosTexto()}
+              </span>
+            </h2>
             <button 
               className={styles.btnRefresh}
               onClick={() => fetchPacientes()}
@@ -399,55 +438,90 @@ export default function SeguimientoPage() {
                       </div>
                     </th>
                     
-                    <th className={styles.sortableHeader}>Estado</th>
+                    {/* NUEVA COLUMNA: ÚLTIMO CONTACTO */}
+                    <th onClick={() => handleSort('fecha_ultimo_contacto')} className={styles.sortableHeader}>
+                      <div className={styles.headerContent}>
+                        <span>Último Contacto</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfig.key === 'fecha_ultimo_contacto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
+                    </th>
+
+                    {/* COLUMNA: DÍAS SIN CONTACTO - Ordena por el número calculado en la API */}
+                    <th 
+                      onClick={() => handleSort('dias_sin_contacto')} 
+                      className={styles.sortableHeader}
+                    >
+                      <div className={styles.headerContent}>
+                        <span>Días s/ Contacto</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfig.key === 'dias_sin_contacto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         Cargando base de datos Gold...
                       </td>
                     </tr>
                   ) : sortedPacientes.length > 0 ? (
-                    sortedPacientes.map((p) => (
-                      <tr key={p.id} 
-                            onDoubleClick={() => setSelectedPaciente(p)} // <--- DOBLE CLIC AQUÍ
-                      >
-                        <td>
-                          <div className={styles.pacienteInfo}>
-                            <div className={styles.pacienteNombre}>{p.nombre}</div>
-                            <div className={styles.pacienteSub}>
-                              <Phone className="w-3 h-3 text-emerald-600" /> {p.telefono}
+                    sortedPacientes.map((p) => {
+                      // Usamos directamente los valores que vienen de la API
+                      const diasSC = p.dias_sin_contacto; 
+
+                      return (
+                        <tr key={p.id} onDoubleClick={() => setSelectedPaciente(p)}>
+                          <td>
+                            <div className={styles.pacienteInfo}>
+                              <div className={styles.pacienteNombre}>{p.nombre}</div>
+                              <div className={styles.pacienteSub}>
+                                <Phone className="w-3 h-3 text-emerald-600" /> {p.telefono}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td style={{ color: '#475569' }}>
-                          {p.dni ? Number(p.dni).toLocaleString('es-AR') : "-"}
-                        </td>
-                        <td className={styles.fppCell}>
-                          {p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : "-"}
-                        </td>
-                        <td style={{ color: '#475569' }}>
-                          {p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : "-"}
-                        </td>
-                        <td>
-                          <span className={styles.diasAtraso} style={{ 
-                            color: p.dias > 60 ? '#dc2626' : (p.dias > 30 ? '#ea580c' : '#1e293b') 
-                          }}>
-                            {p.dias === 999 ? "S/D" : p.dias}
-                          </span>
-                        </td>
-                        <td>
-                          {p.contactada && (
-                            <span className={styles.badgeContactada}>
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Contactada
+                          </td>
+                          <td style={{ color: '#475569' }}>
+                            {p.dni ? Number(p.dni).toLocaleString('es-AR') : "-"}
+                          </td>
+                          <td className={styles.fppCell}>
+                            {p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : "-"}
+                          </td>
+                          <td style={{ color: '#475569' }}>
+                            {p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : "-"}
+                          </td>
+                          <td>
+                            <span className={styles.diasAtraso} style={{ 
+                              color: p.dias > 60 ? '#dc2626' : (p.dias > 30 ? '#ea580c' : '#1e293b') 
+                            }}>
+                              {p.dias === 999 ? "S/D" : p.dias}
                             </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                          
+                          {/* COLUMNA: ÚLTIMO CONTACTO (Usando el nuevo campo de la API) */}
+                          <td style={{ color: '#475569' }}>
+                            {p.fecha_ultimo_contacto 
+                              ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR') 
+                              : "Sin registro"}
+                          </td>
+
+                          {/* COLUMNA: DÍAS SIN CONTACTO CON SEMÁFORO (Usando el cálculo de la API) */}
+                          <td>
+                            <span className={
+                              diasSC === 999 ? styles.semaforoGris :
+                              diasSC > 40 ? styles.semaforoRojo :
+                              diasSC > 20 ? styles.semaforoAmarillo :
+                              styles.semaforoVerde
+                            }>
+                              {diasSC === 999 ? "S/D" : diasSC}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>

@@ -1,7 +1,35 @@
 import type { Metadata } from "next";
+import { Barlow, Barlow_Semi_Condensed } from "next/font/google";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers"; // <--- IMPORTANTE
+
+
+// Configuramos Barlow Regular y Semibold
+const barlow = Barlow({ 
+  subsets: ["latin"], 
+  weight: ["400", "600"],
+  variable: "--font-barlow" 
+});
+
+// Configuramos Barlow Semi Condensed Extrabold
+const barlowSemiCondensed = Barlow_Semi_Condensed({ 
+  subsets: ["latin"], 
+  weight: ["800"],
+  variable: "--font-barlow-condensed" 
+});
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="es" className={`${barlow.variable} ${barlowSemiCondensed.variable}`}>
+      <body>{children}</body>
+    </html>
+  );
+}
 
 const inter = Inter({
   subsets: ["latin"],
@@ -12,26 +40,3 @@ const outfit = Outfit({
   subsets: ["latin"],
   variable: "--font-outfit",
 });
-
-export const metadata: Metadata = {
-  // Actualizamos el título para que sea profesional
-  title: "Sistema de Seguimiento Obstétrico | Ministerio de Salud Corrientes",
-  description: "Plataforma provincial de monitoreo de embarazadas de alto riesgo.",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="es" className={`${inter.variable} ${outfit.variable}`}>
-      <body className={inter.className}>
-        {/* Envolvemos los hijos con el Provider de sesión */}
-        <Providers>
-          {children}
-        </Providers>
-      </body>
-    </html>
-  );
-}

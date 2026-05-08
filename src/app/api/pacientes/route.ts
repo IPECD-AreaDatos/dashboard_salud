@@ -1,3 +1,4 @@
+/*src/app/api/pacientes/route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
@@ -97,21 +98,24 @@ export async function GET(request: Request) {
 
     let sql = `
       SELECT 
-        id, 
-        dni, 
-        nombre, 
-        apellido, 
-        telefono, 
-        fecha_probable_parto,
-        fecha_ultimo_control,
-        riesgo,
-        nombre_establecimiento,
-        (CURRENT_DATE - fecha_ultimo_control) as dias_atraso,
-        ultimo_contacto_at,
-        calle_domicilio,
-        nro_puerta_domicilio,
-        localidad_domicilio
-      FROM pacientes_gold
+        p.id, 
+        p.dni, 
+        p.nombre, 
+        p.apellido, 
+        p.telefono, 
+        p.fecha_probable_parto,
+        p.fecha_ultimo_control,
+        p.riesgo,
+        p.nombre_establecimiento,
+        (CURRENT_DATE - p.fecha_ultimo_control) as dias_atraso,
+        -- Buscamos la última fecha de la tabla seguimientos
+        (SELECT MAX(s.fecha_contacto) 
+         FROM seguimientos s 
+         WHERE s.paciente_id = p.id) as fecha_ultimo_contacto,
+        p.calle_domicilio,
+        p.nro_puerta_domicilio,
+        p.localidad_domicilio
+      FROM pacientes_gold p
       ${whereClause}
       ORDER BY dias_atraso DESC NULLS FIRST
     `;
@@ -120,27 +124,33 @@ export async function GET(request: Request) {
     
     // Mapeo para el Frontend
     const pacientes = result.rows.map(p => {
-        let dom = "";
-        if (p.calle_domicilio) {
-          dom = `${p.calle_domicilio} ${p.nro_puerta_domicilio || ''}`.trim();
-        }
-        if (p.localidad_domicilio) {
-          dom = dom ? `${dom} | Localidad: ${p.localidad_domicilio}` : `Localidad: ${p.localidad_domicilio}`;
-        }
-        
-        return {
-          id: p.id,
-          dni: p.dni,
-          nombre: `${p.apellido}, ${p.nombre}`,
-          telefono: p.telefono || "-",
-          fpp: p.fecha_probable_parto,
-          ult_control: p.fecha_ultimo_control,
-          establecimiento: p.nombre_establecimiento || "No asignado",
-          dias: p.dias_atraso !== null ? p.dias_atraso : 999,
-          contactada: p.ultimo_contacto_at ? "✅" : "",
-          domicilio: dom || "No registrado"
-        };
-      });
+      let dom = "";
+      if (p.calle_domicilio) {
+        dom = `${p.calle_domicilio} ${p.nro_puerta_domicilio || ''}`.trim();
+      }
+      
+      // Calculamos los días sin contacto aquí mismo para que el frontend ya los reciba
+      const hoy = new Date();
+      const ultContacto = p.fecha_ultimo_contacto ? new Date(p.fecha_ultimo_contacto) : null;
+      const diasSContacto = ultContacto 
+          ? Math.floor((hoy.getTime() - ultContacto.getTime()) / (1000 * 60 * 60 * 24))
+          : 999;
+
+      return {
+        id: p.id,
+        dni: p.dni,
+        nombre: `${p.apellido}, ${p.nombre}`,
+        telefono: p.telefono || "-",
+        fpp: p.fecha_probable_parto,
+        ult_control: p.fecha_ultimo_control,
+        establecimiento: p.nombre_establecimiento || "No asignado",
+        dias: p.dias_atraso !== null ? p.dias_atraso : 999,
+        // Enviamos la fecha real y los días calculados
+        fecha_ultimo_contacto: p.fecha_ultimo_contacto, 
+        dias_sin_contacto: diasSContacto,
+        domicilio: dom || "No registrado"
+      };
+    });
 
     return NextResponse.json({
       data: pacientes,

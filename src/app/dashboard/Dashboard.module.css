@@ -201,12 +201,20 @@
 }
 
 .tableTitle {
-  font-size: 1.5rem; /* Un poco más grande */
-  font-weight: 600;
-  color: #046147;
-  letter-spacing: -0.025em; /* Estilo moderno */
-  margin: 0;
-  font-family: 'Outfit', sans-serif; /* Si la tenés cargada, sino usa la del sistema */
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap; /* Para que si es muy largo no rompa el diseño */
+}
+
+.filtrosBadge {
+  font-size: 1rem;
+  font-weight: 550;
+  color: #056647; /* Verde Salud Corrientes */
+  margin-left: 8px;
+  opacity: 0.8;
 }
 
 /* Agregá esto para que el usuario sepa que puede interactuar con la fila */
@@ -517,4 +525,42 @@
 .tooltipContainer:hover .tooltipText {
   visibility: visible;
   opacity: 1;
+}
+
+/* Base común para los indicadores del semáforo */
+.semaforoVerde, 
+.semaforoAmarillo, 
+.semaforoRojo, 
+.semaforoGris {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-block;
+  min-width: 40px;
+  text-align: center;
+}
+
+.semaforoVerde {
+  background-color: #ecfdf5;
+  color: #037a55;
+  border: 1px solid #0a835a;
+}
+
+.semaforoAmarillo {
+  background-color: #fffbeb;
+  color: #d97706;
+  border: 1px solid #f59e0b;
+}
+
+.semaforoRojo {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #ef4444;
+}
+
+.semaforoGris {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
 }
