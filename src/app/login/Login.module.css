@@ -1,69 +1,131 @@
 .loginWrapper {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #f0fdf4; /* Un verde muy clarito de fondo */
-    background-image: url('/hero-bg.png'); /* La misma imagen sutil */
-    background-size: cover;
-    background-blend-mode: overlay;
-  }
-  
-  .loginCard {
-    background: white;
-    padding: 2.5rem;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-    width: 100%;
-    max-width: 400px;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    border: 1px solid #e2e8f0;
-  }
-  
-  .loginCard h2 {
-    text-align: center;
-    margin-bottom: 0.5rem;
-    font-weight: 700;
-  }
-  
-  .loginCard input {
-    padding: 0.8rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.2s;
-  }
-  
-  .loginCard input:focus {
-    outline: none;
-    border-color: #16a34a; /* Verde Salud */
-    ring: 2px solid #16a34a;
-  }
-  
-  .loginBtn {
-    background-color: #16a34a;
-    color: white;
-    padding: 0.8rem;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  
-  .loginBtn:hover {
-    background-color: #15803d;
-  }
-  
-  .error {
-    background-color: #fef2f2;
-    color: #dc2626;
-    padding: 0.7rem;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    text-align: center;
-    border: 1px solid #fee2e2;
-  }
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  font-family: var(--font-barlow), system-ui, sans-serif;
+  position: relative;
+}
+
+.backLink {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  text-decoration: none;
+  font-weight: 600;
+  font-family: var(--font-barlow), sans-serif;
+  transition: color 0.2s;
+}
+
+.backLink:hover {
+  color: #769FD3;
+}
+
+.loginCard {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 3rem;
+  border-radius: 2rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.03);
+  width: 100%;
+  max-width: 450px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.badgeBlue {
+  background-color: #f8fafc;
+  color: #769FD3;
+  padding: 0.5rem 1.2rem;
+  border-radius: 2rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: -0.5rem;
+  font-family: var(--font-barlow), sans-serif;
+  box-shadow: 0 4px 10px rgba(118, 159, 211, 0.1);
+}
+
+.loginTitle {
+  font-family: var(--font-barlow-condensed), sans-serif;
+  text-align: center;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #769FD3;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+.inputField {
+  width: 100%;
+  padding: 1rem 1.2rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  font-size: 1rem;
+  font-family: var(--font-barlow), sans-serif;
+  font-weight: 400;
+  transition: all 0.2s;
+  background-color: white;
+  color: #334155;
+  box-sizing: border-box;
+}
+
+.inputField::placeholder {
+  color: #94a3b8;
+}
+
+.inputField:focus {
+  outline: none;
+  border-color: #769FD3;
+  box-shadow: 0 0 0 3px rgba(118, 159, 211, 0.2);
+}
+
+.loginBtn {
+  width: 100%;
+  background-color: #769FD3;
+  color: white;
+  padding: 1.2rem;
+  border: none;
+  border-radius: 1rem;
+  font-family: var(--font-barlow), sans-serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 20px rgba(118, 159, 211, 0.25);
+  margin-top: 0.5rem;
+}
+
+.loginBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background-color: #90B4E1;
+  box-shadow: 0 15px 25px rgba(118, 159, 211, 0.35);
+}
+
+.loginBtn:disabled {
+  background-color: #cbd5e1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.error {
+  width: 100%;
+  background-color: #fef2f2;
+  color: #dc2626;
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  font-size: 0.95rem;
+  text-align: center;
+  border: 1px solid #fee2e2;
+  font-family: var(--font-barlow), sans-serif;
+  font-weight: 500;
+}

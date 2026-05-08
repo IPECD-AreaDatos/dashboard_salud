@@ -48,9 +48,9 @@ const romanToArabic = (text: string) => {
 
 export default function SeguimientoPage() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
-  const [establecimientos, setEstablecimientos] = useState<{value: string, label: string}[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<{ value: string, label: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const handleSort = (key) => {
@@ -99,10 +99,10 @@ export default function SeguimientoPage() {
       setMostrarSugerencias(false); // <--- Agregá esto
       return;
     }
-    
+
     try {
       const res = await apiFetch(`/pacientes/sugerencias?q=${busqueda}`);
-      
+
       // Si la API responde bien (200), procesamos
       if (res.ok) {
         const data = await res.json();
@@ -120,22 +120,22 @@ export default function SeguimientoPage() {
   const seleccionarPaciente = (dni: string) => {
     setFilterDni(dni);
     setMostrarSugerencias(false);
-    
+
     // Al seleccionar una sugerencia, forzamos la búsqueda exacta
-    fetchPacientes(dni, true); 
+    fetchPacientes(dni, true);
   };
 
   const fetchFiltros = async () => {
     try {
       const res = await apiFetch("/filtros");
       const data = await res.json();
-      
+
       // Mapeamos los establecimientos para unificar sus nombres
-      const estsUnificados = data.map((est: {value: string, label: string}) => ({
+      const estsUnificados = data.map((est: { value: string, label: string }) => ({
         ...est,
         label: romanToArabic(est.label) // <--- Aplicamos la limpieza aquí
       }));
-  
+
       setEstablecimientos(estsUnificados);
     } catch (error) {
       console.error("Error cargando establecimientos");
@@ -164,7 +164,7 @@ export default function SeguimientoPage() {
       const query = new URLSearchParams(queryParams);
       const res = await apiFetch(`/pacientes?${query}`);
       const data = await res.json();
-      
+
       setPacientes(data.data || []);
       setTotalGlobal(data.totalGlobal || 0);
     } catch (error) {
@@ -176,7 +176,7 @@ export default function SeguimientoPage() {
 
   const sortedPacientes = [...pacientes].sort((a, b) => {
     if (!sortConfig.key) return 0;
-    
+
     const aValue = a[sortConfig.key];
     const bValue = b[sortConfig.key];
 
@@ -185,7 +185,7 @@ export default function SeguimientoPage() {
     if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
     return 0;
   });
-  
+
   // Generar el texto dinámico de filtros
   const getFiltrosAplicadosTexto = () => {
     const partes = [];
@@ -224,74 +224,74 @@ export default function SeguimientoPage() {
             </div>
 
             <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Buscar por DNI</label>
-            <div className={styles.autocompleteWrapper}>
-              <div className={styles.searchWrapper}>
-                <Search className={styles.searchIcon} />
-                <input 
-                  type="text" 
-                  placeholder="DNI de la paciente..." 
-                  className={styles.searchInput}
-                  value={filterDni}
-                  onChange={(e) => {
-                    setFilterDni(e.target.value);
-                    fetchSugerencias(e.target.value);
-                  }}
-                />
-              </div>
+              <label className={styles.filterLabel}>Buscar por DNI</label>
+              <div className={styles.autocompleteWrapper}>
+                <div className={styles.searchWrapper}>
+                  <Search className={styles.searchIcon} />
+                  <input
+                    type="text"
+                    placeholder="DNI de la paciente..."
+                    className={styles.searchInput}
+                    value={filterDni}
+                    onChange={(e) => {
+                      setFilterDni(e.target.value);
+                      fetchSugerencias(e.target.value);
+                    }}
+                  />
+                </div>
 
-              {/* Lista Desplegable de Sugerencias */}
-              {mostrarSugerencias && sugerencias.length > 0 && (
-                <ul className={styles.suggestionList}>
-                  {sugerencias.map((s) => (
-                    <li key={s.dni} onClick={() => seleccionarPaciente(s.dni)}>
-                      <span className={styles.suggestDni}>{s.dni}</span>
-                      <span className={styles.suggestNombre}>{s.nombre}</span>
-                    </li>
+                {/* Lista Desplegable de Sugerencias */}
+                {mostrarSugerencias && sugerencias.length > 0 && (
+                  <ul className={styles.suggestionList}>
+                    {sugerencias.map((s) => (
+                      <li key={s.dni} onClick={() => seleccionarPaciente(s.dni)}>
+                        <span className={styles.suggestDni}>{s.dni}</span>
+                        <span className={styles.suggestNombre}>{s.nombre}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.filterGroup} style={{ position: 'relative' }}>
+              <label className={styles.filterLabel}>Establecimiento</label>
+
+              <input
+                type="text"
+                className={styles.selectInput}
+                placeholder="Buscar establecimiento..."
+                value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos los Centros")}
+                onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
+              />
+
+              {isOpen && (
+                <div className={styles.customDropdown}>
+                  <div
+                    className={styles.dropdownOption}
+                    onClick={() => { setFilterEst("Todos"); setIsOpen(false); }}
+                  >
+                    Todos los Centros
+                  </div>
+                  {filteredEsts.map(est => (
+                    <div
+                      key={est.value}
+                      className={styles.dropdownOption}
+                      onClick={() => {
+                        setFilterEst(est.value);
+                        setSearchTerm(romanToArabic(est.label));
+                        setIsOpen(false);
+                      }}
+                    >
+                      {est.label}
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
-          </div>
 
-          <div className={styles.filterGroup} style={{ position: 'relative' }}>
-            <label className={styles.filterLabel}>Establecimiento</label>
-            
-            <input
-              type="text"
-              className={styles.selectInput}
-              placeholder="Buscar establecimiento..."
-              value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos los Centros")}
-              onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
-            />
-
-            {isOpen && (
-              <div className={styles.customDropdown}>
-                <div 
-                  className={styles.dropdownOption} 
-                  onClick={() => { setFilterEst("Todos"); setIsOpen(false); }}
-                >
-                  Todos los Centros
-                </div>
-                {filteredEsts.map(est => (
-                  <div 
-                    key={est.value} 
-                    className={styles.dropdownOption}
-                    onClick={() => {
-                      setFilterEst(est.value);
-                      setSearchTerm(romanToArabic(est.label));
-                      setIsOpen(false);
-                    }}
-                  >
-                    {est.label}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-            
             <div className={styles.filterGroup}>
               <div className={styles.labelWithTooltip}>
                 <label className={styles.filterLabel}>Riesgo</label>
@@ -302,7 +302,7 @@ export default function SeguimientoPage() {
                   </span>
                 </div>
               </div>
-              <select 
+              <select
                 className={styles.selectInput}
                 value={filterRiesgo}
                 onChange={(e) => setFilterRiesgo(e.target.value)}
@@ -311,10 +311,10 @@ export default function SeguimientoPage() {
                 <option value="Todas">Todas</option>
               </select>
             </div>
-            
+
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>Días sin Control</label>
-              <select 
+              <select
                 className={styles.selectInput}
                 value={filterDias}
                 onChange={(e) => setFilterDias(e.target.value)}
@@ -328,8 +328,8 @@ export default function SeguimientoPage() {
 
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>FPP Desde</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 className={styles.searchInput}
                 value={filterFppDesde}
                 onChange={(e) => setFilterFppDesde(e.target.value)}
@@ -338,16 +338,16 @@ export default function SeguimientoPage() {
 
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>FPP Hasta</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 className={styles.searchInput}
                 value={filterFppHasta}
                 onChange={(e) => setFilterFppHasta(e.target.value)}
               />
             </div>
 
-              <button 
-              className={styles.btnAction} 
+            <button
+              className={styles.btnAction}
               style={{ width: '100%', marginTop: '1rem' }}
               onClick={() => fetchPacientes()}
             >
@@ -357,51 +357,51 @@ export default function SeguimientoPage() {
 
           {/* Sección de Tabla */}
           <main className={styles.tableContainer}>
-          <div className={styles.statsGrid}>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Pacientes Encontradas</span>
-              <div className={styles.statValueContainer}>
-                <span className={`${styles.statValue} ${styles.textHighlight}`}>
-                  {pacientes.length.toLocaleString('es-AR')}
-                </span>
+            <div className={styles.statsGrid}>
+              <div className={styles.statCard}>
+                <span className={styles.statLabel}>Pacientes Encontradas</span>
+                <div className={styles.statValueContainer}>
+                  <span className={`${styles.statValue} ${styles.textHighlight}`}>
+                    {pacientes.length.toLocaleString('es-AR')}
+                  </span>
+                </div>
+                <p className={styles.statSubtext}>Según filtros aplicados</p>
               </div>
-              <p className={styles.statSubtext}>Según filtros aplicados</p>
+
+              <div className={styles.statCard}>
+                <span className={styles.statLabel}>Total en Padrón</span>
+                <div className={styles.statValueContainer}>
+                  <span className={styles.statValue}>
+                    {totalGlobal.toLocaleString('es-AR')}
+                  </span>
+                </div>
+                <p className={styles.statSubtext}>Base de datos consolidada</p>
+              </div>
             </div>
 
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Total en Padrón</span>
-              <div className={styles.statValueContainer}>
-                <span className={styles.statValue}>
-                  {totalGlobal.toLocaleString('es-AR')}
+            <div className={styles.tableHeader}>
+              <h2 className={styles.tableTitle}>
+                Listado de Seguimiento
+                <span className={styles.filtrosBadge}>
+                  {getFiltrosAplicadosTexto()}
                 </span>
-              </div>
-              <p className={styles.statSubtext}>Base de datos consolidada</p>
+              </h2>
+              <button
+                className={styles.btnRefresh}
+                onClick={() => fetchPacientes()}
+                disabled={loading}
+              >
+                <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? "Actualizando..." : "Actualizar"}
+              </button>
             </div>
-          </div>
-
-          <div className={styles.tableHeader}>
-            <h2 className={styles.tableTitle}>
-              Listado de Seguimiento 
-              <span className={styles.filtrosBadge}>
-                {getFiltrosAplicadosTexto()}
-              </span>
-            </h2>
-            <button 
-              className={styles.btnRefresh}
-              onClick={() => fetchPacientes()}
-              disabled={loading}
-            >
-              <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? "Actualizando..." : "Actualizar"}
-            </button>
-          </div>
 
             <div className={styles.tableResponsive}>
               <table className={styles.pacientesTable}>
                 <thead>
                   <tr>
                     <th className={styles.sortableHeader}>Paciente</th>
-                    
+
                     <th onClick={() => handleSort('dni')} className={styles.sortableHeader}>
                       <div className={styles.headerContent}>
                         <span>DNI</span>
@@ -437,7 +437,7 @@ export default function SeguimientoPage() {
                         </span>
                       </div>
                     </th>
-                    
+
                     {/* NUEVA COLUMNA: ÚLTIMO CONTACTO */}
                     <th onClick={() => handleSort('fecha_ultimo_contacto')} className={styles.sortableHeader}>
                       <div className={styles.headerContent}>
@@ -449,12 +449,12 @@ export default function SeguimientoPage() {
                     </th>
 
                     {/* COLUMNA: DÍAS SIN CONTACTO - Ordena por el número calculado en la API */}
-                    <th 
-                      onClick={() => handleSort('dias_sin_contacto')} 
+                    <th
+                      onClick={() => handleSort('dias_sin_contacto')}
                       className={styles.sortableHeader}
                     >
                       <div className={styles.headerContent}>
-                        <span>Días s/ Contacto</span>
+                        <span>Días sin Contacto</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'dias_sin_contacto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
@@ -472,7 +472,7 @@ export default function SeguimientoPage() {
                   ) : sortedPacientes.length > 0 ? (
                     sortedPacientes.map((p) => {
                       // Usamos directamente los valores que vienen de la API
-                      const diasSC = p.dias_sin_contacto; 
+                      const diasSC = p.dias_sin_contacto;
 
                       return (
                         <tr key={p.id} onDoubleClick={() => setSelectedPaciente(p)}>
@@ -494,27 +494,30 @@ export default function SeguimientoPage() {
                             {p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : "-"}
                           </td>
                           <td>
-                            <span className={styles.diasAtraso} style={{ 
-                              color: p.dias > 60 ? '#dc2626' : (p.dias > 30 ? '#ea580c' : '#1e293b') 
-                            }}>
+                            <span className={
+                              p.dias === 999 ? styles.semaforoGris :
+                                p.dias > 60 ? styles.semaforoRojo :
+                                  p.dias > 30 ? styles.semaforoAmarillo :
+                                    styles.semaforoVerde
+                            }>
                               {p.dias === 999 ? "S/D" : p.dias}
                             </span>
                           </td>
-                          
-                          {/* COLUMNA: ÚLTIMO CONTACTO (Usando el nuevo campo de la API) */}
+
+                          {/* COLUMNA: ÚLTIMO CONTACTO */}
                           <td style={{ color: '#475569' }}>
-                            {p.fecha_ultimo_contacto 
-                              ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR') 
+                            {p.fecha_ultimo_contacto
+                              ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR')
                               : "Sin registro"}
                           </td>
 
-                          {/* COLUMNA: DÍAS SIN CONTACTO CON SEMÁFORO (Usando el cálculo de la API) */}
+                          {/* COLUMNA: DÍAS SIN CONTACTO (Actualizada con semáforo unificado) */}
                           <td>
                             <span className={
                               diasSC === 999 ? styles.semaforoGris :
-                              diasSC > 40 ? styles.semaforoRojo :
-                              diasSC > 20 ? styles.semaforoAmarillo :
-                              styles.semaforoVerde
+                                diasSC > 30 ? styles.semaforoRojo :
+                                  diasSC > 15 ? styles.semaforoAmarillo :
+                                    styles.semaforoVerde
                             }>
                               {diasSC === 999 ? "S/D" : diasSC}
                             </span>
@@ -536,7 +539,7 @@ export default function SeguimientoPage() {
           </main>
         </div>
       </div>
-      
+
       {/* Modal de Contacto */}
       {selectedPaciente && (
         <RegistroContactoModal

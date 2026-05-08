@@ -1,14 +1,17 @@
 "use client";
+// Forzando recompilación del cliente para solucionar desincronización de CSS Modules
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "./Login.module.css";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {
   const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // <--- Agregamos un estado de carga
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -17,8 +20,8 @@ export default function LoginPage() {
     setError("");
 
     const res = await signIn("credentials", {
-      usuario: usuario.trim(), // <--- Limpiamos espacios
-      password: password.trim(), // <--- Limpiamos espacios
+      usuario: usuario.trim(),
+      password: password.trim(),
       redirect: false,
     });
 
@@ -32,8 +35,12 @@ export default function LoginPage() {
 
   return (
     <div className={styles.loginWrapper}>
+      <Link href="/" className={styles.backLink}>
+        <ArrowLeft size={20} /> Volver
+      </Link>
       <form onSubmit={handleSubmit} className={styles.loginCard}>
-        <h2 style={{color: '#065f46'}}>Ingreso al Sistema</h2>
+        <div className={styles.badgeBlue}>Gestión Provincial 2026</div>
+        <h2 className={styles.loginTitle}>Ingreso al Sistema</h2>
         
         {error && <p className={styles.error}>{error}</p>}
         
@@ -43,6 +50,7 @@ export default function LoginPage() {
           value={usuario}
           onChange={(e) => setUsuario(e.target.value)} 
           required 
+          className={styles.inputField}
         />
         <input 
           type="password" 
@@ -50,6 +58,7 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)} 
           required 
+          className={styles.inputField}
         />
         
         <button type="submit" className={styles.loginBtn} disabled={loading}>

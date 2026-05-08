@@ -6,15 +6,22 @@ import Link from "next/link";
 import Image from "next/image";
 import styles from "./Landing.module.css";
 
+// Importamos estáticamente las imágenes para que Next.js maneje automáticamente
+// los anchos, altos, el 'basePath' configurado y resuelva sin problemas los espacios en nombres.
+import encabezadosImg from "../../public/encabezados.png";
+import logoColorImg from "../../public/logo_color.png";
+import logoSaludImg from "../../public/Logo_Salud Pública_AP2_color-NG_ H.png";
+
 export default function LandingPage() {
   return (
     <div className={styles.wrapper}>
       {/* Encabezado que ocupa todo el ancho */}
       <header className={styles.headerFull}>
-        <img 
-          src="/encabezados.png" 
+        <Image 
+          src={encabezadosImg} 
           alt="Gobierno de Corrientes" 
-          className={styles.headerImg} 
+          className={styles.headerImg}
+          priority
         />
       </header>
       
@@ -25,8 +32,8 @@ export default function LandingPage() {
           transition={{ duration: 0.8 }}
           className={styles.heroContent}
         >
-          <h2 className={styles.projectShortName}>SegEm</h2>
           <div className={styles.badgeBlue}>Gestión Provincial 2026</div>
+          <h2 className={styles.projectShortName}>SegEm</h2>
           
           <h1 className={styles.title}>
             Seguimiento de Embarazadas <br />
@@ -34,8 +41,7 @@ export default function LandingPage() {
           </h1>
           
           <p className={styles.subtitle}>
-            Plataforma centralizada para la detección temprana, gestión y seguimiento 
-            integral de la salud materna en la Provincia de Corrientes.
+            Plataforma centralizada y segura para la detección temprana, gestión y seguimiento integral de la salud materna en la Provincia de Corrientes.
           </p>
 
           <div className={styles.actions}>
@@ -47,15 +53,21 @@ export default function LandingPage() {
       </main>
 
       {/* Footer con los dos logos */}
-      <footer className={styles.footerLogos}>
-        <div className={styles.logoRow}>
-          <img src="/logo_color.png" alt="Modernización" className={styles.footerLogoImg} />
-          {/* El nombre del archivo debe ser exacto. Si tiene espacios, Next.js lo resuelve con /nombre%20archivo.png */}
-          <img 
-            src="/Logo_Salud Pública_AP2_color-NG_ H.png" 
-            alt="Salud Pública" 
-            className={styles.footerLogoImg} 
-          />
+      <footer className={styles.footer}>
+        <div className={styles.footerLogos}>
+          <div className={styles.logoRow}>
+            <Image 
+               src={logoColorImg} 
+               alt="Modernización" 
+               className={styles.footerLogoImg} 
+            />
+            <div className={styles.divider}></div>
+            <Image 
+              src={logoSaludImg} 
+              alt="Salud Pública" 
+              className={styles.footerLogoImg} 
+            />
+          </div>
         </div>
         <p className={styles.footerText}>
           Provincia de Corrientes — Ministerio de Salud Pública © 2026

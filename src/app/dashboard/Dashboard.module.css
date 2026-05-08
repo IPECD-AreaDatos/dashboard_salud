@@ -1,10 +1,11 @@
 /* src/app/dashboard/Dashboard.module.css */
 
 .container {
-  padding: 1rem 1.5rem; /* Antes era 2rem */
+  padding: 1rem 1.5rem;
   background-color: #f8fafc;
   min-height: 100vh;
-  overflow: hidden; /* Evitamos scroll en el body */
+  overflow: hidden;
+  font-family: var(--font-barlow), sans-serif;
 }
 
 .header {
@@ -13,19 +14,22 @@
   align-items: flex-end;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e2e8f0; /* slate-200 */
+  border-bottom: 1px solid #e2e8f0;
+  /* slate-200 */
 }
 
 .titleArea h1 {
-  color: #1e293b; /* slate-800 */
-  font-size: 1.875rem; /* text-3xl */
+  font-family: var(--font-barlow-condensed), sans-serif;
+  color: #769FD3;
+  font-size: 2.2rem;
   font-weight: 800;
   letter-spacing: -0.025em;
   margin: 0;
 }
 
 .titleArea p {
-  color: #64748b; /* slate-500 */
+  color: #64748b;
+  /* slate-500 */
   margin: 5px 0 0 0;
   font-size: 1rem;
 }
@@ -37,10 +41,13 @@
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
   padding: 0.6rem 1.1rem;
-  border-radius: 0.5rem; /* rounded-lg */
-  text-font: 0.875rem; /* text-sm */
+  border-radius: 0.5rem;
+  /* rounded-lg */
+  text-font: 0.875rem;
+  /* text-sm */
   font-weight: 500;
-  color: #475569; /* slate-600 */
+  color: #475569;
+  /* slate-600 */
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   cursor: pointer;
   transition: all 0.2s;
@@ -53,9 +60,11 @@
 /* Grilla Principal */
 .mainGrid {
   display: grid;
-  grid-template-columns: 280px 1fr; /* Sidebar un poco más angosto */
+  grid-template-columns: 280px 1fr;
+  /* Sidebar un poco más angosto */
   gap: 1.5rem;
-  height: calc(100vh - 100px); /* Ajustado para que no sobre nada */
+  height: calc(100vh - 100px);
+  /* Ajustado para que no sobre nada */
   padding: 0 0.5rem 1.5rem 0.5rem;
 }
 
@@ -63,20 +72,22 @@
 .filterCard {
   background: white;
   padding: 1rem;
-  border-radius: 0.75rem; /* rounded-xl */
+  border-radius: 0.75rem;
+  /* rounded-xl */
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
   height: fit-content;
   position: sticky;
-  top: 70px; /* Asumiendo que el Navbar mide 80px */
+  top: 70px;
+  /* Asumiendo que el Navbar mide 80px */
 }
 
 .filterHeader {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #047857; /* emerald-700 */
-  font-weight: 600;
+  color: #769FD3;
+  font-weight: 700;
   margin-bottom: 1rem;
 }
 
@@ -86,28 +97,33 @@
 
 .filterLabel {
   display: block;
-  font-size: 0.75rem; /* text-xs */
+  font-size: 0.75rem;
+  /* text-xs */
   font-weight: 700;
-  color: #64748b; /* slate-500 */
+  color: #64748b;
+  /* slate-500 */
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
 }
 
-.selectInput, .textInput {
+.selectInput,
+.textInput {
   width: 100%;
   padding: 0.625rem;
   border-radius: 0.5rem;
-  border: 1px solid #cbd5e1; /* slate-300 */
+  border: 1px solid #cbd5e1;
+  /* slate-300 */
   font-size: 0.875rem;
   outline: none;
   transition: border-color 0.2s;
   background-color: white;
 }
 
-.selectInput:focus, .textInput:focus {
-  border-color: #10b981; /* emerald-500 */
-  ring: 2px solid #a7f3d0; /* emerald-200 */
+.selectInput:focus,
+.textInput:focus {
+  border-color: #769FD3;
+  box-shadow: 0 0 0 2px #90B4E1;
 }
 
 /* Tabla de Pacientes */
@@ -133,7 +149,8 @@
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* Dos columnas iguales */
+  grid-template-columns: repeat(2, 1fr);
+  /* Dos columnas iguales */
   gap: 1rem;
   margin-bottom: 1rem;
 }
@@ -150,21 +167,27 @@
 
 .sortableHeader {
   cursor: pointer;
-  white-space: nowrap; /* Evita que el título se parta en dos renglones */
-  font-size: 0.85rem;  /* Letra un poquito más chica para que entre todo */
-  user-select: none;   /* Evita que se resalte el texto al hacer muchos clics */
+  white-space: nowrap;
+  /* Evita que el título se parta en dos renglones */
+  font-size: 0.85rem;
+  /* Letra un poquito más chica para que entre todo */
+  user-select: none;
+  /* Evita que se resalte el texto al hacer muchos clics */
 }
 
 .headerContent {
   display: flex;
   align-items: center;
-  gap: 4px;            /* Espacio fijo entre el texto y la flecha */
+  gap: 4px;
+  /* Espacio fijo entre el texto y la flecha */
 }
 
 .sortIcon {
   font-size: 0.8rem;
-  color: #94a3b8;      /* Un color gris más suave para que no distraiga tanto */
-  min-width: 12px;     /* Reserva el espacio para que el título no salte al cambiar de flecha */
+  color: #94a3b8;
+  /* Un color gris más suave para que no distraiga tanto */
+  min-width: 12px;
+  /* Reserva el espacio para que el título no salte al cambiar de flecha */
 }
 
 .statLabel {
@@ -183,15 +206,14 @@
 }
 
 .statValue {
-  font-size: 2rem; /* Bien grande para que resalte */
+  font-size: 2rem;
   font-weight: 800;
-  color: #024d37;
+  color: #426ba1;
   line-height: 1;
 }
 
-/* Color Verde IPECD/Salud para el resultado del filtro */
 .textHighlight {
-  color: #059669; 
+  color: #769FD3;
 }
 
 .statSubtext {
@@ -201,20 +223,21 @@
 }
 
 .tableTitle {
-  font-size: 1.4rem;
+  font-family: var(--font-barlow-condensed), sans-serif;
+  font-size: 1.8rem;
   font-weight: 800;
-  color: #1e293b;
+  color: #587ba8;
   display: flex;
   align-items: center;
-  flex-wrap: wrap; /* Para que si es muy largo no rompa el diseño */
+  flex-wrap: wrap;
 }
 
 .filtrosBadge {
   font-size: 1rem;
-  font-weight: 550;
-  color: #056647; /* Verde Salud Corrientes */
+  font-weight: 600;
+  color: #587ba8;
   margin-left: 8px;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 /* Agregá esto para que el usuario sepa que puede interactuar con la fila */
@@ -224,7 +247,8 @@
 }
 
 .pacientesTable tbody tr:hover {
-  background-color: #f1f5f9; /* Un gris muy suave al pasar el mouse */
+  background-color: #f1f5f9;
+  /* Un gris muy suave al pasar el mouse */
 }
 
 .searchWrapper {
@@ -238,7 +262,8 @@
   left: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8; /* slate-400 */
+  color: #94a3b8;
+  /* slate-400 */
   width: 1.25rem;
   height: 1.25rem;
 }
@@ -253,8 +278,8 @@
 
 .searchInput:focus {
   outline: none;
-  border-color: #10b981;
-  box-shadow: 0 0 0 2px #a7f3d0;
+  border-color: #769FD3;
+  box-shadow: 0 0 0 2px #90B4E1;
 }
 
 .counterBadge {
@@ -318,12 +343,10 @@
 }
 
 .pacienteNombre {
-  /* Usamos 800 para que sea bien marcado como querés */
-  font-weight: 800; 
-  color: #035a41; /* Slate-900 para que sea un negro profundo */
+  font-weight: 800;
+  color: #769FD3;
   font-size: 0.85rem;
-  /* Un pequeño margen para separarlo del teléfono */
-  margin-bottom: 2px; /* slate-900 */
+  margin-bottom: 2px;
 }
 
 .pacienteSub {
@@ -339,7 +362,7 @@
   font-weight: 500;
   color: #334155;
   text-decoration: underline;
-  decoration-color: #a7f3d0; /* emerald-200 */
+  text-decoration-color: #90B4E1;
 }
 
 .diasAtraso {
@@ -347,13 +370,12 @@
   font-size: 0.9rem;
 }
 
-/* Badge de Estado */
 .badgeContactada {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background-color: #dcfce7; /* emerald-100 */
-  color: #15803d; /* emerald-700 */
+  background-color: #e0f2fe;
+  color: #769FD3;
   padding: 0.25rem 0.625rem;
   border-radius: 9999px;
   font-size: 0.7rem;
@@ -361,9 +383,8 @@
   text-transform: uppercase;
 }
 
-/* Botón de Acción en la Tabla */
 .btnAction {
-  background-color: #129c6e; /* emerald-600 */
+  background-color: #769FD3;
   color: white;
   border: none;
   padding: 0.625rem 1.25rem;
@@ -378,7 +399,7 @@
 }
 
 .btnAction:hover {
-  background-color: #15803d; /* emerald-700 */
+  background-color: #90B4E1;
 }
 
 .btnAction:active {
@@ -387,7 +408,8 @@
 
 
 .autocompleteWrapper {
-  position: relative; /* Para que la lista se posicione respecto a esto */
+  position: relative;
+  /* Para que la lista se posicione respecto a esto */
   width: 100%;
 }
 
@@ -402,7 +424,8 @@
   margin-top: 4px;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 50; /* Por encima de todo */
+  z-index: 50;
+  /* Por encima de todo */
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   padding: 0;
   list-style: none;
@@ -423,7 +446,7 @@
 .suggestDni {
   font-weight: 700;
   font-size: 0.9rem;
-  color: #059669; /* Verde Salud */
+  color: #769FD3;
 }
 
 .suggestNombre {
@@ -432,8 +455,8 @@
 }
 
 .suggestionList li:hover {
-  background-color: #ecfdf5; /* Un verde clarito de Salud Corrientes */
-  border-left: 4px solid #10b981; /* Una marquita verde al costado */
+  background-color: #e0f2fe;
+  border-left: 4px solid #769FD3;
 }
 
 
@@ -442,19 +465,21 @@
   top: 100%;
   left: 0;
   right: 0;
-  background: white; /* Fondo blanco siempre */
+  background: white;
+  /* Fondo blanco siempre */
   border: 1px solid #ccc;
   border-radius: 4px;
   max-height: 250px;
   overflow-y: auto;
   z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .dropdownOption {
   padding: 10px;
   cursor: pointer;
-  color: #333; /* Texto oscuro sobre fondo blanco */
+  color: #333;
+  /* Texto oscuro sobre fondo blanco */
   font-size: 14px;
 }
 
@@ -481,25 +506,25 @@
 }
 
 .infoIcon {
-  color: #94a3b8; /* slate-400 */
+  color: #94a3b8;
   transition: color 0.2s;
 }
 
 .infoIcon:hover {
-  color: #09694b; /* emerald-600 */
+  color: #769FD3;
 }
 
 .tooltipText {
   visibility: hidden;
   width: 220px;
-  background-color: #086648; /* slate-800 */
+  background-color: #769FD3;
   color: #fff;
   text-align: center;
   border-radius: 6px;
   padding: 8px;
   position: absolute;
   z-index: 100;
-  bottom: 125%; /* Aparece arriba del icono */
+  bottom: 125%;
   left: 50%;
   transform: translateX(-50%);
   opacity: 0;
@@ -519,7 +544,7 @@
   margin-left: -5px;
   border-width: 5px;
   border-style: solid;
-  border-color: #085c4e transparent transparent transparent;
+  border-color: #769FD3 transparent transparent transparent;
 }
 
 .tooltipContainer:hover .tooltipText {
@@ -528,9 +553,9 @@
 }
 
 /* Base común para los indicadores del semáforo */
-.semaforoVerde, 
-.semaforoAmarillo, 
-.semaforoRojo, 
+.semaforoVerde,
+.semaforoAmarillo,
+.semaforoRojo,
 .semaforoGris {
   padding: 4px 10px;
   border-radius: 20px;
@@ -544,23 +569,19 @@
 .semaforoVerde {
   background-color: #ecfdf5;
   color: #037a55;
-  border: 1px solid #0a835a;
 }
 
 .semaforoAmarillo {
   background-color: #fffbeb;
-  color: #d97706;
-  border: 1px solid #f59e0b;
+  color: #d99606;
 }
 
 .semaforoRojo {
   background-color: #fef2f2;
   color: #dc2626;
-  border: 1px solid #ef4444;
 }
 
 .semaforoGris {
   background-color: #f1f5f9;
   color: #64748b;
-  border: 1px solid #cbd5e1;
 }

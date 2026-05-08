@@ -26,12 +26,12 @@ export default function Navbar() {
           <div className={styles.logoIcon}>
             <Activity size={20} />
           </div>
-          <span className={styles.brandName}>Salud Corrientes</span>
+          <span className={styles.brandName}>SegEm</span>
         </Link>
-        
+
         <div className={styles.navLinks}>
           {menuItems.map((item) => (
-            <Link 
+            <Link
               key={item.href}
               href={item.href}
               className={`${styles.link} ${pathname === item.href ? styles.activeLink : ''}`}
@@ -48,9 +48,9 @@ export default function Navbar() {
           <span className={styles.userRole}>{session?.user?.role || 'Personal'}</span>
           <span className={styles.userName}>{session?.user?.name || 'Usuario'}</span>
         </div>
-        
-        <button 
-          onClick={() => signOut({ callbackUrl: '/login' })}
+
+        <button
+          onClick={() => signOut({ callbackUrl: '/salud-dashboard/login' })}
           className={styles.logoutBtn}
           title="Cerrar Sesión"
         >

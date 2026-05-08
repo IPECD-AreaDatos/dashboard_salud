@@ -26,7 +26,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={`${barlow.variable} ${barlowSemiCondensed.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
     </html>
   );
 }
