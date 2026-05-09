@@ -141,6 +141,18 @@ export default function SeguimientoPage() {
     fetchPacientes(undefined, false, "Todos"); // estDirecto explícito
   };
 
+  // Limpia la fecha FPP Desde y relanza la búsqueda manteniendo el FPP Hasta actual
+  const limpiarFppDesde = () => {
+    setFilterFppDesde("");
+    fetchPacientes(undefined, false, undefined, ""); // fppDesdeDirecto = ""
+  };
+
+  // Limpia la fecha FPP Hasta y relanza la búsqueda manteniendo el FPP Desde actual
+  const limpiarFppHasta = () => {
+    setFilterFppHasta("");
+    fetchPacientes(undefined, false, undefined, undefined, ""); // fppHastaDirecto = ""
+  };
+
   const fetchFiltros = async () => {
     try {
       const res = await apiFetch("/filtros");
@@ -158,11 +170,19 @@ export default function SeguimientoPage() {
     }
   };
 
-  const fetchPacientes = async (dniDirecto?: string, esExacto: boolean = false, estDirecto?: string) => {
+  const fetchPacientes = async (
+    dniDirecto?: string,
+    esExacto: boolean = false,
+    estDirecto?: string,
+    fppDesdeDirecto?: string,
+    fppHastaDirecto?: string
+  ) => {
     setLoading(true);
     try {
       const dniABuscar = dniDirecto !== undefined ? dniDirecto : filterDni;
       const estABuscar = estDirecto !== undefined ? estDirecto : filterEst;
+      const fppDesdeABuscar = fppDesdeDirecto !== undefined ? fppDesdeDirecto : filterFppDesde;
+      const fppHastaABuscar = fppHastaDirecto !== undefined ? fppHastaDirecto : filterFppHasta;
       const queryParams: any = {
         dni: dniABuscar,
         establecimiento: estABuscar,
@@ -175,8 +195,8 @@ export default function SeguimientoPage() {
         queryParams.exact = "true";
       }
 
-      if (filterFppDesde) queryParams.fppDesde = filterFppDesde;
-      if (filterFppHasta) queryParams.fppHasta = filterFppHasta;
+      if (fppDesdeABuscar) queryParams.fppDesde = fppDesdeABuscar;
+      if (fppHastaABuscar) queryParams.fppHasta = fppHastaABuscar;
 
       const query = new URLSearchParams(queryParams);
       const res = await apiFetch(`/pacientes?${query}`);
@@ -368,22 +388,44 @@ export default function SeguimientoPage() {
 
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>FPP Desde</label>
-              <input
-                type="date"
-                className={styles.searchInput}
-                value={filterFppDesde}
-                onChange={(e) => setFilterFppDesde(e.target.value)}
-              />
+              <div className={styles.fppWrapper}>
+                <input
+                  type="date"
+                  className={styles.searchInput}
+                  value={filterFppDesde}
+                  onChange={(e) => setFilterFppDesde(e.target.value)}
+                />
+                {filterFppDesde && (
+                  <button
+                    className={styles.clearDateBtn}
+                    onClick={limpiarFppDesde}
+                    title="Limpiar fecha desde"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>FPP Hasta</label>
-              <input
-                type="date"
-                className={styles.searchInput}
-                value={filterFppHasta}
-                onChange={(e) => setFilterFppHasta(e.target.value)}
-              />
+              <div className={styles.fppWrapper}>
+                <input
+                  type="date"
+                  className={styles.searchInput}
+                  value={filterFppHasta}
+                  onChange={(e) => setFilterFppHasta(e.target.value)}
+                />
+                {filterFppHasta && (
+                  <button
+                    className={styles.clearDateBtn}
+                    onClick={limpiarFppHasta}
+                    title="Limpiar fecha hasta"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
             </div>
 
             <button

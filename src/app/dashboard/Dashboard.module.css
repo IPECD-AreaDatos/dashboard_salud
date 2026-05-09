@@ -312,6 +312,38 @@
   width: 100%;
 }
 
+/* Wrapper para inputs de fecha: flex row para que el X quede al lado (no superpuesto) */
+.fppWrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fppWrapper .searchInput {
+  flex: 1;
+  min-width: 0; /* evita que el input desborde el flex container */
+}
+
+/* Botón X lateral para los campos de fecha */
+.clearDateBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: color 0.15s, background-color 0.15s;
+  flex-shrink: 0; /* no se achica aunque el input ocupe espacio */
+}
+
+.clearDateBtn:hover {
+  color: #475569;
+  background-color: #e2e8f0;
+}
+
 .counterBadge {
   font-size: 0.75rem;
   font-weight: 700;
