@@ -310,7 +310,7 @@ export default function SeguimientoPage() {
                   className={styles.selectInput}
                   placeholder="Buscar establecimiento..."
                   style={filterEst !== "Todos" ? { paddingRight: '2.2rem' } : undefined}
-                  value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos los Centros")}
+                  value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos")}
                   onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
@@ -332,7 +332,7 @@ export default function SeguimientoPage() {
                     className={styles.dropdownOption}
                     onClick={() => { setFilterEst("Todos"); setIsOpen(false); fetchPacientes(undefined, false, "Todos"); }}
                   >
-                    Todos los Centros
+                    Todos
                   </div>
                   {filteredEsts.map(est => (
                     <div
@@ -441,7 +441,7 @@ export default function SeguimientoPage() {
           <main className={styles.tableContainer}>
             <div className={styles.statsGrid}>
               <div className={styles.statCard}>
-                <span className={styles.statLabel}>Pacientes Encontradas</span>
+                <span className={styles.statLabel}>Embarazadas Encontradas</span>
                 <div className={styles.statValueContainer}>
                   <span className={`${styles.statValue} ${styles.textHighlight}`}>
                     {pacientes.length.toLocaleString('es-AR')}
