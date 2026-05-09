@@ -306,6 +306,12 @@
   background-color: #e2e8f0;
 }
 
+/* Wrapper para posicionar el botón X relativo al input de establecimiento */
+.selectWrapper {
+  position: relative;
+  width: 100%;
+}
+
 .counterBadge {
   font-size: 0.75rem;
   font-weight: 700;

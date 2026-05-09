@@ -133,6 +133,14 @@ export default function SeguimientoPage() {
     fetchPacientes(""); // Pasa string vacío explícito para no leer el estado anterior
   };
 
+  // Limpia el filtro de establecimiento y relanza la búsqueda con todos los centros
+  const limpiarEst = () => {
+    setFilterEst("Todos");
+    setSearchTerm("");
+    setIsOpen(false);
+    fetchPacientes(undefined, false, "Todos"); // estDirecto explícito
+  };
+
   const fetchFiltros = async () => {
     try {
       const res = await apiFetch("/filtros");
@@ -150,13 +158,14 @@ export default function SeguimientoPage() {
     }
   };
 
-  const fetchPacientes = async (dniDirecto?: string, esExacto: boolean = false) => {
+  const fetchPacientes = async (dniDirecto?: string, esExacto: boolean = false, estDirecto?: string) => {
     setLoading(true);
     try {
       const dniABuscar = dniDirecto !== undefined ? dniDirecto : filterDni;
+      const estABuscar = estDirecto !== undefined ? estDirecto : filterEst;
       const queryParams: any = {
         dni: dniABuscar,
-        establecimiento: filterEst,
+        establecimiento: estABuscar,
         riesgo: filterRiesgo,
         dias: filterDias
       };
@@ -275,21 +284,33 @@ export default function SeguimientoPage() {
             <div className={styles.filterGroup} style={{ position: 'relative' }}>
               <label className={styles.filterLabel}>Establecimiento</label>
 
-              <input
-                type="text"
-                className={styles.selectInput}
-                placeholder="Buscar establecimiento..."
-                value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos los Centros")}
-                onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
-              />
+              <div className={styles.selectWrapper}>
+                <input
+                  type="text"
+                  className={styles.selectInput}
+                  placeholder="Buscar establecimiento..."
+                  style={filterEst !== "Todos" ? { paddingRight: '2.2rem' } : undefined}
+                  value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos los Centros")}
+                  onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
+                />
+                {filterEst !== "Todos" && !isOpen && (
+                  <button
+                    className={styles.clearBtn}
+                    onClick={limpiarEst}
+                    title="Ver todos los centros"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
 
               {isOpen && (
                 <div className={styles.customDropdown}>
                   <div
                     className={styles.dropdownOption}
-                    onClick={() => { setFilterEst("Todos"); setIsOpen(false); }}
+                    onClick={() => { setFilterEst("Todos"); setIsOpen(false); fetchPacientes(undefined, false, "Todos"); }}
                   >
                     Todos los Centros
                   </div>
@@ -301,6 +322,7 @@ export default function SeguimientoPage() {
                         setFilterEst(est.value);
                         setSearchTerm(romanToArabic(est.label));
                         setIsOpen(false);
+                        fetchPacientes(undefined, false, est.value); // busca inmediatamente con el centro elegido
                       }}
                     >
                       {est.label}
