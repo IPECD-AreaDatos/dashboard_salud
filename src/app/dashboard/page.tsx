@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import styles from "./Dashboard.module.css";
 import Navbar from "@/components/Navbar";
-import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw } from "lucide-react";
+import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw, X } from "lucide-react";
 import RegistroContactoModal from "@/components/RegistroContactoModal";
 import { apiFetch } from "@/lib/api";
 
@@ -125,6 +125,14 @@ export default function SeguimientoPage() {
     fetchPacientes(dni, true);
   };
 
+  // Limpia el campo DNI, cierra el dropdown de sugerencias y relanza la búsqueda
+  const limpiarDni = () => {
+    setFilterDni("");
+    setSugerencias([]);
+    setMostrarSugerencias(false);
+    fetchPacientes(""); // Pasa string vacío explícito para no leer el estado anterior
+  };
+
   const fetchFiltros = async () => {
     try {
       const res = await apiFetch("/filtros");
@@ -232,12 +240,22 @@ export default function SeguimientoPage() {
                     type="text"
                     placeholder="DNI de la paciente..."
                     className={styles.searchInput}
+                    style={filterDni ? { paddingRight: '2.2rem' } : undefined}
                     value={filterDni}
                     onChange={(e) => {
                       setFilterDni(e.target.value);
                       fetchSugerencias(e.target.value);
                     }}
                   />
+                  {filterDni && (
+                    <button
+                      className={styles.clearBtn}
+                      onClick={limpiarDni}
+                      title="Limpiar búsqueda de DNI"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Lista Desplegable de Sugerencias */}

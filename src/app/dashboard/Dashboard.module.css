@@ -282,6 +282,30 @@
   box-shadow: 0 0 0 2px #90B4E1;
 }
 
+/* Botón X para limpiar el campo DNI */
+.clearBtn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: color 0.15s, background-color 0.15s;
+  line-height: 1;
+}
+
+.clearBtn:hover {
+  color: #475569;
+  background-color: #e2e8f0;
+}
+
 .counterBadge {
   font-size: 0.75rem;
   font-weight: 700;
