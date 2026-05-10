@@ -316,7 +316,7 @@ export default function SeguimientoPage() {
                   <Search className={styles.searchIcon} />
                   <input
                     type="text"
-                    placeholder="DNI de la paciente..."
+                    placeholder="DNI de la embarazada..."
                     className={styles.searchInput}
                     style={filterDni ? { paddingRight: '2.2rem' } : undefined}
                     value={filterDni}
