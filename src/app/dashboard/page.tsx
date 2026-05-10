@@ -451,7 +451,7 @@ export default function SeguimientoPage() {
               </div>
 
               <div className={styles.statCard}>
-                <span className={styles.statLabel}>Total en Padrón</span>
+                <span className={styles.statLabel}>Total Registradas</span>
                 <div className={styles.statValueContainer}>
                   <span className={styles.statValue}>
                     {totalGlobal.toLocaleString('es-AR')}
