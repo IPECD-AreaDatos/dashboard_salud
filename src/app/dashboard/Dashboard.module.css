@@ -224,7 +224,7 @@
 
 .tableTitle {
   font-family: var(--font-barlow-condensed), sans-serif;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: #587ba8;
   display: flex;
@@ -321,7 +321,8 @@
 
 .fppWrapper .searchInput {
   flex: 1;
-  min-width: 0; /* evita que el input desborde el flex container */
+  min-width: 0;
+  /* evita que el input desborde el flex container */
 }
 
 /* Botón X lateral para los campos de fecha */
@@ -336,7 +337,8 @@
   justify-content: center;
   border-radius: 50%;
   transition: color 0.15s, background-color 0.15s;
-  flex-shrink: 0; /* no se achica aunque el input ocupe espacio */
+  flex-shrink: 0;
+  /* no se achica aunque el input ocupe espacio */
 }
 
 .clearDateBtn:hover {

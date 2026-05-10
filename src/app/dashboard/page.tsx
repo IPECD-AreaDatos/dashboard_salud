@@ -68,6 +68,12 @@ export default function SeguimientoPage() {
   const [filterDias, setFilterDias] = useState("30");
   const [filterFppDesde, setFilterFppDesde] = useState("");
   const [filterFppHasta, setFilterFppHasta] = useState("");
+  // Estados que reflejan lo que REALMENTE está aplicado (se actualizan solo al presionar Aplicar)
+  const [aplicadoRiesgo, setAplicadoRiesgo] = useState("Si");
+  const [aplicadoDias, setAplicadoDias] = useState("30");
+  const [aplicadoFppDesde, setAplicadoFppDesde] = useState("");
+  const [aplicadoFppHasta, setAplicadoFppHasta] = useState("");
+
   const [totalGlobal, setTotalGlobal] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -121,7 +127,20 @@ export default function SeguimientoPage() {
     setFilterDni(dni);
     setMostrarSugerencias(false);
 
-    // Al seleccionar una sugerencia, forzamos la búsqueda exacta
+    // Reseteamos el formulario de filtros
+    setFilterRiesgo("Todas");
+    setFilterDias("0");
+    setFilterFppDesde("");
+    setFilterFppHasta("");
+    setFilterEst("Todos");
+    setSearchTerm("");
+
+    // Reseteamos las etiquetas del resumen
+    setAplicadoRiesgo("Todas");
+    setAplicadoDias("0");
+    setAplicadoFppDesde("");
+    setAplicadoFppHasta("");
+
     fetchPacientes(dni, true);
   };
 
@@ -144,13 +163,11 @@ export default function SeguimientoPage() {
   // Limpia la fecha FPP Desde y relanza la búsqueda manteniendo el FPP Hasta actual
   const limpiarFppDesde = () => {
     setFilterFppDesde("");
-    fetchPacientes(undefined, false, undefined, ""); // fppDesdeDirecto = ""
   };
 
   // Limpia la fecha FPP Hasta y relanza la búsqueda manteniendo el FPP Desde actual
   const limpiarFppHasta = () => {
     setFilterFppHasta("");
-    fetchPacientes(undefined, false, undefined, undefined, ""); // fppHastaDirecto = ""
   };
 
   const fetchFiltros = async () => {
@@ -227,25 +244,43 @@ export default function SeguimientoPage() {
   const getFiltrosAplicadosTexto = () => {
     const partes = [];
 
-    // Filtro de Riesgo
-    if (filterRiesgo === "Si") {
+    if (aplicadoRiesgo === "Si") {
       partes.push("Embarazadas de Riesgo");
     }
 
-    // Filtro de Días sin Control
-    if (filterDias !== "0") {
-      partes.push(`+${filterDias} días sin control`);
+    if (aplicadoDias !== "0") {
+      partes.push(`+${aplicadoDias} días sin control`);
     }
 
-    // Filtro de Establecimiento
     if (filterEst !== "Todos") {
-      // Buscamos el nombre limpio usando la función romanToArabic que ya definimos
       const estNombre = establecimientos.find(e => e.value === filterEst)?.label;
       if (estNombre) partes.push(estNombre);
     }
 
-    // Si no hay filtros aplicados, devolvemos vacío o un texto base
-    return partes.length > 0 ? ` — ${partes.join(" — ")}` : "";
+    if (aplicadoFppDesde) {
+      const [anio, mes, dia] = aplicadoFppDesde.split('-');
+      partes.push(`FPP desde ${dia}/${mes}/${anio}`);
+    }
+
+    if (aplicadoFppHasta) {
+      const [anio, mes, dia] = aplicadoFppHasta.split('-');
+      partes.push(`FPP hasta ${dia}/${mes}/${anio}`);
+    }
+
+    if (partes.length === 0) return "";
+
+    const partesMain = partes.filter(p => !p.startsWith("FPP"));
+    const partesFpp = partes.filter(p => p.startsWith("FPP"));
+
+    const lineaPrincipal = partesMain.length > 0 ? ` — ${partesMain.join(" — ")}` : "";
+    const lineaFpp = partesFpp.length > 0 ? ` — ${partesFpp.join(" — ")}` : "";
+
+    return (
+      <>
+        {lineaPrincipal}
+        {lineaFpp && <><br />{lineaFpp}</>}
+      </>
+    );
   };
 
   return (
@@ -431,7 +466,13 @@ export default function SeguimientoPage() {
             <button
               className={styles.btnAction}
               style={{ width: '100%', marginTop: '1rem' }}
-              onClick={() => fetchPacientes()}
+              onClick={() => {
+                setAplicadoRiesgo(filterRiesgo);
+                setAplicadoDias(filterDias);
+                setAplicadoFppDesde(filterFppDesde);
+                setAplicadoFppHasta(filterFppHasta);
+                fetchPacientes();
+              }}
             >
               Aplicar Filtros
             </button>
