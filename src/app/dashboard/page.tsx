@@ -149,7 +149,17 @@ export default function SeguimientoPage() {
     setFilterDni("");
     setSugerencias([]);
     setMostrarSugerencias(false);
-    fetchPacientes(""); // Pasa string vacío explícito para no leer el estado anterior
+
+    // Restauramos estado del formulario
+    setFilterRiesgo("Si");
+    setFilterDias("30");
+
+    // Restauramos etiquetas del resumen
+    setAplicadoRiesgo("Si");
+    setAplicadoDias("30");
+
+    // Pasamos los valores directo para no depender del estado que aún no se actualizó
+    fetchPacientes("", false, undefined, undefined, undefined, "Si", "30");
   };
 
   // Limpia el filtro de establecimiento y relanza la búsqueda con todos los centros
@@ -192,7 +202,9 @@ export default function SeguimientoPage() {
     esExacto: boolean = false,
     estDirecto?: string,
     fppDesdeDirecto?: string,
-    fppHastaDirecto?: string
+    fppHastaDirecto?: string,
+    riesgoDirecto?: string,    // ← nuevo
+    diasDirecto?: string       // ← nuevo
   ) => {
     setLoading(true);
     try {
@@ -200,11 +212,13 @@ export default function SeguimientoPage() {
       const estABuscar = estDirecto !== undefined ? estDirecto : filterEst;
       const fppDesdeABuscar = fppDesdeDirecto !== undefined ? fppDesdeDirecto : filterFppDesde;
       const fppHastaABuscar = fppHastaDirecto !== undefined ? fppHastaDirecto : filterFppHasta;
+      const riesgoABuscar = riesgoDirecto !== undefined ? riesgoDirecto : filterRiesgo;  // ← nuevo
+      const diasABuscar = diasDirecto !== undefined ? diasDirecto : filterDias;          // ← nuevo
       const queryParams: any = {
         dni: dniABuscar,
         establecimiento: estABuscar,
-        riesgo: filterRiesgo,
-        dias: filterDias
+        riesgo: riesgoABuscar,   // ← cambiado
+        dias: diasABuscar        // ← cambiado
       };
 
       // Si es una búsqueda exacta por DNI, agregamos el flag para el backend
