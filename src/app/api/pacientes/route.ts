@@ -36,11 +36,18 @@ export async function GET(request: Request) {
     // Lógica de Seguridad de Tony (RBAC) para ambas consultas
     let securityClause = ``;
     if (session.user?.role === 'Centro de Salud' && session.user?.cuie_code) {
-      securityClause += ` AND cuie_seguimiento = '${session.user.cuie_code}'`;
+      // El Centro de Salud solo ve lo que tiene asignado por su código SISA (o su CUIE equivalente)
+      securityClause += ` AND (sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}'))`;
     } 
     else if (session.user?.role === 'Maternidad' && session.user?.maternidad_id) {
-      securityClause += ` AND (cuie_seguimiento = '${session.user.cuie_code}' OR derivacion_maternidad_id = '${session.user.maternidad_id}')`;
+      // La Maternidad ve lo asignado a su SISA/CUIE o lo que fue derivado a su ID de maternidad
+      securityClause += ` AND ((sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}')) OR derivacion_maternidad_id = '${session.user.maternidad_id}')`;
     }
+    else if (session.user?.role === 'Coordinador') {
+        // El coordinador ve todo, pero recordá que no ve auditoría (eso lo manejás en el front)
+        securityClause += ``; 
+    }
+    console.log("CLAUSULA GENERADA:", securityClause);
     
     // Primero, obtener el total de embarazadas para el contraste (sin aplicar los otros filtros de búsqueda)
     const countQuery = `

@@ -19,10 +19,10 @@ export async function GET(request: Request) {
     // RBAC Security Clause
     let securityClause = "";
     if (session.user?.role === 'Centro de Salud' && session.user?.cuie_code) {
-      securityClause = ` AND cuie_seguimiento = '${session.user.cuie_code}'`;
+      securityClause = ` AND (sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}'))`;
     } 
     else if (session.user?.role === 'Maternidad' && session.user?.maternidad_id) {
-      securityClause = ` AND (cuie_seguimiento = '${session.user.cuie_code}' OR derivacion_maternidad_id = '${session.user.maternidad_id}')`;
+      securityClause = ` AND ((sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}')) OR derivacion_maternidad_id = '${session.user.maternidad_id}')`;
     }
 
     // 1. Métricas Generales y de Riesgo por Edades (Ignorando fechas mínimas de control, pero aplicando RBAC y umbral FPP)

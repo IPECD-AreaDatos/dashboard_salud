@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import { useSession } from "next-auth/react";
 import styles from "./Stats.module.css";
 import {
   BarChart,
@@ -31,6 +32,9 @@ const romanToArabic = (text: string) => {
 };
 
 export default function StatsPage() {
+  const { data: session } = useSession();
+  const isMaternidad = session?.user?.role === 'Maternidad';
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -132,32 +136,40 @@ export default function StatsPage() {
 
         <div className={styles.chartsGrid}>
           <div className={styles.chartCard}>
-            <h3 className={styles.chartTitle}>Top 15 — Establecimientos con más embarazadas</h3>
+            <h3 className={styles.chartTitle}>
+              {isMaternidad
+                ? "Top 15 — Centros de Salud que derivaron pacientes"
+                : "Top 15 — Establecimientos con más embarazadas"}
+            </h3>
             <div className={styles.chartWrapper}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topGeneral} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={250} tick={{fill: '#475569', fontSize: 12}} />
-                  <Tooltip cursor={{fill: '#f1f5f9'}} />
-                  <Bar dataKey="value" fill="#129c6e" radius={[0, 7, 7, 0]} 
-                                                      barSize={20} />
+                  <YAxis dataKey="name" type="category" width={250} tick={{ fill: '#475569', fontSize: 12 }} />
+                  <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                  <Bar dataKey="value" fill="#608bc4" radius={[0, 7, 7, 0]}
+                    barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           <div className={styles.chartCard}>
-            <h3 className={styles.chartTitle}>Top 15 — Embarazadas de riesgo con control &gt; 30 días</h3>
+            <h3 className={styles.chartTitle}>
+              {isMaternidad
+                ? "Top 15 — Riesgo y sin control (más de 30 días) por centro de origen"
+                : "Top 15 — Embarazadas de riesgo con control más de 30 días"}
+            </h3>
             <div className={styles.chartWrapper}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topRiesgo} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={250} tick={{fill: '#475569', fontSize: 12}} />
-                  <Tooltip cursor={{fill: '#f1f5f9'}} />
-                  <Bar dataKey="value" fill="#ef4444" radius={[0, 7, 7, 0]} 
-                                                      barSize={20} />
+                  <YAxis dataKey="name" type="category" width={250} tick={{ fill: '#475569', fontSize: 12 }} />
+                  <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                  <Bar dataKey="value" fill="#ef4444" radius={[0, 7, 7, 0]}
+                    barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

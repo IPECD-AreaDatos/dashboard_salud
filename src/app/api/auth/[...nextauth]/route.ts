@@ -1,3 +1,4 @@
+// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -37,7 +38,9 @@ export const authOptions: NextAuthOptions = {
             return { 
               id: user.id.toString(), 
               name: user.username, 
-              role: user.role 
+              role: user.role, 
+              cuie_code: user.sisa_code, 
+              maternidad_id: user.maternidad_id
             };
           }
           
@@ -54,12 +57,16 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }: any) {
       if (user) {
         token.role = user.role;
+        token.cuie_code = user.cuie_code;
+        token.maternidad_id = user.maternidad_id;
       }
       return token;
     },
     async session({ session, token }: any) {
       if (session.user) {
         session.user.role = token.role;
+        session.user.cuie_code = token.cuie_code;
+        session.user.maternidad_id = token.maternidad_id;
       }
       return session;
     }

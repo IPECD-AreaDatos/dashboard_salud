@@ -4,6 +4,7 @@ import styles from "./Dashboard.module.css";
 import Navbar from "@/components/Navbar";
 import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw, X } from "lucide-react";
 import RegistroContactoModal from "@/components/RegistroContactoModal";
+import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/api";
 
 interface Paciente {
@@ -47,6 +48,10 @@ const romanToArabic = (text: string) => {
 };
 
 export default function SeguimientoPage() {
+  const { data: session } = useSession();
+  const userRole = session?.user?.role;
+  const isRestrictedRole = userRole === 'Centro de Salud' || userRole === 'Maternidad';
+
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<{ value: string, label: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -350,56 +355,58 @@ export default function SeguimientoPage() {
               </div>
             </div>
 
-            <div className={styles.filterGroup} style={{ position: 'relative' }}>
-              <label className={styles.filterLabel}>Establecimiento</label>
+            {!isRestrictedRole && (
+              <div className={styles.filterGroup} style={{ position: 'relative' }}>
+                <label className={styles.filterLabel}>Establecimiento</label>
 
-              <div className={styles.selectWrapper}>
-                <input
-                  type="text"
-                  className={styles.selectInput}
-                  placeholder="Buscar establecimiento..."
-                  style={filterEst !== "Todos" ? { paddingRight: '2.2rem' } : undefined}
-                  value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos")}
-                  onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
-                />
-                {filterEst !== "Todos" && !isOpen && (
-                  <button
-                    className={styles.clearBtn}
-                    onClick={limpiarEst}
-                    title="Ver todos los centros"
-                  >
-                    <X size={13} />
-                  </button>
+                <div className={styles.selectWrapper}>
+                  <input
+                    type="text"
+                    className={styles.selectInput}
+                    placeholder="Buscar establecimiento..."
+                    style={filterEst !== "Todos" ? { paddingRight: '2.2rem' } : undefined}
+                    value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos")}
+                    onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
+                  />
+                  {filterEst !== "Todos" && !isOpen && (
+                    <button
+                      className={styles.clearBtn}
+                      onClick={limpiarEst}
+                      title="Ver todos los centros"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                {isOpen && (
+                  <div className={styles.customDropdown}>
+                    <div
+                      className={styles.dropdownOption}
+                      onClick={() => { setFilterEst("Todos"); setIsOpen(false); fetchPacientes(undefined, false, "Todos"); }}
+                    >
+                      Todos
+                    </div>
+                    {filteredEsts.map(est => (
+                      <div
+                        key={est.value}
+                        className={styles.dropdownOption}
+                        onClick={() => {
+                          setFilterEst(est.value);
+                          setSearchTerm(romanToArabic(est.label));
+                          setIsOpen(false);
+                          fetchPacientes(undefined, false, est.value); // busca inmediatamente con el centro elegido
+                        }}
+                      >
+                        {est.label}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-
-              {isOpen && (
-                <div className={styles.customDropdown}>
-                  <div
-                    className={styles.dropdownOption}
-                    onClick={() => { setFilterEst("Todos"); setIsOpen(false); fetchPacientes(undefined, false, "Todos"); }}
-                  >
-                    Todos
-                  </div>
-                  {filteredEsts.map(est => (
-                    <div
-                      key={est.value}
-                      className={styles.dropdownOption}
-                      onClick={() => {
-                        setFilterEst(est.value);
-                        setSearchTerm(romanToArabic(est.label));
-                        setIsOpen(false);
-                        fetchPacientes(undefined, false, est.value); // busca inmediatamente con el centro elegido
-                      }}
-                    >
-                      {est.label}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
 
             <div className={styles.filterGroup}>
               <div className={styles.labelWithTooltip}>
@@ -522,6 +529,11 @@ export default function SeguimientoPage() {
                 <span className={styles.filtrosBadge}>
                   {getFiltrosAplicadosTexto()}
                 </span>
+                {isRestrictedRole && pacientes.length > 0 && (
+                  <span style={{ fontSize: '1rem', color: '#587ba8', display: 'block', marginLeft: '0.55rem', marginTop: '0.25rem', fontWeight: 'normal' }}>
+                    - Centro Asignado: {pacientes[0].establecimiento}
+                  </span>
+                )}
               </h2>
               <button
                 className={styles.btnRefresh}
