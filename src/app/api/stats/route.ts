@@ -1,3 +1,4 @@
+// src/app/api/stats/route.ts
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
@@ -57,25 +58,35 @@ export async function GET(request: Request) {
         ${securityClause}
     `;
 
-    // 2. Top 15 Establecimientos con más embarazadas
+    // 2. Top 15 Establecimientos con más embarazadas (UNIFICADO POR SISA)
     const topGenSql = `
-      SELECT nombre_establecimiento as name, COUNT(id) as value
-      FROM pacientes_gold
-      ${baseChartWhere}
-      GROUP BY nombre_establecimiento
+      SELECT 
+        s.nombre as name, 
+        COUNT(p.id) as value
+      FROM pacientes_gold p
+      INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
+      WHERE p.fecha_probable_parto >= ${fechaUmbral}
+        AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
+        ${securityClause}
+      GROUP BY s.codigo_sisa, s.nombre
       ORDER BY value DESC
       LIMIT 15
     `;
     const topGenRes = await query(topGenSql);
 
-    // 3. Top 15 Establecimientos con Riesgo y > 30 días sin control (o nulo)
+    // 3. Top 15 Establecimientos con Riesgo y > 30 días sin control (UNIFICADO POR SISA)
     const topRsgSql = `
-      SELECT nombre_establecimiento as name, COUNT(id) as value
-      FROM pacientes_gold
-      ${baseChartWhere}
-        AND LOWER(riesgo) IN ('si', 's') 
-        AND (fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > ${diasAtrasoCorte})
-      GROUP BY nombre_establecimiento
+      SELECT 
+        s.nombre as name, 
+        COUNT(p.id) as value
+      FROM pacientes_gold p
+      INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
+      WHERE p.fecha_probable_parto >= ${fechaUmbral}
+        AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
+        AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') 
+        AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
+        ${securityClause}
+      GROUP BY s.codigo_sisa, s.nombre
       ORDER BY value DESC
       LIMIT 15
     `;

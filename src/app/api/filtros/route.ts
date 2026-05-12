@@ -5,24 +5,33 @@ export async function GET() {
   try {
     const sql = `
       SELECT 
-        nombre_establecimiento,
-        COUNT(CASE WHEN LOWER(riesgo) IN ('si', 's') AND fecha_probable_parto >= CURRENT_DATE THEN 1 END) as total_riesgo
-      FROM pacientes_gold 
-      WHERE nombre_establecimiento IS NOT NULL
-        AND nombre_establecimiento != ''
-      GROUP BY nombre_establecimiento
-      ORDER BY total_riesgo DESC, nombre_establecimiento ASC
+        s.nombre as nombre_oficial,
+        COUNT(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.fecha_probable_parto >= CURRENT_DATE THEN 1 END) as total_riesgo
+      FROM pacientes_gold p
+      -- Unimos con el maestro de SISA por el CUIE para normalizar nombres
+      INNER JOIN efectores_sisa s ON p.cuie_seguimiento = s.cuie
+      WHERE s.nombre IS NOT NULL
+        AND s.nombre != ''
+      GROUP BY s.nombre
+      ORDER BY total_riesgo DESC, s.nombre ASC
     `;
     const result = await query(sql);
 
-    // Devuelve objetos con label (para mostrar) y value (para filtrar)
+    // Mapeamos para el componente Select del Frontend
     const establecimientos = result.rows.map(r => ({
-      value: r.nombre_establecimiento,
-      label: `${r.nombre_establecimiento} (${r.total_riesgo} riesgo)`
+      // El value sigue siendo el nombre para que la query de búsqueda funcione
+      value: r.nombre_oficial,
+      label: `${r.nombre_oficial} (${r.total_riesgo} riesgo)`
     }));
 
-    return NextResponse.json(establecimientos);
+    // Agregamos la opción "Todos" al principio
+    return NextResponse.json([
+      { value: "Todos", label: "Todos los establecimientos" },
+      ...establecimientos
+    ]);
+
   } catch (error) {
+    console.error("Error en API Filtros:", error);
     return NextResponse.json({ error: "Error al cargar filtros" }, { status: 500 });
   }
 }

@@ -113,16 +113,16 @@ export async function GET(request: Request) {
         p.fecha_probable_parto,
         p.fecha_ultimo_control,
         p.riesgo,
-        p.nombre_establecimiento,
+        s.nombre as nombre_establecimiento_oficial, -- TRAEMOS EL NOMBRE DEL MAESTRO
         (CURRENT_DATE - p.fecha_ultimo_control) as dias_atraso,
-        -- Buscamos la última fecha de la tabla seguimientos
-        (SELECT MAX(s.fecha_contacto) 
-         FROM seguimientos s 
-         WHERE s.paciente_id = p.id) as fecha_ultimo_contacto,
+        (SELECT MAX(sec.fecha_contacto) 
+         FROM seguimientos sec 
+         WHERE sec.paciente_id = p.id) as fecha_ultimo_contacto,
         p.calle_domicilio,
         p.nro_puerta_domicilio,
         p.localidad_domicilio
       FROM pacientes_gold p
+      LEFT JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa -- JOIN CON SISA
       ${whereClause}
       ORDER BY dias_atraso DESC NULLS FIRST
     `;
@@ -150,7 +150,7 @@ export async function GET(request: Request) {
         telefono: p.telefono || "-",
         fpp: p.fecha_probable_parto,
         ult_control: p.fecha_ultimo_control,
-        establecimiento: p.nombre_establecimiento || "No asignado",
+        establecimiento: p.nombre_establecimiento_oficial || "No asignado",
         dias: p.dias_atraso !== null ? p.dias_atraso : 999,
         // Enviamos la fecha real y los días calculados
         fecha_ultimo_contacto: p.fecha_ultimo_contacto, 

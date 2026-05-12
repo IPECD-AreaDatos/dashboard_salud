@@ -383,12 +383,7 @@ export default function SeguimientoPage() {
 
                 {isOpen && (
                   <div className={styles.customDropdown}>
-                    <div
-                      className={styles.dropdownOption}
-                      onClick={() => { setFilterEst("Todos"); setIsOpen(false); fetchPacientes(undefined, false, "Todos"); }}
-                    >
-                      Todos
-                    </div>
+                  
                     {filteredEsts.map(est => (
                       <div
                         key={est.value}
@@ -519,7 +514,7 @@ export default function SeguimientoPage() {
                     {totalGlobal.toLocaleString('es-AR')}
                   </span>
                 </div>
-                <p className={styles.statSubtext}>Base de datos consolidada</p>
+                <p className={styles.statSubtext}>Embarazos en curso</p>
               </div>
             </div>
 
