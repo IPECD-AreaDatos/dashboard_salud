@@ -34,9 +34,11 @@ const romanToArabic = (text: string) => {
 export default function StatsPage() {
   const { data: session } = useSession();
   const isMaternidad = session?.user?.role === 'Maternidad';
+  const isCAPS = session?.user?.role === 'Centro de Salud';
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [zonaChart, setZonaChart] = useState<'Todos' | 'Capital' | 'Interior'>('Todos');
 
   useEffect(() => {
     apiFetch("/stats")
@@ -62,20 +64,36 @@ export default function StatsPage() {
     );
   }
 
-  // Sort explícito, no depende del orden de la API):
-  const topGeneral = [...(data.topGeneral || [])]
-    .sort((a, b) => b.value - a.value)
-    .map(item => ({
-      ...item,
-      name: romanToArabic(item.name) // <--- Aplicamos la unificación aquí
-    }));
+  // Filtrado y Sort explícito, no depende del orden de la API:
+  const filterAndFormat = (arr: any[]) => {
+    return arr
+      .filter(item => {
+        if (zonaChart === 'Todos') return true;
+        if (zonaChart === 'Capital') return item.departamento === 'CAPITAL';
+        return item.departamento !== 'CAPITAL';
+      })
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 15)
+      .map(item => ({
+        ...item,
+        name: romanToArabic(item.name) // <--- Aplicamos la unificación aquí
+      }));
+  };
 
-  const topRiesgo = [...(data.topRiesgoAtraso || [])]
-    .sort((a, b) => b.value - a.value)
-    .map(item => ({
-      ...item,
-      name: romanToArabic(item.name) // <--- Y aquí también
-    }));
+  const topGeneral = filterAndFormat(data.topGeneral || []);
+  const topRiesgo = filterAndFormat(data.topRiesgoAtraso || []);
+
+  const getBtnStyle = (zona: string) => ({
+    padding: '6px 16px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    border: '1px solid #587ba8',
+    backgroundColor: zonaChart === zona ? '#587ba8' : 'transparent',
+    color: zonaChart === zona ? '#fff' : '#587ba8',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    transition: 'all 0.2s'
+  });
 
   return (
     <>
@@ -134,47 +152,94 @@ export default function StatsPage() {
           </div>
         </div>
 
-        <div className={styles.chartsGrid}>
-          <div className={styles.chartCard}>
-            <h3 className={styles.chartTitle}>
-              {isMaternidad
-                ? "Top 15 — Centros de Salud que derivaron pacientes"
-                : "Top 15 — Establecimientos con más embarazadas"}
-            </h3>
-            <div className={styles.chartWrapper}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topGeneral} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={250} tick={{ fill: '#475569', fontSize: 12 }} />
-                  <Tooltip cursor={{ fill: '#f1f5f9' }} />
-                  <Bar dataKey="value" fill="#608bc4" radius={[0, 7, 7, 0]}
-                    barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
+        {isCAPS && (
+          <>
+            <h2 className={styles.sectionTitle} style={{ color: '#587ba8' }}>Gestión Prioritaria del Centro</h2>
+            <div className={styles.kpiRow}>
+              <div className={`${styles.kpiCard} ${styles.mainCard} ${styles.alertCard}`}>
+                <span className={styles.kpiLabel}>Controles Vencidos (+30 días)</span>
+                <span className={styles.kpiValue} style={{ color: '#ef4444' }}>{data.gestion?.controlesPendientes}</span>
+              </div>
+              <div className={`${styles.kpiCard} ${styles.mainCard}`}>
+                <span className={styles.kpiLabel}>Partos en los próximos 30 días</span>
+                <span className={styles.kpiValue} style={{ color: '#769FD3' }}>{data.gestion?.proximosPartos}</span>
+              </div>
+              <div className={`${styles.kpiCard} ${styles.mainCard}`}>
+                <span className={styles.kpiLabel}>Sin Teléfono de Contacto</span>
+                <span className={styles.kpiValue} style={{ color: '#4b5563' }}>{data.gestion?.sinTelefono}</span>
+              </div>
             </div>
-          </div>
+          </>
+        )}
 
-          <div className={styles.chartCard}>
-            <h3 className={styles.chartTitle}>
-              {isMaternidad
-                ? "Top 15 — Riesgo y sin control (más de 30 días) por centro de origen"
-                : "Top 15 — Embarazadas de riesgo con control más de 30 días"}
-            </h3>
-            <div className={styles.chartWrapper}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topRiesgo} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={250} tick={{ fill: '#475569', fontSize: 12 }} />
-                  <Tooltip cursor={{ fill: '#f1f5f9' }} />
-                  <Bar dataKey="value" fill="#ef4444" radius={[0, 7, 7, 0]}
-                    barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
+        {!isCAPS && (
+          <div className={styles.chartsSection}>
+            {/* Solo mostramos los filtros si NO es Maternidad, ya que Maternidad ve solo sus derivaciones */}
+            {!isMaternidad && (
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '1rem', justifyContent: 'center' }}>
+                <button style={getBtnStyle('Todos')} onClick={() => setZonaChart('Todos')}>
+                  Toda la Provincia
+                </button>
+                <button style={getBtnStyle('Capital')} onClick={() => setZonaChart('Capital')}>
+                  Solo Capital
+                </button>
+                <button style={getBtnStyle('Interior')} onClick={() => setZonaChart('Interior')}>
+                  Solo Interior
+                </button>
+              </div>
+            )}
+            
+            <div className={styles.chartsGrid}>
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartTitle}>
+                {isMaternidad
+                  ? "Top 15 — Centros de Salud que derivaron pacientes"
+                  : "Top 15 — Establecimientos con más embarazadas"}
+              </h3>
+              <div className={styles.chartWrapper}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topGeneral} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={250} tick={{ fill: '#475569', fontSize: 12 }} />
+                    <Tooltip 
+                      cursor={{ fill: '#f1f5f9' }} 
+                      formatter={(value: number) => [value, "Cantidad de embarazadas"]}
+                      labelFormatter={(label) => <span style={{ fontWeight: 'bold' }}>{label}</span>}
+                    />
+                    <Bar dataKey="value" fill="#608bc4" radius={[0, 7, 7, 0]}
+                      barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartTitle}>
+                {isMaternidad
+                  ? "Top 15 — Riesgo y sin control (más de 30 días) por centro de origen"
+                  : "Top 15 — Embarazadas de riesgo con control más de 30 días"}
+              </h3>
+              <div className={styles.chartWrapper}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topRiesgo} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={250} tick={{ fill: '#475569', fontSize: 12 }} />
+                    <Tooltip 
+                      cursor={{ fill: '#f1f5f9' }} 
+                      formatter={(value: number) => [value, "Cantidad de embarazadas"]}
+                      labelFormatter={(label) => <span style={{ fontWeight: 'bold' }}>{label}</span>}
+                    />
+                    <Bar dataKey="value" fill="#ef4444" radius={[0, 7, 7, 0]}
+                      barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   );

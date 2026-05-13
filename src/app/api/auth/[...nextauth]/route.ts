@@ -19,7 +19,12 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const res = await query(
-            "SELECT * FROM usuarios WHERE username = $1", 
+            `SELECT u.*, 
+                    COALESCE(m.nombre, e.nombre) as nombre_oficial
+             FROM usuarios u
+             LEFT JOIN maternidades m ON u.maternidad_id = m.id
+             LEFT JOIN efectores_sisa e ON u.sisa_code = e.cuie
+             WHERE u.username = $1`, 
             [credentials.usuario.trim()]
           );
           
@@ -37,7 +42,7 @@ export const authOptions: NextAuthOptions = {
             // Retornamos el objeto usuario con el rol incluido
             return { 
               id: user.id.toString(), 
-              name: user.username, 
+              name: user.nombre_oficial || user.username, 
               role: user.role, 
               cuie_code: user.sisa_code, 
               maternidad_id: user.maternidad_id

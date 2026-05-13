@@ -14,8 +14,8 @@ export default function Navbar() {
     { name: 'Estadísticas', href: '/dashboard/stats', icon: BarChart3 },
   ];
 
-  // Auditoría solo para Administradores
-  if (session?.user?.role === 'Administrador' || session?.user?.name === 'admin') {
+  // Auditoría solo para Administradores y Coordinadores
+  if (session?.user?.role === 'Administrador' || session?.user?.role === 'Coordinador' || session?.user?.name === 'admin') {
     menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });
   }
 

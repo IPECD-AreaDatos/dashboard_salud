@@ -5,6 +5,8 @@ export async function GET() {
   try {
     const sql = `
       SELECT 
+        s.cuie,
+        s.codigo_sisa,
         s.nombre as nombre_oficial,
         COUNT(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.fecha_probable_parto >= CURRENT_DATE THEN 1 END) as total_riesgo
       FROM pacientes_gold p
@@ -12,15 +14,15 @@ export async function GET() {
       INNER JOIN efectores_sisa s ON p.cuie_seguimiento = s.cuie
       WHERE s.nombre IS NOT NULL
         AND s.nombre != ''
-      GROUP BY s.nombre
+      GROUP BY s.cuie, s.codigo_sisa, s.nombre
       ORDER BY total_riesgo DESC, s.nombre ASC
     `;
     const result = await query(sql);
 
     // Mapeamos para el componente Select del Frontend
     const establecimientos = result.rows.map(r => ({
-      // El value sigue siendo el nombre para que la query de búsqueda funcione
-      value: r.nombre_oficial,
+      value: r.cuie, // <--- Mandamos el CUIE como valor
+      sisa: r.codigo_sisa,
       label: `${r.nombre_oficial} (${r.total_riesgo} riesgo)`
     }));
 

@@ -53,7 +53,7 @@ export default function SeguimientoPage() {
   const isRestrictedRole = userRole === 'Centro de Salud' || userRole === 'Maternidad';
 
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
-  const [establecimientos, setEstablecimientos] = useState<{ value: string, label: string }[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<{ value: string, label: string, sisa?: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -85,9 +85,14 @@ export default function SeguimientoPage() {
   const [isOpen, setIsOpen] = useState(false);
 
   // Filtramos la lista de establecimientos según lo que el usuario escribe
-  const filteredEsts = establecimientos.filter(est =>
-    est.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEsts = establecimientos.filter(est => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      est.label.toLowerCase().includes(searchLower) ||
+      (est.value && est.value.toLowerCase().includes(searchLower)) ||
+      (est.sisa && est.sisa.toLowerCase().includes(searchLower))
+    );
+  });
 
   // Modal de Contacto
   const [selectedPaciente, setSelectedPaciente] = useState<Paciente | null>(null);
@@ -191,7 +196,7 @@ export default function SeguimientoPage() {
       const data = await res.json();
 
       // Mapeamos los establecimientos para unificar sus nombres
-      const estsUnificados = data.map((est: { value: string, label: string }) => ({
+      const estsUnificados = data.map((est: { value: string, label: string, sisa?: string }) => ({
         ...est,
         label: romanToArabic(est.label) // <--- Aplicamos la limpieza aquí
       }));
@@ -383,16 +388,17 @@ export default function SeguimientoPage() {
 
                 {isOpen && (
                   <div className={styles.customDropdown}>
-                  
-                    {filteredEsts.map(est => (
+
+                    {filteredEsts.map((est) => (
                       <div
-                        key={est.value}
+                        key={est.value} // Esto quita el error de "unique key prop"
                         className={styles.dropdownOption}
                         onClick={() => {
-                          setFilterEst(est.value);
+                          const selectedValue = est.value || "Todos"; // Nos aseguramos de que nunca sea undefined
+                          setFilterEst(selectedValue);
                           setSearchTerm(romanToArabic(est.label));
                           setIsOpen(false);
-                          fetchPacientes(undefined, false, est.value); // busca inmediatamente con el centro elegido
+                          fetchPacientes(undefined, false, selectedValue);
                         }}
                       >
                         {est.label}
@@ -524,9 +530,10 @@ export default function SeguimientoPage() {
                 <span className={styles.filtrosBadge}>
                   {getFiltrosAplicadosTexto()}
                 </span>
-                {isRestrictedRole && pacientes.length > 0 && (
+                {isRestrictedRole && (
                   <span style={{ fontSize: '1rem', color: '#587ba8', display: 'block', marginLeft: '0.55rem', marginTop: '0.25rem', fontWeight: 'normal' }}>
-                    - Centro Asignado: {pacientes[0].establecimiento}
+                    {/* Usamos el nombre que viene en la sesión, no del primer paciente */}
+                    - Institución: {session?.user?.name || "Cargando..."}
                   </span>
                 )}
               </h2>
@@ -619,7 +626,7 @@ export default function SeguimientoPage() {
                       const diasSC = p.dias_sin_contacto;
 
                       return (
-                        <tr key={p.id} onDoubleClick={() => setSelectedPaciente(p)}>
+                        <tr key={p.id} onClick={() => setSelectedPaciente(p)}>
                           <td>
                             <div className={styles.pacienteInfo}>
                               <div className={styles.pacienteNombre}>{p.nombre}</div>

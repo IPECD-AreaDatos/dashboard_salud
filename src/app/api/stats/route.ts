@@ -6,7 +6,7 @@ import { authOptions } from "../auth/[...nextauth]/route";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  
+
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     let securityClause = "";
     if (session.user?.role === 'Centro de Salud' && session.user?.cuie_code) {
       securityClause = ` AND (sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}'))`;
-    } 
+    }
     else if (session.user?.role === 'Maternidad' && session.user?.maternidad_id) {
       securityClause = ` AND ((sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}')) OR derivacion_maternidad_id = '${session.user.maternidad_id}')`;
     }
@@ -40,7 +40,12 @@ export async function GET(request: Request) {
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') AND edad_actual < 15 THEN 1 ELSE 0 END) as rsg_15,
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') AND edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as rsg_15_19,
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') AND edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as rsg_20_34,
-        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') AND edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus
+        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') AND edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus,
+
+        -- Métricas Operativas para CAPS
+        SUM(CASE WHEN (CURRENT_DATE - fecha_ultimo_control) > 30 OR fecha_ultimo_control IS NULL THEN 1 ELSE 0 END) as controles_pendientes,
+        SUM(CASE WHEN fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
+        SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono
       FROM pacientes_gold
       WHERE fecha_probable_parto >= ${fechaUmbral} 
         AND fecha_nacimiento IS NOT NULL
@@ -58,26 +63,27 @@ export async function GET(request: Request) {
         ${securityClause}
     `;
 
-    // 2. Top 15 Establecimientos con más embarazadas (UNIFICADO POR SISA)
+    // 2. Top Establecimientos con más embarazadas (UNIFICADO POR SISA)
     const topGenSql = `
       SELECT 
         s.nombre as name, 
+        s.departamento,
         COUNT(p.id) as value
       FROM pacientes_gold p
       INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
       WHERE p.fecha_probable_parto >= ${fechaUmbral}
         AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
         ${securityClause}
-      GROUP BY s.codigo_sisa, s.nombre
+      GROUP BY s.codigo_sisa, s.nombre, s.departamento
       ORDER BY value DESC
-      LIMIT 15
     `;
     const topGenRes = await query(topGenSql);
 
-    // 3. Top 15 Establecimientos con Riesgo y > 30 días sin control (UNIFICADO POR SISA)
+    // 3. Top Establecimientos con Riesgo y > 30 días sin control (UNIFICADO POR SISA)
     const topRsgSql = `
       SELECT 
         s.nombre as name, 
+        s.departamento,
         COUNT(p.id) as value
       FROM pacientes_gold p
       INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
@@ -86,9 +92,8 @@ export async function GET(request: Request) {
         AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') 
         AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
         ${securityClause}
-      GROUP BY s.codigo_sisa, s.nombre
+      GROUP BY s.codigo_sisa, s.nombre, s.departamento
       ORDER BY value DESC
-      LIMIT 15
     `;
     const topRsgRes = await query(topRsgSql);
 
@@ -107,8 +112,13 @@ export async function GET(request: Request) {
         age20_34: parseInt(kpis.rsg_20_34) || 0,
         age34plus: parseInt(kpis.rsg_34_plus) || 0
       },
-      topGeneral: topGenRes.rows.map(r => ({ name: r.name.trim(), value: parseInt(r.value) || 0 })),
-      topRiesgoAtraso: topRsgRes.rows.map(r => ({ name: r.name.trim(), value: parseInt(r.value) || 0 }))
+      gestion: { // Nuevas métricas para el CAPS
+        controlesPendientes: parseInt(kpis.controles_pendientes) || 0,
+        proximosPartos: parseInt(kpis.proximos_partos) || 0,
+        sinTelefono: parseInt(kpis.sin_telefono) || 0
+      },
+      topGeneral: topGenRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 })),
+      topRiesgoAtraso: topRsgRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }))
     });
   } catch (error) {
     console.error("Error obteniendo estadísticas:", error);

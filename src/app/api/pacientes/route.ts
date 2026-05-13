@@ -98,9 +98,10 @@ export async function GET(request: Request) {
         }
     }
 
-    if (establecimiento && establecimiento !== "Todos") {
+    if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
       params.push(establecimiento);
-      whereClause += ` AND nombre_establecimiento = $${params.length}`;
+      // Como ahora recibimos el CUIE, filtramos directo:
+      whereClause += ` AND p.cuie_seguimiento = $${params.length}`;
     }
 
     let sql = `
