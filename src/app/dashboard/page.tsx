@@ -17,6 +17,8 @@ interface Paciente {
   dias: number;
   // Cambiamos 'contactada' por el dato real que traeremos de la tabla seguimientos
   fecha_ultimo_contacto: string | null;
+  dias_sin_contacto: number;
+  fuente_principal: string;
 }
 
 // Función helper para calcular la diferencia de días
@@ -611,6 +613,7 @@ export default function SeguimientoPage() {
                         </span>
                       </div>
                     </th>
+                    <th className={styles.tableTh}>Fuente</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -673,6 +676,16 @@ export default function SeguimientoPage() {
                               {diasSC === 999 ? "S/D" : diasSC}
                             </span>
                           </td>
+
+                          <td className={styles.tableTd}>
+                              <span className={styles.fuenteBadge}>
+                                {p.fuente_principal === 'sumar' 
+                                  ? 'SUMAR' 
+                                  : p.fuente_principal === 'v_embarazosdw' 
+                                    ? 'POF' 
+                                    : p.fuente_principal}
+                              </span>
+                            </td>
                         </tr>
                       );
                     })

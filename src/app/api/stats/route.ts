@@ -17,13 +17,30 @@ export async function GET(request: Request) {
     const fechaMinimaControl = "'2025-03-01'";
     const diasAtrasoCorte = 30;
 
+    const sisa = session.user?.sisa_code;
+    const cuie = session.user?.cuie_code;
     // RBAC Security Clause
     let securityClause = "";
-    if (session.user?.role === 'Centro de Salud' && session.user?.cuie_code) {
-      securityClause = ` AND (sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}'))`;
+    if (session.user?.role === 'Centro de Salud') {
+      if (sisa) {
+        // Si hay SISA nacional, es la prioridad absoluta
+        securityClause = ` AND sisa_centro_salud = '${sisa}'`;
+      } else if (cuie) {
+        // Si no hay SISA, buscamos por CUIE o mapeamos CUIE -> SISA
+        securityClause = ` AND (sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+      }
     }
-    else if (session.user?.role === 'Maternidad' && session.user?.maternidad_id) {
-      securityClause = ` AND ((sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}')) OR derivacion_maternidad_id = '${session.user.maternidad_id}')`;
+    else if (session.user?.role === 'Maternidad') {
+      const matId = session.user?.maternidad_id;
+      // Maternidad: Ve lo propio (por SISA o CUIE) + derivaciones
+      let localClause = "";
+      if (sisa) {
+        localClause = `sisa_centro_salud = '${sisa}'`;
+      } else if (cuie) {
+        localClause = `(sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+      }
+
+      securityClause = ` AND (${localClause} OR derivacion_maternidad_id = '${matId}')`;
     }
 
     // 1. Métricas Generales y de Riesgo por Edades (Ignorando fechas mínimas de control, pero aplicando RBAC y umbral FPP)

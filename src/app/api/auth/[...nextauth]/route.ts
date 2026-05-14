@@ -23,11 +23,11 @@ export const authOptions: NextAuthOptions = {
                     COALESCE(m.nombre, e.nombre) as nombre_oficial
              FROM usuarios u
              LEFT JOIN maternidades m ON u.maternidad_id = m.id
-             LEFT JOIN efectores_sisa e ON u.sisa_code = e.cuie
-             WHERE u.username = $1`, 
+             LEFT JOIN efectores_sisa e ON (u.sisa_code = e.codigo_sisa OR u.cuie_code = e.cuie)
+             WHERE u.username = $1`,
             [credentials.usuario.trim()]
           );
-          
+
           const user = res.rows[0];
           if (!user) return null;
 
@@ -40,15 +40,16 @@ export const authOptions: NextAuthOptions = {
 
           if (match) {
             // Retornamos el objeto usuario con el rol incluido
-            return { 
-              id: user.id.toString(), 
-              name: user.nombre_oficial || user.username, 
-              role: user.role, 
-              cuie_code: user.sisa_code, 
+            return {
+              id: user.id.toString(),
+              name: user.nombre_oficial || user.username,
+              role: user.role,
+              sisa_code: user.sisa_code,
+              cuie_code: user.cuie_code,
               maternidad_id: user.maternidad_id
             };
           }
-          
+
           return null;
         } catch (error) {
           console.error("Error en authorize:", error);
@@ -62,6 +63,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }: any) {
       if (user) {
         token.role = user.role;
+        token.sisa_code = user.sisa_code;
         token.cuie_code = user.cuie_code;
         token.maternidad_id = user.maternidad_id;
       }
@@ -70,6 +72,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }: any) {
       if (session.user) {
         session.user.role = token.role;
+        session.user.sisa_code = token.sisa_code;
         session.user.cuie_code = token.cuie_code;
         session.user.maternidad_id = token.maternidad_id;
       }

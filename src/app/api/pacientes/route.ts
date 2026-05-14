@@ -14,7 +14,7 @@ import { authOptions } from "../auth/[...nextauth]/route";
  */
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  
+
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
@@ -32,23 +32,38 @@ export async function GET(request: Request) {
   try {
     let whereClause = `WHERE 1=1`;
     const params: any[] = [];
+    const sisa = session.user?.sisa_code;
+    const cuie = session.user?.cuie_code;
 
     // Lógica de Seguridad de Tony (RBAC) para ambas consultas
     let securityClause = ``;
-    if (session.user?.role === 'Centro de Salud' && session.user?.cuie_code) {
-      // El Centro de Salud solo ve lo que tiene asignado por su código SISA (o su CUIE equivalente)
-      securityClause += ` AND (sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}'))`;
-    } 
-    else if (session.user?.role === 'Maternidad' && session.user?.maternidad_id) {
-      // La Maternidad ve lo asignado a su SISA/CUIE o lo que fue derivado a su ID de maternidad
-      securityClause += ` AND ((sisa_centro_salud = '${session.user.cuie_code}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${session.user.cuie_code}')) OR derivacion_maternidad_id = '${session.user.maternidad_id}')`;
+    if (session.user?.role === 'Centro de Salud') {
+      if (sisa) {
+        // Si hay SISA nacional, es la prioridad absoluta
+        securityClause = ` AND sisa_centro_salud = '${sisa}'`;
+      } else if (cuie) {
+        // Si no hay SISA, buscamos por CUIE o mapeamos CUIE -> SISA
+        securityClause = ` AND (sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+      }
+    }
+    else if (session.user?.role === 'Maternidad') {
+      const matId = session.user?.maternidad_id;
+      // Maternidad: Ve lo propio (por SISA o CUIE) + derivaciones
+      let localClause = "";
+      if (sisa) {
+        localClause = `sisa_centro_salud = '${sisa}'`;
+      } else if (cuie) {
+        localClause = `(sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+      }
+
+      securityClause = ` AND (${localClause} OR derivacion_maternidad_id = '${matId}')`;
     }
     else if (session.user?.role === 'Coordinador') {
-        // El coordinador ve todo, pero recordá que no ve auditoría (eso lo manejás en el front)
-        securityClause += ``; 
+      // El coordinador ve todo, pero recordá que no ve auditoría (eso lo manejás en el front)
+      securityClause += ``;
     }
     console.log("CLAUSULA GENERADA:", securityClause);
-    
+
     // Primero, obtener el total de embarazadas para el contraste (sin aplicar los otros filtros de búsqueda)
     const countQuery = `
       SELECT COUNT(*) 
@@ -63,39 +78,39 @@ export async function GET(request: Request) {
 
     // SI HAY DNI EXACTO, IGNORAMOS EL RESTO DE LOS FILTROS DE GESTIÓN
     if (dni && exact) {
-        params.push(dni.trim());
-        whereClause += ` AND dni = $${params.length}`;
-    } 
+      params.push(dni.trim());
+      whereClause += ` AND dni = $${params.length}`;
+    }
     else {
-        // Solo si NO es búsqueda exacta, aplicamos filtros de Riesgo, Días y FPP
-        if (riesgo !== "Todas") {
-            whereClause += ` AND LOWER(riesgo) IN ('si', 's', 'alto', 'moderado')`;
-        }
+      // Solo si NO es búsqueda exacta, aplicamos filtros de Riesgo, Días y FPP
+      if (riesgo !== "Todas") {
+        whereClause += ` AND LOWER(riesgo) IN ('si', 's', 'alto', 'moderado')`;
+      }
 
-        if (dias && dias !== "0") {
-            const diasNum = parseInt(dias, 10);
-            if (!isNaN(diasNum)) {
-                params.push(diasNum);
-                whereClause += ` AND (CURRENT_DATE - fecha_ultimo_control) >= $${params.length}`;
-            }
+      if (dias && dias !== "0") {
+        const diasNum = parseInt(dias, 10);
+        if (!isNaN(diasNum)) {
+          params.push(diasNum);
+          whereClause += ` AND (CURRENT_DATE - fecha_ultimo_control) >= $${params.length}`;
         }
+      }
 
-        if (fppDesde) {
-            params.push(fppDesde);
-            whereClause += ` AND fecha_probable_parto >= $${params.length}`;
-        } else if (!fppDesde && !fppHasta && !dni) {
-            whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`;
-        }
+      if (fppDesde) {
+        params.push(fppDesde);
+        whereClause += ` AND fecha_probable_parto >= $${params.length}`;
+      } else if (!fppDesde && !fppHasta && !dni) {
+        whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`;
+      }
 
-        if (fppHasta) {
-            params.push(fppHasta);
-            whereClause += ` AND fecha_probable_parto <= $${params.length}`;
-        }
+      if (fppHasta) {
+        params.push(fppHasta);
+        whereClause += ` AND fecha_probable_parto <= $${params.length}`;
+      }
 
-        if (dni) {
-            params.push(`${dni}%`);
-            whereClause += ` AND dni LIKE $${params.length}`;
-        }
+      if (dni) {
+        params.push(`${dni}%`);
+        whereClause += ` AND dni LIKE $${params.length}`;
+      }
     }
 
     if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
@@ -121,7 +136,8 @@ export async function GET(request: Request) {
          WHERE sec.paciente_id = p.id) as fecha_ultimo_contacto,
         p.calle_domicilio,
         p.nro_puerta_domicilio,
-        p.localidad_domicilio
+        p.localidad_domicilio,
+        p.fuente_principal
       FROM pacientes_gold p
       LEFT JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa -- JOIN CON SISA
       ${whereClause}
@@ -129,20 +145,20 @@ export async function GET(request: Request) {
     `;
 
     const result = await query(sql, params);
-    
+
     // Mapeo para el Frontend
     const pacientes = result.rows.map(p => {
       let dom = "";
       if (p.calle_domicilio) {
         dom = `${p.calle_domicilio} ${p.nro_puerta_domicilio || ''}`.trim();
       }
-      
+
       // Calculamos los días sin contacto aquí mismo para que el frontend ya los reciba
       const hoy = new Date();
       const ultContacto = p.fecha_ultimo_contacto ? new Date(p.fecha_ultimo_contacto) : null;
-      const diasSContacto = ultContacto 
-          ? Math.floor((hoy.getTime() - ultContacto.getTime()) / (1000 * 60 * 60 * 24))
-          : 999;
+      const diasSContacto = ultContacto
+        ? Math.floor((hoy.getTime() - ultContacto.getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
 
       return {
         id: p.id,
@@ -154,9 +170,10 @@ export async function GET(request: Request) {
         establecimiento: p.nombre_establecimiento_oficial || "No asignado",
         dias: p.dias_atraso !== null ? p.dias_atraso : 999,
         // Enviamos la fecha real y los días calculados
-        fecha_ultimo_contacto: p.fecha_ultimo_contacto, 
+        fecha_ultimo_contacto: p.fecha_ultimo_contacto,
         dias_sin_contacto: diasSContacto,
-        domicilio: dom || "No registrado"
+        domicilio: dom || "No registrado",
+        fuente_principal: p.fuente_principal || "No especificada"
       };
     });
 

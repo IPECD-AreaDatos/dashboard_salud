@@ -27,6 +27,16 @@
   margin: 0;
 }
 
+.fuenteBadge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  background-color: #f1f5f9;
+  color: #475569;
+  text-transform: uppercase;
+  border: 1px solid #e2e8f0;
+}
 .titleArea p {
   color: #64748b;
   /* slate-500 */
