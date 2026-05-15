@@ -1,8 +1,12 @@
+/*src/app/api/seguimientos/route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 
+/**
+ * GET: Obtiene el historial de contactos de una paciente específica.
+ */
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -14,7 +18,7 @@ export async function GET(request: Request) {
 
   try {
     const res = await query(
-      "SELECT * FROM seguimientos WHERE paciente_id = $1 ORDER BY created_at DESC",
+      "SELECT * FROM seguimientos WHERE paciente_id = $1 ORDER BY fecha_contacto DESC",
       [parseInt(pacienteId)]
     );
     return NextResponse.json(res.rows);
@@ -24,6 +28,10 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * POST: Registra un nuevo contacto.
+ * El campo personal_salud se recibe automáticamente desde el modal (session.user.name).
+ */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -38,7 +46,7 @@ export async function POST(request: Request) {
       telefono_contactado,
       observaciones,
       proxima_cita,
-      personal_salud
+      personal_salud // Ahora viene inyectado automáticamente desde el Modal
     } = body;
 
     const sql = `
@@ -60,9 +68,8 @@ export async function POST(request: Request) {
       ) RETURNING id
     `;
 
-    // next-auth defaults to placing user email or name. We'll leave usuario_id as null if not readily available
-    // and rely on personal_salud string.
-    const usuario_id = null;
+    // Usamos el ID real de la sesión de NextAuth para el usuario_id
+    const usuario_id = session.user.id; 
     const cita = proxima_cita ? proxima_cita : null;
 
     const params = [
@@ -79,8 +86,13 @@ export async function POST(request: Request) {
 
     const result = await query(sql, params);
 
-    // Actualizar también ultimo_contacto_at en la tabla principal
-    await query(`UPDATE pacientes_gold SET ultimo_contacto_at = CURRENT_TIMESTAMP WHERE id = $1`, [paciente_id]);
+    // 3. Actualizamos el flag de último contacto en la tabla principal para el Dashboard
+    await query(
+      `UPDATE pacientes_gold 
+       SET ultimo_contacto_at = CURRENT_TIMESTAMP 
+       WHERE id = $1`, 
+      [paciente_id]
+    );
 
     return NextResponse.json({ success: true, id: result.rows[0].id });
   } catch (error) {

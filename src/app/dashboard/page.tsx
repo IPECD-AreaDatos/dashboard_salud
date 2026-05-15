@@ -144,8 +144,7 @@ export default function SeguimientoPage() {
     setFilterDias("0");
     setFilterFppDesde("");
     setFilterFppHasta("");
-    setFilterEst("Todos");
-    setSearchTerm("");
+    
 
     // Reseteamos las etiquetas del resumen
     setAplicadoRiesgo("Todas");
@@ -532,12 +531,20 @@ export default function SeguimientoPage() {
                 <span className={styles.filtrosBadge}>
                   {getFiltrosAplicadosTexto()}
                 </span>
-                {isRestrictedRole && (
-                  <span style={{ fontSize: '1rem', color: '#587ba8', display: 'block', marginLeft: '0.55rem', marginTop: '0.25rem', fontWeight: 'normal' }}>
-                    {/* Usamos el nombre que viene en la sesión, no del primer paciente */}
-                    - Institución: {session?.user?.name || "Cargando..."}
-                  </span>
-                )}
+                {/* TÍTULO DINÁMICO E INTELIGENTE */}
+                <span style={{ 
+                  fontSize: '1rem', 
+                  color: filterDni && pacientes.length === 1 && pacientes[0].establecimiento !== session?.user?.name 
+                    ? '#e11d48' // Rojo si es de afuera
+                    : '#587ba8', 
+                  display: 'block', 
+                  fontWeight: '600' 
+                }}>
+                  {filterDni && pacientes.length === 1 
+                    ? ` — Paciente de: ${pacientes[0].establecimiento}` 
+                    : ` — Institución: ${session?.user?.name || "Cargando..."}`
+                  }
+                </span>
               </h2>
               <button
                 className={styles.btnRefresh}
@@ -619,17 +626,21 @@ export default function SeguimientoPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         Cargando base de datos Gold...
                       </td>
                     </tr>
                   ) : sortedPacientes.length > 0 ? (
-                    sortedPacientes.map((p) => {
+                    sortedPacientes.map((p, index) => {
                       // Usamos directamente los valores que vienen de la API
                       const diasSC = p.dias_sin_contacto;
 
                       return (
-                        <tr key={p.id} onClick={() => setSelectedPaciente(p)}>
+                        <tr 
+                            key={`${p.id}-${index}`} 
+                            onClick={() => setSelectedPaciente(p)} 
+                            className={styles.tableRow}
+                          >                          
                           <td>
                             <div className={styles.pacienteInfo}>
                               <div className={styles.pacienteNombre}>{p.nombre}</div>

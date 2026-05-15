@@ -2,14 +2,16 @@ import React, { useState, useEffect } from "react";
 import styles from "./RegistroContactoModal.module.css";
 import { X, Save, Clock } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useSession } from "next-auth/react"; // Importamos el hook de sesión
 
 export default function RegistroContactoModal({ paciente, onClose, onSuccess }: any) {
+  const { data: session } = useSession(); // Obtenemos la sesión actual
+  
   const [formData, setFormData] = useState({
     contacto_logrado: true,
     medio_contacto: "llamada",
     persona_contactada: "paciente",
     telefono_contactado: paciente.telefono !== "-" ? paciente.telefono : "",
-    personal_salud: "", 
     proxima_cita: "",
     observaciones: ""
   });
@@ -47,13 +49,18 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setSaving(true);
+    
+    // Determinamos el nombre del personal automáticamente desde la sesión
+    const identificadorUsuario = session?.user?.username || session?.user?.name || "Desconocido";
+    
     try {
       const res = await apiFetch("/seguimientos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paciente_id: paciente.id,
-          ...formData
+          ...formData,
+          personal_salud: identificadorUsuario // Lo enviamos aquí automáticamente
         })
       });
       if (res.ok) {
@@ -129,10 +136,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
                 <label className={styles.formLabel}>Teléfono contactado:</label>
                 <input type="tel" name="telefono_contactado" value={formData.telefono_contactado} onChange={handleChange} className={styles.input} placeholder="Ej: 3784..." />
               </div>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Personal de salud:</label>
-                <input type="text" name="personal_salud" value={formData.personal_salud} onChange={handleChange} className={styles.input} placeholder="Nombre y apellido" required />
-              </div>
+              {/* CAMBIO: Se eliminó el campo visual de Personal de Salud */}
             </div>
 
             <div className={styles.formRow}>
@@ -160,7 +164,6 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
             <h4 className={styles.historialTitle}>
               <Clock size={16} /> Últimos contactos ({historial.length})
             </h4>
-            
             <div className={styles.historialList}>
               {loading ? (
                 <p className={styles.historialStatus}>Cargando historial...</p>
