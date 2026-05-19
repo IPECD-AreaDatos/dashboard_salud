@@ -62,8 +62,16 @@ export async function GET(request: Request) {
         -- Métricas Operativas para CAPS
         SUM(CASE WHEN (CURRENT_DATE - fecha_ultimo_control) > 30 OR fecha_ultimo_control IS NULL THEN 1 ELSE 0 END) as controles_pendientes,
         SUM(CASE WHEN fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
-        SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono
-      FROM pacientes_gold
+        SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
+        SUM(CASE WHEN nombre_centro_derivado IS NOT NULL AND nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
+    
+        SUM(CASE WHEN (
+          SELECT MAX(s.fecha_contacto) FROM seguimientos s WHERE s.paciente_id = pacientes_gold.id
+        ) < CURRENT_DATE - INTERVAL '30 days' 
+        OR NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = pacientes_gold.id)
+        THEN 1 ELSE 0 END) as sin_contacto_reciente
+        
+        FROM pacientes_gold
       WHERE fecha_probable_parto >= ${fechaUmbral} 
         AND fecha_nacimiento IS NOT NULL
         ${securityClause}
@@ -132,7 +140,9 @@ export async function GET(request: Request) {
       gestion: { // Nuevas métricas para el CAPS
         controlesPendientes: parseInt(kpis.controles_pendientes) || 0,
         proximosPartos: parseInt(kpis.proximos_partos) || 0,
-        sinTelefono: parseInt(kpis.sin_telefono) || 0
+        sinTelefono: parseInt(kpis.sin_telefono) || 0,
+        derivadas: parseInt(kpis.derivadas) || 0,               // ← nuevo
+        sinContactoReciente: parseInt(kpis.sin_contacto_reciente) || 0  // ← nuevo
       },
       topGeneral: topGenRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 })),
       topRiesgoAtraso: topRsgRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }))

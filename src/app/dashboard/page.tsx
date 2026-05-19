@@ -6,6 +6,9 @@ import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw, X }
 import RegistroContactoModal from "@/components/RegistroContactoModal";
 import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/api";
+import Image from "next/image";
+import logoColorImg from "../../../public/logo_color.png";
+import logoSaludImg from "../../../public/Logo_Salud_Publica_colorH.png";
 
 interface Paciente {
   id: number;
@@ -19,6 +22,7 @@ interface Paciente {
   fecha_ultimo_contacto: string | null;
   dias_sin_contacto: number;
   fuente_principal: string;
+  eg_actual: number | null;
 }
 
 // Función helper para calcular la diferencia de días
@@ -28,6 +32,29 @@ const calcularDiasSinContacto = (fechaContacto: string) => {
   const hoy = new Date();
   const diferencia = hoy.getTime() - inicio.getTime();
   return Math.floor(diferencia / (1000 * 60 * 60 * 24));
+};
+
+const getSemaforoClass = (dias: number, eg: number | null) => {
+  if (dias === 999) return styles.semaforoGris;
+  
+  // EG >= 38 semanas: control cada 7 días
+  if (eg !== null && eg >= 38) {
+    if (dias > 15) return styles.semaforoRojo;
+    if (dias > 7)  return styles.semaforoAmarillo;
+    return styles.semaforoVerde;
+  }
+  
+  // EG 32-37 semanas: control cada 15 días
+  if (eg !== null && eg >= 32) {
+    if (dias > 30) return styles.semaforoRojo;
+    if (dias > 15) return styles.semaforoAmarillo;
+    return styles.semaforoVerde;
+  }
+  
+  // EG < 32 semanas (o sin dato): control mensual
+  if (dias > 60) return styles.semaforoRojo;
+  if (dias > 30) return styles.semaforoAmarillo;
+  return styles.semaforoVerde;
 };
 
 const romanToArabic = (text: string) => {
@@ -68,6 +95,7 @@ export default function SeguimientoPage() {
     setSortConfig({ key, direction });
   };
 
+  const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null);
   // Estados para los filtros (Como Tony)
   const [filterDni, setFilterDni] = useState("");
   const [filterEst, setFilterEst] = useState("Todos");
@@ -98,6 +126,9 @@ export default function SeguimientoPage() {
 
   // Modal de Contacto
   const [selectedPaciente, setSelectedPaciente] = useState<Paciente | null>(null);
+
+  // Solo activo para Centro de Salud, por defecto excluye derivadas
+  const [excluirDerivadas, setExcluirDerivadas] = useState(true);
 
   // Carga inicial
   useEffect(() => {
@@ -215,7 +246,8 @@ export default function SeguimientoPage() {
     fppDesdeDirecto?: string,
     fppHastaDirecto?: string,
     riesgoDirecto?: string,    // ← nuevo
-    diasDirecto?: string       // ← nuevo
+    diasDirecto?: string,
+    excluirDerivadasDirecto?: boolean       // ← nuevo
   ) => {
     setLoading(true);
     try {
@@ -224,12 +256,16 @@ export default function SeguimientoPage() {
       const fppDesdeABuscar = fppDesdeDirecto !== undefined ? fppDesdeDirecto : filterFppDesde;
       const fppHastaABuscar = fppHastaDirecto !== undefined ? fppHastaDirecto : filterFppHasta;
       const riesgoABuscar = riesgoDirecto !== undefined ? riesgoDirecto : filterRiesgo;  // ← nuevo
-      const diasABuscar = diasDirecto !== undefined ? diasDirecto : filterDias;          // ← nuevo
+      const diasABuscar = diasDirecto !== undefined ? diasDirecto : filterDias;
+      const excluirDerivadasABuscar = excluirDerivadasDirecto !== undefined 
+        ? excluirDerivadasDirecto 
+        : excluirDerivadas;          // ← nuevo
       const queryParams: any = {
         dni: dniABuscar,
         establecimiento: estABuscar,
         riesgo: riesgoABuscar,   // ← cambiado
-        dias: diasABuscar        // ← cambiado
+        dias: diasABuscar,
+        excluirDerivadas: excluirDerivadasABuscar ? "true" : "false"        // ← cambiado
       };
 
       // Si es una búsqueda exacta por DNI, agregamos el flag para el backend
@@ -239,11 +275,14 @@ export default function SeguimientoPage() {
 
       if (fppDesdeABuscar) queryParams.fppDesde = fppDesdeABuscar;
       if (fppHastaABuscar) queryParams.fppHasta = fppHastaABuscar;
-
+      
+      
+        
       const query = new URLSearchParams(queryParams);
       const res = await apiFetch(`/pacientes?${query}`);
       const data = await res.json();
 
+      setUltimaActualizacion(data.ultimaActualizacion || null);
       setPacientes(data.data || []);
       setTotalGlobal(data.totalGlobal || 0);
     } catch (error) {
@@ -486,6 +525,33 @@ export default function SeguimientoPage() {
               </div>
             </div>
 
+            {isRestrictedRole && (
+              <div className={styles.filterGroup}>
+                <label className={styles.filterLabel}>Derivadas</label>
+                <button
+                  onClick={() => {
+                    const nuevoValor = !excluirDerivadas;
+                    setExcluirDerivadas(nuevoValor);
+                    fetchPacientes(undefined, false, undefined, undefined, undefined, undefined, undefined, nuevoValor);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '8px',
+                    border: `1px solid ${excluirDerivadas ? '#e2e8f0' : '#769FD3'}`,
+                    background: excluirDerivadas ? '#f8fafc' : '#ede9fe',
+                    color: excluirDerivadas ? '#64748b' : '#769FD3',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {excluirDerivadas ? 'No' : 'Sí'}
+                </button>
+              </div>
+            )}
+
             <button
               className={styles.btnAction}
               style={{ width: '100%', marginTop: '1rem' }}
@@ -546,14 +612,21 @@ export default function SeguimientoPage() {
                   }
                 </span>
               </h2>
-              <button
-                className={styles.btnRefresh}
-                onClick={() => fetchPacientes()}
-                disabled={loading}
-              >
-                <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                {loading ? "Actualizando..." : "Actualizar"}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                {ultimaActualizacion && (
+                  <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                    Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
+                  </span>
+                )}
+                <button
+                  className={styles.btnRefresh}
+                  onClick={() => fetchPacientes()}
+                  disabled={loading}
+                >
+                  <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  {loading ? "Actualizando..." : "Actualizar"}
+                </button>
+              </div>
             </div>
 
             <div className={styles.tableResponsive}>
@@ -576,6 +649,15 @@ export default function SeguimientoPage() {
                         <span>FPP</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'fpp' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
+                    </th>
+
+                    <th onClick={() => handleSort('eg_actual')} className={styles.sortableHeader}>
+                      <div className={styles.headerContent}>
+                        <span>Edad Gestacional</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfig.key === 'eg_actual' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       </div>
                     </th>
@@ -655,16 +737,14 @@ export default function SeguimientoPage() {
                           <td className={styles.fppCell}>
                             {p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : "-"}
                           </td>
+                          <td style={{ color: '#475569', textAlign: 'center' }}>
+                            {p.eg_actual ? `${p.eg_actual}s` : "-"}
+                          </td>
                           <td style={{ color: '#475569' }}>
                             {p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : "-"}
                           </td>
                           <td>
-                            <span className={
-                              p.dias === 999 ? styles.semaforoGris :
-                                p.dias > 60 ? styles.semaforoRojo :
-                                  p.dias > 30 ? styles.semaforoAmarillo :
-                                    styles.semaforoVerde
-                            }>
+                            <span className={getSemaforoClass(p.dias, p.eg_actual)}>
                               {p.dias === 999 ? "S/D" : p.dias}
                             </span>
                           </td>
@@ -678,12 +758,7 @@ export default function SeguimientoPage() {
 
                           {/* COLUMNA: DÍAS SIN CONTACTO (Actualizada con semáforo unificado) */}
                           <td>
-                            <span className={
-                              diasSC === 999 ? styles.semaforoGris :
-                                diasSC > 30 ? styles.semaforoRojo :
-                                  diasSC > 15 ? styles.semaforoAmarillo :
-                                    styles.semaforoVerde
-                            }>
+                            <span className={getSemaforoClass(diasSC, p.eg_actual)}>
                               {diasSC === 999 ? "S/D" : diasSC}
                             </span>
                           </td>
@@ -712,6 +787,22 @@ export default function SeguimientoPage() {
               </table>
             </div>
           </main>
+        </div>
+        {/* Logos institucionales fijos en la esquina */}
+        <div className={styles.fixedLogos}>
+          <Image 
+            src={logoColorImg} 
+            alt="Modernización" 
+            className={styles.sidebarLogo}
+            style={{ height: '35px', width: 'auto' }}
+          />
+          <div className={styles.verticalDivider}></div>
+          <Image 
+            src={logoSaludImg} 
+            alt="Salud Pública" 
+            className={styles.sidebarLogo}
+            style={{ height: '35px', width: 'auto' }}
+          />
         </div>
       </div>
 

@@ -15,6 +15,10 @@ import {
 import { Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
+import Image from "next/image";
+import logoColorImg from "../../../../public/logo_color.png";
+import logoSaludImg from "../../../../public/Logo_Salud_Publica_colorH.png";
+
 const romanToArabic = (text: string) => {
   if (!text) return text;
   const map: { [key: string]: string } = {
@@ -168,6 +172,18 @@ export default function StatsPage() {
                 <span className={styles.kpiLabel}>Sin Teléfono de Contacto</span>
                 <span className={styles.kpiValue} style={{ color: '#4b5563' }}>{data.gestion?.sinTelefono}</span>
               </div>
+              <div className={`${styles.kpiCard} ${styles.mainCard}`}>
+                <span className={styles.kpiLabel}>Derivadas a otro Centro</span>
+                <span className={styles.kpiValue} style={{ color: '#769FD3' }}>
+                  {data.gestion?.derivadas}
+                </span>
+              </div>
+              <div className={`${styles.kpiCard} ${styles.mainCard}`}>
+                <span className={styles.kpiLabel}>Sin Contacto hace +30 días</span>
+                <span className={styles.kpiValue} style={{ color: '#ef4444' }}>
+                  {data.gestion?.sinContactoReciente}
+                </span>
+              </div>
             </div>
           </>
         )}
@@ -234,13 +250,34 @@ export default function StatsPage() {
                     <Bar dataKey="value" fill="#ef4444" radius={[0, 7, 7, 0]}
                       barSize={20} />
                   </BarChart>
+                  
                 </ResponsiveContainer>
+                
               </div>
+              
             </div>
+            
             </div>
           </div>
         )}
+        
       </div>
+      {/* Logos institucionales fijos en la esquina */}
+      <div className={styles.fixedLogos}>
+                      <Image 
+                        src={logoColorImg} 
+                        alt="Modernización" 
+                        className={styles.sidebarLogo}
+                        style={{ height: '35px', width: 'auto' }}
+                      />
+                      <div className={styles.verticalDivider}></div>
+                      <Image 
+                        src={logoSaludImg} 
+                        alt="Salud Pública" 
+                        className={styles.sidebarLogo}
+                        style={{ height: '35px', width: 'auto' }}
+                      />
+                    </div>
     </>
   );
 }

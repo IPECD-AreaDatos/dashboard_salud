@@ -25,6 +25,7 @@ export async function GET(request: Request) {
   const dias = searchParams.get("dias") || "0";
   const fppDesde = searchParams.get("fppDesde");
   const fppHasta = searchParams.get("fppHasta");
+  const excluirDerivadas = searchParams.get("excluirDerivadas") === "true";
 
   try {
     const params: any[] = [];
@@ -58,13 +59,14 @@ export async function GET(request: Request) {
     const countQuery = `
       SELECT COUNT(*) 
       FROM pacientes_gold 
-      WHERE fecha_probable_parto >= CURRENT_DATE ${securityClause}
+      WHERE fecha_probable_parto >= CURRENT_DATE 
+        AND embarazo_en_curso = true ${securityClause}
     `;
     const totalRes = await query(countQuery);
     const totalGlobal = parseInt(totalRes.rows[0].count, 10);
 
     // 3. Construcción de la WHERE Clause principal
-    let whereClause = `WHERE 1=1`;
+    let whereClause = `WHERE embarazo_en_curso = true`;
 
     // --- REGLA DE ORO: BYPASS DE SEGURIDAD PARA BÚSQUEDA GLOBAL POR DNI ---
     if (dni && exact) {
@@ -75,6 +77,11 @@ export async function GET(request: Request) {
     else {
       // Búsqueda normal: Aplicamos seguridad y filtros de gestión
       whereClause += securityClause;
+
+      // ← NUEVO: excluir derivadas para Centro de Salud
+      if (excluirDerivadas && session.user?.role === 'Centro de Salud') {
+        whereClause += ` AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')`;
+      }
 
       if (riesgo !== "Todas") {
         whereClause += ` AND LOWER(riesgo) IN ('si', 's', 'alto', 'moderado')`;
@@ -130,7 +137,8 @@ export async function GET(request: Request) {
         p.calle_domicilio,
         p.nro_puerta_domicilio,
         p.localidad_domicilio,
-        p.fuente_principal
+        p.fuente_principal,
+        p.eg_actual
       FROM pacientes_gold p
       LEFT JOIN efectores_sisa s ON (p.sisa_centro_salud = s.codigo_sisa OR p.cuie_seguimiento = s.cuie)
       ${whereClause}
@@ -167,13 +175,15 @@ export async function GET(request: Request) {
         // Lógica de mapeo de fuente solicitada
         fuente_principal: p.fuente_principal === 'sumar' 
                 ? 'SUMAR' 
-                : (p.fuente_principal === 'v_embarazosdw' ? 'POF' : p.fuente_principal || 'S/D')
+                : (p.fuente_principal === 'v_embarazosdw' ? 'POF' : p.fuente_principal || 'S/D'),
+        eg_actual: p.eg_actual ?? null
       };
     });
-
+    const fechaRes = await query(`SELECT MAX(ingestion_at) as ultima_actualizacion FROM pacientes_gold`);
     return NextResponse.json({
       data: pacientes,
-      totalGlobal
+      totalGlobal,
+      ultimaActualizacion: fechaRes.rows[0].ultima_actualizacion ?? null
     });
 
   } catch (error) {

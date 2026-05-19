@@ -85,3 +85,56 @@
 .fIcon {
   color: #cbd5e1;
 }
+
+
+
+
+/*Logos fijos en la esquina inferior izquierda */
+.fixedLogos {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.7); /* Fondo semi-transparente para que no tape datos */
+  padding: 8px 15px;
+  border-radius: 50px;
+  backdrop-filter: blur(4px); /* Efecto vidrio esmerilado */
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  z-index: 10; /* Por debajo de modales (que suelen ser 100+) */
+  pointer-events: none; /* Para que si hay un link abajo, igual se pueda clickear */
+  transition: opacity 0.3s ease;
+}
+
+.sidebarLogo {
+  height: 35px; /* Más chicos para que no estorben */
+  width: auto;
+  object-fit: contain;
+  filter: grayscale(100%) opacity(0.6);
+}
+
+.verticalDivider {
+  width: 1px;
+  height: 20px;
+  background-color: #cbd5e1;
+}
+
+/* Ocultar en celulares para que no tapen los filtros o la tabla */
+@media (max-width: 768px) {
+  .fixedLogos {
+    display: none;
+  }
+}
+
+.sidebarLogo {
+  height: 35px !important;
+  width: auto !important;
+  object-fit: contain;
+  filter: opacity(0.85); /* ✅ Sin grayscale */
+  transition: filter 0.3s ease;
+}
+
+.sidebarLogo:hover {
+  filter: opacity(1);
+}
