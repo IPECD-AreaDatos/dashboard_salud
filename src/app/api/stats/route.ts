@@ -43,21 +43,21 @@ export async function GET(request: Request) {
       securityClause = ` AND (${localClause} OR derivacion_maternidad_id = '${matId}')`;
     }
 
-    // 1. Métricas Generales y de Riesgo por Edades (Ignorando fechas mínimas de control, pero aplicando RBAC y umbral FPP)
+    // 1. Métricas Generales y de Riesgo por Edades (Corregido con embarazo_en_curso y mapeo de riesgo completo)
     const kpiSql = `
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') THEN 1 ELSE 0 END) as total_riesgo,
+        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
         
         SUM(CASE WHEN edad_actual < 15 THEN 1 ELSE 0 END) as gen_15,
         SUM(CASE WHEN edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as gen_15_19,
         SUM(CASE WHEN edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as gen_20_34,
         SUM(CASE WHEN edad_actual > 34 THEN 1 ELSE 0 END) as gen_34_plus,
         
-        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') AND edad_actual < 15 THEN 1 ELSE 0 END) as rsg_15,
-        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') AND edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as rsg_15_19,
-        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') AND edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as rsg_20_34,
-        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's') AND edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus,
+        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual < 15 THEN 1 ELSE 0 END) as rsg_15,
+        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as rsg_15_19,
+        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as rsg_20_34,
+        SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus,
 
         -- Métricas Operativas para CAPS
         SUM(CASE WHEN (CURRENT_DATE - fecha_ultimo_control) > 30 OR fecha_ultimo_control IS NULL THEN 1 ELSE 0 END) as controles_pendientes,
@@ -71,8 +71,9 @@ export async function GET(request: Request) {
         OR NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = pacientes_gold.id)
         THEN 1 ELSE 0 END) as sin_contacto_reciente
         
-        FROM pacientes_gold
+      FROM pacientes_gold
       WHERE fecha_probable_parto >= ${fechaUmbral} 
+        AND embarazo_en_curso = true -- 👈 FILTRO CRÍTICO AGREGADO
         AND fecha_nacimiento IS NOT NULL
         ${securityClause}
     `;
@@ -88,7 +89,7 @@ export async function GET(request: Request) {
         ${securityClause}
     `;
 
-    // 2. Top Establecimientos con más embarazadas (UNIFICADO POR SISA)
+    // 2. Top Establecimientos con más embarazadas (Agregado embarazo_en_curso)
     const topGenSql = `
       SELECT 
         s.nombre as name, 
@@ -97,6 +98,7 @@ export async function GET(request: Request) {
       FROM pacientes_gold p
       INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
       WHERE p.fecha_probable_parto >= ${fechaUmbral}
+        AND p.embarazo_en_curso = true -- 👈 AGREGADO
         AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
         ${securityClause}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento
