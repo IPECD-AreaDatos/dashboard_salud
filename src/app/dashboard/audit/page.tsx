@@ -1,5 +1,6 @@
+/*src/app/dashboard/audit/page.tsx*/
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import styles from "../Dashboard.module.css";
 import Navbar from "@/components/Navbar";
 import { Info, Search, Phone, ShieldAlert, RefreshCcw, Filter } from "lucide-react";
@@ -30,6 +31,9 @@ export default function AuditPage() {
   const [pacientes, setPacientes] = useState<PacienteAuditoria[]>([]);
   const [loading, setLoading] = useState(false);
   const [globalTotal, setGlobalTotal] = useState(0);
+
+  // Estados para manejar el criterio y la dirección del ordenamiento
+  const [sortConfig, setSortConfig] = useState<{ key: 'dni' | 'fpp' | 'ult_control'; direction: 'asc' | 'desc' } | null>(null);
 
   // Filtros
   const [filterDNI, setFilterDNI] = useState("");
@@ -101,6 +105,42 @@ export default function AuditPage() {
       </>
     );
   }
+
+  const handleSort = (key: 'dni' | 'fpp' | 'ult_control') => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+  
+  // FIX REALIZADO AQUÍ: Se eliminó 'React.' para usar directamente 'useMemo'
+  const sortedPacientes = useMemo(() => {
+    let sortablePacientes = [...pacientes];
+    if (sortConfig !== null) {
+      sortablePacientes.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+  
+        // Tratamiento para valores nulos o S/D (los mandamos al final)
+        if (!aVal || aVal === "S/D") return 1;
+        if (!bVal || bVal === "S/D") return -1;
+  
+        // Si es fecha, convertimos a objeto Date para comparar correctamente
+        if (sortConfig.key === 'fpp' || sortConfig.key === 'ult_control') {
+          return sortConfig.direction === 'asc' 
+            ? new Date(aVal).getTime() - new Date(bVal).getTime()
+            : new Date(bVal).getTime() - new Date(aVal).getTime();
+        }
+  
+        // Si es DNI (orden alfanumérico)
+        return sortConfig.direction === 'asc'
+          ? String(aVal).localeCompare(String(bVal), undefined, { numeric: true })
+          : String(bVal).localeCompare(String(aVal), undefined, { numeric: true });
+      });
+    }
+    return sortablePacientes;
+  }, [pacientes, sortConfig]);
 
   return (
     <>
@@ -208,9 +248,15 @@ export default function AuditPage() {
                 <thead>
                   <tr>
                     <th>Paciente</th>
-                    <th>DNI</th>
-                    <th>FPP</th>
-                    <th>Último Control</th>
+                    <th onClick={() => handleSort('dni')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      DNI {sortConfig?.key === 'dni' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                    </th>
+                    <th onClick={() => handleSort('fpp')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      FPP {sortConfig?.key === 'fpp' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                    </th>
+                    <th onClick={() => handleSort('ult_control')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      Último Control {sortConfig?.key === 'ult_control' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                    </th>
                     <th>Motivo Auditoría</th>
                   </tr>
                 </thead>
@@ -221,8 +267,8 @@ export default function AuditPage() {
                         Buscando anomalías...
                       </td>
                     </tr>
-                  ) : pacientes.length > 0 ? (
-                    pacientes.map((p) => (
+                  ) : sortedPacientes.length > 0 ? (
+                    sortedPacientes.map((p) => (
                       <tr key={p.id} onClick={() => setSelectedPaciente(p)}>
                         <td>
                           <div className={styles.pacienteInfo}>
@@ -281,29 +327,29 @@ export default function AuditPage() {
             paciente={selectedPaciente}
             onClose={() => setSelectedPaciente(null)}
             onSuccess={() => {
-                // Actualizamos tras un registro (si es necesario)
                 setSelectedPaciente(null);
                 fetchPacientes();
             }}
           />
         )}
       </div>
+
       {/* Logos institucionales fijos en la esquina */}
       <div className={styles.fixedLogos}>
-                      <Image 
-                        src={logoColorImg} 
-                        alt="Modernización" 
-                        className={styles.sidebarLogo}
-                        style={{ height: '35px', width: 'auto' }}
-                      />
-                      <div className={styles.verticalDivider}></div>
-                      <Image 
-                        src={logoSaludImg} 
-                        alt="Salud Pública" 
-                        className={styles.sidebarLogo}
-                        style={{ height: '35px', width: 'auto' }}
-                      />
-                    </div>
+        <Image 
+          src={logoColorImg} 
+          alt="Modernización" 
+          className={styles.sidebarLogo}
+          style={{ height: '35px', width: 'auto' }}
+        />
+        <div className={styles.verticalDivider}></div>
+        <Image 
+          src={logoSaludImg} 
+          alt="Salud Pública" 
+          className={styles.sidebarLogo}
+          style={{ height: '35px', width: 'auto' }}
+        />
+      </div>
     </>
   );
 }

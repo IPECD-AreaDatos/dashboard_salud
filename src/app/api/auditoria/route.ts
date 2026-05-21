@@ -1,3 +1,4 @@
+/*src/app/api/auditoria/route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
@@ -17,76 +18,101 @@ export async function GET(request: Request) {
   const establecimiento = searchParams.get("establecimiento");
 
   try {
-    let whereClause = `WHERE 1=1`;
     const params: any[] = [];
+    let filteringClauses = `WHERE 1=1`;
 
-    // Filtros por parámetros
     if (dni) {
         params.push(`${dni}%`);
-        whereClause += ` AND p.dni LIKE $${params.length}`;
+        filteringClauses += ` AND uni.dni LIKE $${params.length}`;
     }
 
     if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
       params.push(establecimiento);
-      whereClause += ` AND p.cuie_seguimiento = $${params.length}`;
+      filteringClauses += ` AND uni.cuie_seguimiento = $${params.length}`;
     }
 
-    // Condición base de anomalía para Auditoría
-    whereClause += ` AND (
-      p.fecha_nacimiento IS NULL
-      OR (p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) > 200)
-      OR (p.fecha_ultimo_control IS NULL AND p.fecha_registro IS NOT NULL AND (CURRENT_DATE - p.fecha_registro::date) > 200)
-      OR p.fecha_probable_parto < (CURRENT_DATE - INTERVAL '30 days')
-    )`;
-
+    // Unificamos extrayendo los datos tipados desde el campo data_json
     const sql = `
+      WITH unificado AS (
+        SELECT 
+          COALESCE(dni, data_json::json->>'dni') as dni,
+          data_json::json->>'nombre' as nombre,
+          data_json::json->>'apellido' as apellido,
+          data_json::json->>'telefono' as telefono,
+          (data_json::json->>'fecha_probable_parto')::date as fecha_probable_parto,
+          (data_json::json->>'fecha_ultimo_control')::date as fecha_ultimo_control,
+          data_json::json->>'cuie_seguimiento' as cuie_seguimiento,
+          fuente,
+          'Falta Fecha Probable de Parto (FPP)' as motivo_auditoria
+        FROM pacientes_sin_fpp_stage
+        
+        UNION ALL
+        
+        SELECT 
+          COALESCE(dni, data_json::json->>'dni') as dni,
+          data_json::json->>'nombre' as nombre,
+          data_json::json->>'apellido' as apellido,
+          data_json::json->>'telefono' as telefono,
+          (data_json::json->>'fecha_probable_parto')::date as fecha_probable_parto,
+          (data_json::json->>'fecha_ultimo_control')::date as fecha_ultimo_control,
+          data_json::json->>'cuie_seguimiento' as cuie_seguimiento,
+          fuente,
+          'Falta Fecha de Nacimiento' as motivo_auditoria
+        FROM pacientes_sin_fnac_stage
+        
+        UNION ALL
+        
+        SELECT 
+          COALESCE(data_json::json->>'dni', '') as dni,
+          data_json::json->>'nombre' as nombre,
+          data_json::json->>'apellido' as apellido,
+          data_json::json->>'telefono' as telefono,
+          (data_json::json->>'fecha_probable_parto')::date as fecha_probable_parto,
+          (data_json::json->>'fecha_ultimo_control')::date as fecha_ultimo_control,
+          data_json::json->>'cuie_seguimiento' as cuie_seguimiento,
+          fuente,
+          'DNI Inválido o Faltante' as motivo_auditoria
+        FROM pacientes_sin_dni_stage
+      )
       SELECT 
-        p.id, 
-        p.dni, 
-        p.nombre, 
-        p.apellido, 
-        p.telefono, 
-        p.fecha_probable_parto,
-        p.fecha_ultimo_control,
+        ROW_NUMBER() OVER () as id, 
+        uni.dni, 
+        uni.nombre, 
+        uni.apellido, 
+        uni.telefono, 
+        uni.fecha_probable_parto,
+        uni.fecha_ultimo_control,
+        uni.motivo_auditoria,
+        uni.fuente,
         s.nombre as nombre_establecimiento_oficial,
-        (CURRENT_DATE - p.fecha_ultimo_control) as dias_atraso,
-        (SELECT MAX(sec.fecha_contacto) 
-         FROM seguimientos sec 
-         WHERE sec.paciente_id = p.id) as fecha_ultimo_contacto,
-        CASE 
-          WHEN p.fecha_nacimiento IS NULL THEN 'Falta fecha de nacimiento'
-          WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) > 200 THEN 'Control atrasado (>200 días)'
-          WHEN p.fecha_ultimo_control IS NULL AND p.fecha_registro IS NOT NULL AND (CURRENT_DATE - p.fecha_registro::date) > 200 THEN 'Sin controles desde registro (>200 días)'
-          WHEN p.fecha_probable_parto < (CURRENT_DATE - INTERVAL '30 days') THEN 'FPP vencida (>30 días)'
-          ELSE 'Inconsistencia detectada'
-        END as motivo_auditoria
-      FROM pacientes_gold p
-      LEFT JOIN efectores_sisa s ON p.cuie_seguimiento = s.cuie
-      ${whereClause}
-      ORDER BY dias_atraso DESC NULLS LAST
+        (CURRENT_DATE - uni.fecha_ultimo_control) as dias_atraso
+      FROM unificado uni
+      LEFT JOIN efectores_sisa s ON uni.cuie_seguimiento = s.cuie
+      ${filteringClauses}
+      ORDER BY uni.motivo_auditoria DESC, uni.apellido ASC
     `;
 
     const result = await query(sql, params);
     
     const pacientes = result.rows.map(p => {
-      const hoy = new Date();
-      const ultContacto = p.fecha_ultimo_contacto ? new Date(p.fecha_ultimo_contacto) : null;
-      const diasSContacto = ultContacto 
-          ? Math.floor((hoy.getTime() - ultContacto.getTime()) / (1000 * 60 * 60 * 24))
-          : 999;
+      // Formatear procedencia de la fuente
+      const fuenteFormateada = p.fuente === 'sumar' 
+        ? 'SUMAR' 
+        : (p.fuente === 'v_embarazosdw' ? 'POF' : p.fuente || 'S/D');
 
       return {
-        id: p.id,
-        dni: p.dni,
-        nombre: `${p.apellido}, ${p.nombre}`,
+        id: parseInt(p.id, 10),
+        dni: p.dni || "S/D",
+        nombre: p.apellido && p.nombre ? `${p.apellido}, ${p.nombre}` : (p.nombre || "Sin Nombre/Apellido"),
         telefono: p.telefono || "-",
         fpp: p.fecha_probable_parto,
         ult_control: p.fecha_ultimo_control,
-        establecimiento: p.nombre_establecimiento_oficial || "No asignado",
+        establecimiento: p.nombre_establecimiento_oficial || "Establecimiento no mapeado",
         dias: p.dias_atraso !== null ? p.dias_atraso : 999,
-        fecha_ultimo_contacto: p.fecha_ultimo_contacto, 
-        dias_sin_contacto: diasSContacto,
-        motivo_auditoria: p.motivo_auditoria
+        fecha_ultimo_contacto: null, 
+        dias_sin_contacto: 999,
+        // Agregamos el motivo extendido con la fuente original
+        motivo_auditoria: `[${fuenteFormateada}] — ${p.motivo_auditoria}`
       };
     });
 
