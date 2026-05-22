@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       filteringClauses += ` AND uni.cuie_seguimiento = $${params.length}`;
     }
 
-    // Unificamos extrayendo los datos tipados desde el campo data_json
+    // Unificamos extrayendo los datos tipados desde el campo data_json con las reglas de Tony
     const sql = `
       WITH unificado AS (
         SELECT 
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
           (data_json::json->>'fecha_ultimo_control')::date as fecha_ultimo_control,
           data_json::json->>'cuie_seguimiento' as cuie_seguimiento,
           fuente,
-          'Falta Fecha Probable de Parto (FPP)' as motivo_auditoria
+          'Edad gestacional inválida (< 2 semanas) o ausente' as motivo_auditoria
         FROM pacientes_sin_fpp_stage
         
         UNION ALL
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
           (data_json::json->>'fecha_ultimo_control')::date as fecha_ultimo_control,
           data_json::json->>'cuie_seguimiento' as cuie_seguimiento,
           fuente,
-          'Falta Fecha de Nacimiento' as motivo_auditoria
+          'Edad calculada inconsistente (< 10 años) o ausente' as motivo_auditoria
         FROM pacientes_sin_fnac_stage
         
         UNION ALL
@@ -71,8 +71,10 @@ export async function GET(request: Request) {
           (data_json::json->>'fecha_ultimo_control')::date as fecha_ultimo_control,
           data_json::json->>'cuie_seguimiento' as cuie_seguimiento,
           fuente,
-          'DNI Inválido o Faltante' as motivo_auditoria
+          'DNI inválido o no informado' as motivo_auditoria
         FROM pacientes_sin_dni_stage
+        WHERE data_json::json->>'apellido' IS NOT NULL 
+          AND data_json::json->>'apellido' != ''
       )
       SELECT 
         ROW_NUMBER() OVER () as id, 
