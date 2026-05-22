@@ -133,7 +133,7 @@ export default function SeguimientoPage() {
   // Carga inicial
   useEffect(() => {
     fetchFiltros();
-    fetchPacientes();
+    fetchPacientes(undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, true); // 👈 Pasamos true al final
   }, []);
 
   // Nuevos estados para el Autocomplete
@@ -201,7 +201,7 @@ export default function SeguimientoPage() {
     setAplicadoDias("30");
 
     // Pasamos los valores directo para no depender del estado que aún no se actualizó
-    fetchPacientes("", false, undefined, undefined, undefined, "Si", "30");
+    fetchPacientes("", false, undefined, undefined, undefined, "Si", "30", undefined, true);
   };
 
   // Limpia el filtro de establecimiento y relanza la búsqueda con todos los centros
@@ -247,7 +247,8 @@ export default function SeguimientoPage() {
     fppHastaDirecto?: string,
     riesgoDirecto?: string,    // ← nuevo
     diasDirecto?: string,
-    excluirDerivadasDirecto?: boolean       // ← nuevo
+    excluirDerivadasDirecto?: boolean,
+    esCargaInicial: boolean = false       // ← nuevo
   ) => {
     setLoading(true);
     try {
@@ -268,6 +269,15 @@ export default function SeguimientoPage() {
         excluirDerivadas: excluirDerivadasABuscar ? "true" : "false"        // ← cambiado
       };
 
+      // 👈 LA REGLA DE ORO DE UX CORREGIDA:
+      // El fallback solo se permite si es la carga inicial automática del sistema. 
+      // Si el usuario gatilló la función mediante un evento manual, lo inhabilitamos.
+      if (esCargaInicial) {
+        queryParams.permitirFallback = "true";
+      } else {
+        queryParams.permitirFallback = "false";
+      }
+
       // Si es una búsqueda exacta por DNI, agregamos el flag para el backend
       if (esExacto || (dniABuscar && dniABuscar.length > 7)) {
         queryParams.exact = "true";
@@ -285,6 +295,16 @@ export default function SeguimientoPage() {
       setUltimaActualizacion(data.ultimaActualizacion || null);
       setPacientes(data.data || []);
       setTotalGlobal(data.totalGlobal || 0);
+    
+      // Si el backend activó la contención, actualizamos la botonera lateral
+      if (data.fallbackActivo) {
+        setFilterRiesgo("Todas");
+        setFilterDias("0");
+        // Sincronizamos también las etiquetas del resumen para evitar desajustes visuales
+        setAplicadoRiesgo("Todas");
+        setAplicadoDias("0");
+      }
+    
     } catch (error) {
       console.error("Error al obtener pacientes:", error);
     } finally {
@@ -560,7 +580,7 @@ export default function SeguimientoPage() {
                 setAplicadoDias(filterDias);
                 setAplicadoFppDesde(filterFppDesde);
                 setAplicadoFppHasta(filterFppHasta);
-                fetchPacientes();
+                fetchPacientes(undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, false); // 👈 Forzamos false aquí
               }}
             >
               Aplicar Filtros
