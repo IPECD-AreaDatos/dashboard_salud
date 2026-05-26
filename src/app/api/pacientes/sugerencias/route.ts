@@ -1,3 +1,4 @@
+/*src/app/api/pacientes/sugerencias/route.ts*/
 import { NextResponse } from "next/server";
 // Cambiamos 'pool' por 'query' porque es lo que realmente exporta tu lib/db.ts
 import { query } from "@/lib/db"; 
@@ -17,8 +18,9 @@ export async function GET(request: Request) {
     const result = await query(
       `SELECT dni, nombre, apellido 
        FROM pacientes_gold 
-       WHERE dni LIKE $1 
-       OR apellido ILIKE $1 
+       WHERE (dni LIKE $1 OR apellido ILIKE $1)
+         AND embarazo_en_curso = true
+         AND fecha_probable_parto >= CURRENT_DATE
        LIMIT 10`,
       [`${searchTerm}%`]
     );

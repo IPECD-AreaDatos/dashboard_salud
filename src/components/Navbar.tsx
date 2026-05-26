@@ -1,8 +1,9 @@
+/*src/components/Navbar.tsx*/ 
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from "next-auth/react";
-import { Activity, BarChart3, ShieldCheck, LogOut, User as UserIcon } from 'lucide-react';
+import { Activity, BarChart3, ShieldCheck, LogOut } from 'lucide-react';
 import styles from "./Navbar.module.css";
 
 export default function Navbar() {
@@ -14,10 +15,12 @@ export default function Navbar() {
     { name: 'Estadísticas', href: '/dashboard/stats', icon: BarChart3 },
   ];
 
-  // Auditoría solo para Administradores y Coordinadores
   if (session?.user?.role === 'Administrador' || session?.user?.role === 'Coordinador' || session?.user?.name === 'admin') {
     menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });
   }
+
+  // Identificamos si el rol requiere desagregar el ID de usuario abajo
+  const esRolEfector = session?.user?.role === 'Centro de Salud' || session?.user?.role === 'Maternidad';
 
   return (
     <nav className={styles.navbar}>
@@ -47,6 +50,21 @@ export default function Navbar() {
         <div className={styles.userInfo}>
           <span className={styles.userRole}>{session?.user?.role || 'Personal'}</span>
           <span className={styles.userName}>{session?.user?.name || 'Usuario'}</span>
+          
+          {/* 👈 NUEVO: Se muestra el identificador de usuario abajo sólo para CAPS y Hospitales */}
+          {esRolEfector && session?.user?.username && (
+            <span 
+              style={{ 
+                fontSize: '0.85rem', 
+                color: '#64748b', 
+                fontWeight: 550,
+                marginTop: '1px',
+                textAlign: 'right'
+              }}
+            >
+              Usuario: {session.user.username}
+            </span>
+          )}
         </div>
 
         <button
