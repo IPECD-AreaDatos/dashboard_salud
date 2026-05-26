@@ -128,8 +128,11 @@ export async function GET(request: Request) {
           (SELECT MAX(sec.fecha_contacto) 
               FROM seguimientos sec 
               WHERE sec.paciente_id = p.id 
-                AND sec.contacto_logrado = true) as fecha_ultimo_contacto,         
-          p.calle_domicilio, p.nro_puerta_domicilio, p.localidad_domicilio, p.fuente_principal, p.eg_actual
+                AND sec.contacto_logrado = true) as fecha_ultimo_contacto,
+          p.calle_domicilio, p.nro_puerta_domicilio, p.localidad_domicilio, p.fuente_principal, p.eg_actual,
+          p.nombre_centro_derivado,
+          p.derivacion_maternidad_id,
+          p.cuie_seguimiento
         FROM pacientes_gold p
         LEFT JOIN efectores_sisa s ON (p.sisa_centro_salud = s.codigo_sisa OR p.cuie_seguimiento = s.cuie)
         ${whereClause}
@@ -170,6 +173,9 @@ export async function GET(request: Request) {
         fpp: p.fecha_probable_parto,
         ult_control: p.fecha_ultimo_control,
         establecimiento: p.nombre_establecimiento_oficial || "No asignado",
+        cuie_seguimiento: p.cuie_seguimiento,
+        nombre_centro_derivado: p.nombre_centro_derivado,
+        derivacion_maternidad_id: p.derivacion_maternidad_id,
         dias: p.dias_atraso !== null ? p.dias_atraso : 999,
         fecha_ultimo_contacto: p.fecha_ultimo_contacto,
         dias_sin_contacto: diasSContacto,

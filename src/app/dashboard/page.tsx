@@ -23,6 +23,10 @@ interface Paciente {
   dias_sin_contacto: number;
   fuente_principal: string;
   eg_actual: number | null;
+  establecimiento: string;
+  nombre_centro_derivado?: string | null;
+  derivacion_maternidad_id?: string | null;
+  cuie_seguimiento?: string | null;
 }
 
 // Función helper para calcular la diferencia de días
@@ -85,10 +89,10 @@ export default function SeguimientoPage() {
   const [establecimientos, setEstablecimientos] = useState<{ value: string, label: string, sisa?: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Paciente | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
 
-  const handleSort = (key) => {
-    let direction = 'asc';
+  const handleSort = (key: keyof Paciente) => {
+    let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
@@ -752,9 +756,11 @@ export default function SeguimientoPage() {
                     sortedPacientes.map((p, index) => {
                       const diasSC = p.dias_sin_contacto;
 
-                      // 👈 EVALUACIÓN REAL: Si la fuente procesada en tu backend vino tageada como "DERIVACIONES"
-                      const esDerivada = p.fuente_principal === 'DERIVACIONES';
-
+                      // Marcamos derivadas usando el campo real de la tabla, no solo el CUIE
+                      const esDerivada = Boolean(
+                        p.nombre_centro_derivado ||
+                        p.derivacion_maternidad_id
+                      );
                       return (
                         <tr 
                           key={`${p.id}-${index}`} 
