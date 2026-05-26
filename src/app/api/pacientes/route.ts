@@ -125,7 +125,10 @@ export async function GET(request: Request) {
           p.id, p.dni, p.nombre, p.apellido, p.telefono, p.fecha_probable_parto, p.fecha_ultimo_control, p.riesgo,
           s.nombre as nombre_establecimiento_oficial,
           (CURRENT_DATE - p.fecha_ultimo_control) as dias_atraso,
-          (SELECT MAX(sec.fecha_contacto) FROM seguimientos sec WHERE sec.paciente_id = p.id) as fecha_ultimo_contacto,
+          (SELECT MAX(sec.fecha_contacto) 
+              FROM seguimientos sec 
+              WHERE sec.paciente_id = p.id 
+                AND sec.contacto_logrado = true) as fecha_ultimo_contacto,         
           p.calle_domicilio, p.nro_puerta_domicilio, p.localidad_domicilio, p.fuente_principal, p.eg_actual
         FROM pacientes_gold p
         LEFT JOIN efectores_sisa s ON (p.sisa_centro_salud = s.codigo_sisa OR p.cuie_seguimiento = s.cuie)

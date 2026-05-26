@@ -318,6 +318,22 @@ export default function SeguimientoPage() {
     const aValue = a[sortConfig.key];
     const bValue = b[sortConfig.key];
 
+    // 👈 REGRESA LOS NULOS O "SIN REGISTRO" AL FINAL SIEMPRE
+    if (aValue === null || aValue === undefined || aValue === "null") return 1;
+    if (bValue === null || bValue === undefined || bValue === "null") return -1;
+
+    // 👈 TRATAMIENTO ESPECÍFICO PARA LAS COLUMNAS DE FECHA
+    if (sortConfig.key === 'fpp' || sortConfig.key === 'ult_control' || sortConfig.key === 'fecha_ultimo_contacto') {
+      const timeA = new Date(aValue).getTime();
+      const timeB = new Date(bValue).getTime();
+      
+      // Si el parseo de fecha falla por algún string corrupto, lo mandamos al fondo
+      if (isNaN(timeA)) return 1;
+      if (isNaN(timeB)) return -1;
+
+      return sortConfig.direction === 'asc' ? timeA - timeB : timeB - timeA;
+    }
+
     // Lógica para manejar fechas o números
     if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -773,7 +789,7 @@ export default function SeguimientoPage() {
                           <td style={{ color: '#475569' }}>
                             {p.fecha_ultimo_contacto
                               ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR')
-                              : "Sin registro"}
+                              : "-"}
                           </td>
 
                           {/* COLUMNA: DÍAS SIN CONTACTO (Actualizada con semáforo unificado) */}

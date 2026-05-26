@@ -76,11 +76,19 @@ export async function GET(request: Request) {
         SUM(CASE WHEN fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
         SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
         SUM(CASE WHEN nombre_centro_derivado IS NOT NULL AND nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
-    
+
         SUM(CASE WHEN (
-          SELECT MAX(s.fecha_contacto) FROM seguimientos s WHERE s.paciente_id = pacientes_gold.id
+          SELECT MAX(s.fecha_contacto) 
+          FROM seguimientos s 
+          WHERE s.paciente_id = pacientes_gold.id 
+            AND s.contacto_logrado = true -- 👈 FILTRO CORRECTO DE TONY
         ) < CURRENT_DATE - INTERVAL '30 days' 
-        OR NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = pacientes_gold.id)
+        OR NOT EXISTS (
+          SELECT 1 
+          FROM seguimientos s 
+          WHERE s.paciente_id = pacientes_gold.id 
+            AND s.contacto_logrado = true -- 👈 FILTRO CORRECTO DE TONY
+        )
         THEN 1 ELSE 0 END) as sin_contacto_reciente
         
       FROM pacientes_gold

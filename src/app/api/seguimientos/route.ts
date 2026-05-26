@@ -86,13 +86,15 @@ export async function POST(request: Request) {
 
     const result = await query(sql, params);
 
-    // 3. Actualizamos el flag de último contacto en la tabla principal para el Dashboard
-    await query(
-      `UPDATE pacientes_gold 
-       SET ultimo_contacto_at = CURRENT_TIMESTAMP 
-       WHERE id = $1`, 
-      [paciente_id]
-    );
+    // 3. Actualizamos el flag de último contacto en la tabla principal SOLO SI FUE LOGRADO
+    if (contacto_logrado === true) { // 👈 FILTRO CORRECTO DE TONY
+      await query(
+        `UPDATE pacientes_gold 
+         SET ultimo_contacto_at = CURRENT_TIMESTAMP 
+         WHERE id = $1`, 
+        [paciente_id]
+      );
+    }
 
     return NextResponse.json({ success: true, id: result.rows[0].id });
   } catch (error) {
