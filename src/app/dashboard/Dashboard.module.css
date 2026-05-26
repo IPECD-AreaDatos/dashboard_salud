@@ -709,3 +709,16 @@
 .sidebarLogo:hover {
   filter: opacity(1);
 }
+
+
+
+/* 👈 NUEVA CLASE: Resaltado pastel para pacientes derivadas */
+.derivadaRow {
+  background-color: #fef2f2 !important; /* Rojo pastel muy suave */
+  border-left: 4px solid #fca5a5 !important; /* Indicador lateral para reforzar la alerta */
+}
+
+/* Hover específico para que mantenga un tono diferenciado al pasar el mouse */
+.derivadaRow:hover {
+  background-color: #fee2e2 !important; /* Un tono apenas más oscuro al pasar el cursor */
+}

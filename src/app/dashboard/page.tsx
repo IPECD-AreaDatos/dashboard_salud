@@ -750,15 +750,18 @@ export default function SeguimientoPage() {
                     </tr>
                   ) : sortedPacientes.length > 0 ? (
                     sortedPacientes.map((p, index) => {
-                      // Usamos directamente los valores que vienen de la API
                       const diasSC = p.dias_sin_contacto;
+
+                      // 👈 EVALUACIÓN REAL: Si la fuente procesada en tu backend vino tageada como "DERIVACIONES"
+                      const esDerivada = p.fuente_principal === 'DERIVACIONES';
 
                       return (
                         <tr 
-                            key={`${p.id}-${index}`} 
-                            onClick={() => setSelectedPaciente(p)} 
-                            className={styles.tableRow}
-                          >                          
+                          key={`${p.id}-${index}`} 
+                          onClick={() => setSelectedPaciente(p)} 
+                          // 👈 INYECTAMOS LA CLASE CONDICIONAL DE TU HOJA DE ESTILOS Module
+                          className={`${styles.tableRow} ${esDerivada ? styles.derivadaRow : ''}`}
+                        >                          
                           <td>
                             <div className={styles.pacienteInfo}>
                               <div className={styles.pacienteNombre}>{p.nombre}</div>
@@ -792,7 +795,7 @@ export default function SeguimientoPage() {
                               : "-"}
                           </td>
 
-                          {/* COLUMNA: DÍAS SIN CONTACTO (Actualizada con semáforo unificado) */}
+                          {/* COLUMNA: DÍAS SIN CONTACTO */}
                           <td>
                             <span className={getSemaforoClass(diasSC, p.eg_actual)}>
                               {diasSC === 999 ? "S/D" : diasSC}
@@ -800,20 +803,20 @@ export default function SeguimientoPage() {
                           </td>
 
                           <td className={styles.tableTd}>
-                              <span className={styles.fuenteBadge}>
-                                {p.fuente_principal === 'sumar' 
-                                  ? 'SUMAR' 
-                                  : p.fuente_principal === 'v_embarazosdw' 
-                                    ? 'POF' 
-                                    : p.fuente_principal}
-                              </span>
-                            </td>
+                            <span className={styles.fuenteBadge}>
+                              {p.fuente_principal === 'sumar' 
+                                ? 'SUMAR' 
+                                : p.fuente_principal === 'v_embarazosdw' 
+                                  ? 'POF' 
+                                  : p.fuente_principal}
+                            </span>
+                          </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         <AlertCircle className="w-8 h-8 text-orange-400 mx-auto mb-2" />
                         No se encontraron registros para estos filtros.
                       </td>
