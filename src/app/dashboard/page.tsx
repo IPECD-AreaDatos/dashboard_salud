@@ -545,7 +545,7 @@ export default function SeguimientoPage() {
               </div>
             </div>
 
-            {isRestrictedRole && (
+           
               <div className={styles.filterGroup}>
                 <label className={styles.filterLabel}>Derivadas</label>
                 <button
@@ -570,7 +570,7 @@ export default function SeguimientoPage() {
                   {excluirDerivadas ? 'No' : 'Sí'}
                 </button>
               </div>
-            )}
+            
 
             <button
               className={styles.btnAction}

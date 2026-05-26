@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       } else {
         whereClause += securityClause;
 
-        if (excluirDerivadas && session.user?.role === 'Centro de Salud') {
+        if (excluirDerivadas) {
           whereClause += ` AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')`;
         }
 
@@ -110,7 +110,13 @@ export async function GET(request: Request) {
 
         if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
           params.push(establecimiento);
-          whereClause += ` AND p.cuie_seguimiento = $${params.length}`;
+          // Si el código enviado es un SISA (numérico de 14 dígitos aprox), filtramos directo por sisa_centro_salud
+          if (/^\d+$/.test(establecimiento.trim()) && establecimiento.trim().length >= 10) {
+            whereClause += ` AND p.sisa_centro_salud = $${params.length}`;
+          } else {
+            // Si es un CUIE (alfanumérico de 6), priorizamos mapearlo al SISA o buscarlo por cuie alternativo
+            whereClause += ` AND (p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $${params.length}) OR p.cuie_seguimiento = $${params.length})`;
+          }
         }
       }
 

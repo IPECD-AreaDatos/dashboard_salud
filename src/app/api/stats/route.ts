@@ -1,4 +1,4 @@
-// src/app/api/stats/route.ts
+/*src/app/api/stats/route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
@@ -11,39 +11,52 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  // Capturamos el establecimiento seleccionado del selector global
+  const { searchParams } = new URL(request.url);
+  const establecimiento = searchParams.get("establecimiento");
+
   try {
-    // Definir la misma fecha umbral que se usa para las listas activas (hoy, por defecto).
     const fechaUmbral = "CURRENT_DATE";
     const fechaMinimaControl = "'2025-03-01'";
     const diasAtrasoCorte = 30;
 
     const sisa = session.user?.sisa_code;
     const cuie = session.user?.cuie_code;
-    // RBAC Security Clause
+    
+    // 1. Cláusula de Seguridad RBAC (Tony)
     let securityClause = "";
     if (session.user?.role === 'Centro de Salud') {
       if (sisa) {
-        // Si hay SISA nacional, es la prioridad absoluta
         securityClause = ` AND sisa_centro_salud = '${sisa}'`;
       } else if (cuie) {
-        // Si no hay SISA, buscamos por CUIE o mapeamos CUIE -> SISA
         securityClause = ` AND (sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
       }
     }
     else if (session.user?.role === 'Maternidad') {
       const matId = session.user?.maternidad_id;
-      // Maternidad: Ve lo propio (por SISA o CUIE) + derivaciones
       let localClause = "";
       if (sisa) {
         localClause = `sisa_centro_salud = '${sisa}'`;
       } else if (cuie) {
         localClause = `(sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
       }
-
       securityClause = ` AND (${localClause} OR derivacion_maternidad_id = '${matId}')`;
     }
 
-    // 1. Métricas Generales y de Riesgo por Edades (Corregido con embarazo_en_curso y mapeo de riesgo completo)
+    // 2. Cláusula Dinámica de Selección de Centro para Coordinador/Admin (Prioridad SISA)
+    let centroFilterClause = "";
+    const statsParams: any[] = [];
+    
+    if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
+      statsParams.push(establecimiento);
+      if (/^\d+$/.test(establecimiento.trim()) && establecimiento.trim().length >= 10) {
+        centroFilterClause = ` AND sisa_centro_salud = $1`;
+      } else {
+        centroFilterClause = ` AND (sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $1) OR cuie_seguimiento = $1)`;
+      }
+    }
+
+    // 3. Métricas Generales y de Riesgo por Edades
     const kpiSql = `
       SELECT
         COUNT(*) as total,
@@ -59,7 +72,6 @@ export async function GET(request: Request) {
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as rsg_20_34,
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus,
 
-        -- Métricas Operativas para CAPS
         SUM(CASE WHEN (CURRENT_DATE - fecha_ultimo_control) > 30 OR fecha_ultimo_control IS NULL THEN 1 ELSE 0 END) as controles_pendientes,
         SUM(CASE WHEN fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
         SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
@@ -73,23 +85,15 @@ export async function GET(request: Request) {
         
       FROM pacientes_gold
       WHERE fecha_probable_parto >= ${fechaUmbral} 
-        AND embarazo_en_curso = true -- 👈 FILTRO CRÍTICO AGREGADO
+        AND embarazo_en_curso = true
         AND fecha_nacimiento IS NOT NULL
         ${securityClause}
+        ${centroFilterClause} -- 👈 SE APLICA EL FILTRO UNIFICADO SISA AQUÍ
     `;
-    const kpiRes = await query(kpiSql);
+    const kpiRes = await query(kpiSql, statsParams);
     const kpis = kpiRes.rows[0];
 
-    // Base query para gráficos según el código de Tony
-    const baseChartWhere = `
-      WHERE fecha_probable_parto >= ${fechaUmbral}
-        AND nombre_establecimiento IS NOT NULL
-        AND nombre_establecimiento != ''
-        AND (fecha_ultimo_control >= ${fechaMinimaControl} OR fecha_ultimo_control IS NULL)
-        ${securityClause}
-    `;
-
-    // 2. Top Establecimientos con más embarazadas (Agregado embarazo_en_curso)
+    // 4. Top Establecimientos con más embarazadas
     const topGenSql = `
       SELECT 
         s.nombre as name, 
@@ -98,15 +102,16 @@ export async function GET(request: Request) {
       FROM pacientes_gold p
       INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
       WHERE p.fecha_probable_parto >= ${fechaUmbral}
-        AND p.embarazo_en_curso = true -- 👈 AGREGADO
+        AND p.embarazo_en_curso = true
         AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
         ${securityClause}
+        ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento
       ORDER BY value DESC
     `;
     const topGenRes = await query(topGenSql);
 
-    // 3. Top Establecimientos con Riesgo y > 30 días sin control (UNIFICADO POR SISA)
+    // 5. Top Establecimientos con Riesgo y > 30 días sin control
     const topRsgSql = `
       SELECT 
         s.nombre as name, 
@@ -119,6 +124,7 @@ export async function GET(request: Request) {
         AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') 
         AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
         ${securityClause}
+        ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento
       ORDER BY value DESC
     `;
@@ -139,12 +145,12 @@ export async function GET(request: Request) {
         age20_34: parseInt(kpis.rsg_20_34) || 0,
         age34plus: parseInt(kpis.rsg_34_plus) || 0
       },
-      gestion: { // Nuevas métricas para el CAPS
+      gestion: {
         controlesPendientes: parseInt(kpis.controles_pendientes) || 0,
         proximosPartos: parseInt(kpis.proximos_partos) || 0,
         sinTelefono: parseInt(kpis.sin_telefono) || 0,
-        derivadas: parseInt(kpis.derivadas) || 0,               // ← nuevo
-        sinContactoReciente: parseInt(kpis.sin_contacto_reciente) || 0  // ← nuevo
+        derivadas: parseInt(kpis.derivadas) || 0,
+        sinContactoReciente: parseInt(kpis.sin_contacto_reciente) || 0
       },
       topGeneral: topGenRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 })),
       topRiesgoAtraso: topRsgRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }))
