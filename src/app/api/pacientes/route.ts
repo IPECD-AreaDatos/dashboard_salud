@@ -86,7 +86,7 @@ export async function GET(request: Request) {
             const diasNum = parseInt(dias, 10);
             if (!isNaN(diasNum)) {
               params.push(diasNum);
-              whereClause += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) >= $${params.length})`;
+              whereClause += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > $${params.length})`;
             }
           }
         }
