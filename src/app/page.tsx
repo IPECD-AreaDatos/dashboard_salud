@@ -1,21 +1,45 @@
 "use client";
-
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import Image from "next/image";
 import styles from "./Landing.module.css";
 
-// Importamos estáticamente las imágenes para que Next.js maneje automáticamente
-// los anchos, altos, el 'basePath' configurado y resuelva sin problemas los espacios en nombres.
+// Importaciones estáticas oficiales de tus recursos
 import encabezadosImg from "../../public/encabezados.png";
 import logoColorImg from "../../public/logo_color.png";
 import logoSaludImg from "../../public/Logo_Salud Pública_AP2_color-NG_ H.png";
 
 export default function LandingPage() {
+  const [usuario, setUsuario] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const res = await signIn("credentials", {
+      usuario: usuario.trim(),
+      password: password.trim(),
+      redirect: false,
+    });
+
+    if (res?.error) {
+      setError("Credenciales incorrectas");
+      setLoading(false);
+    } else {
+      router.push("/dashboard");
+    }
+  };
+
   return (
     <div className={styles.wrapper}>
-      {/* Encabezado que ocupa todo el ancho */}
+      {/* Encabezado institucional de ancho completo */}
       <header className={styles.headerFull}>
         <Image 
           src={encabezadosImg} 
@@ -25,11 +49,12 @@ export default function LandingPage() {
         />
       </header>
       
+      {/* Contenedor central único */}
       <main className={styles.main}>
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.6 }}
           className={styles.heroContent}
         >
           <div className={styles.badgeBlue}>Gestión Provincial 2026</div>
@@ -39,20 +64,37 @@ export default function LandingPage() {
             Seguimiento de Embarazadas <br />
             <span className={styles.highlight}>Alto Riesgo</span>
           </h1>
-          
-          <p className={styles.subtitle}>
-            Plataforma centralizada y segura para la detección temprana, gestión y seguimiento integral de la salud materna en la Provincia de Corrientes.
-          </p>
 
-          <div className={styles.actions}>
-            <Link href="/login" className={styles.primaryBtnBlue}>
-              Ingresar al Sistema <ArrowRight size={20} />
-            </Link>
-          </div>
+          {/* Formulario integrado directamente en el centro de la tarjeta */}
+          <form onSubmit={handleSubmit} className={styles.integratedForm}>
+            {error && <p className={styles.error}>{error}</p>}
+            
+            <input 
+              type="text" 
+              placeholder="Usuario" 
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)} 
+              required 
+              className={styles.inputField}
+            />
+            
+            <input 
+              type="password" 
+              placeholder="Contraseña" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)} 
+              required 
+              className={styles.inputField}
+            />
+            
+            <button type="submit" className={styles.loginBtn} disabled={loading}>
+              {loading ? "Verificando..." : "Entrar al Sistema"}
+            </button>
+          </form>
         </motion.div>
       </main>
 
-      {/* Footer con los dos logos */}
+      {/* Footer unificado con logos institucionales a color */}
       <footer className={styles.footer}>
         <div className={styles.footerLogos}>
           <div className={styles.logoRow}>

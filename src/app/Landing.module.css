@@ -7,7 +7,6 @@
   overflow-x: hidden;
 }
 
-/* Encabezado superior */
 .headerFull {
   width: 100%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
@@ -26,104 +25,146 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4rem 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
+  padding: 2rem 1rem;
 }
 
+/* La tarjeta unificada central */
 .heroContent {
   text-align: center;
-  max-width: 800px;
+  width: 100%;
+  max-width: 460px; /* Tamaño ideal y compacto para un login form */
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  padding: 2rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(15px);
+  padding: 2.5rem 2rem;
   border-radius: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.05);
 }
 
 .badgeBlue {
-  background-color: #f8fafc;
+  background-color: #ffffff;
   color: #769FD3;
   padding: 0.5rem 1.2rem;
   border-radius: 2rem;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  margin-bottom: 2rem;
-  font-family: var(--font-barlow), sans-serif;
+  margin-bottom: 1.5rem;
   box-shadow: 0 4px 10px rgba(118, 159, 211, 0.1);
+  border: 1px solid rgba(118, 159, 211, 0.15);
 }
 
 .projectShortName {
   font-family: var(--font-barlow-condensed), sans-serif;
   font-weight: 800;
-  font-size: 5rem;
+  font-size: 4.5rem;
   color: #769FD3;
-  margin-bottom: 0.5rem;
-  letter-spacing: 2px;
+  margin: 0;
+  letter-spacing: 1px;
   line-height: 1;
 }
 
 .title {
   font-family: var(--font-barlow-condensed), sans-serif;
   font-weight: 800;
-  font-size: 2.2rem;
+  font-size: 1.8rem;
   color: #0f172a;
   line-height: 1.2;
-  margin-bottom: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 2rem;
 }
 
 .highlight {
-  color: #90B4E1;
+  color: #769FD3;
 }
 
-.subtitle {
+/* Formulario integrado */
+.integratedForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inputField {
+  width: 100%;
+  padding: 1rem 1.2rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 1rem;
+  font-size: 0.95rem;
   font-family: var(--font-barlow), sans-serif;
-  font-weight: 400;
-  font-size: 1.25rem;
-  color: #475569;
-  max-width: 600px;
-  margin-bottom: 3.5rem;
-  line-height: 1.6;
+  transition: all 0.2s;
+  background-color: #ffffff;
+  color: #334155;
+  box-sizing: border-box;
 }
 
-.primaryBtnBlue {
+.inputField::placeholder {
+  color: #94a3b8;
+}
+
+.inputField:focus {
+  outline: none;
+  border-color: #769FD3;
+  box-shadow: 0 0 0 3px rgba(118, 159, 211, 0.2);
+}
+
+.loginBtn {
+  width: 100%;
   background-color: #769FD3;
   color: white;
-  padding: 1.2rem 3rem;
+  padding: 1.1rem;
+  border: none;
   border-radius: 1rem;
   font-family: var(--font-barlow), sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 10px 20px rgba(118, 159, 211, 0.2);
+  margin-top: 0.5rem;
+}
+
+.loginBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background-color: #5d89bf;
+  box-shadow: 0 12px 22px rgba(118, 159, 211, 0.3);
+}
+
+.loginBtn:disabled {
+  background-color: #cbd5e1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.error {
+  width: 100%;
+  background-color: #fef2f2;
+  color: #dc2626;
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  font-size: 0.9rem;
+  text-align: center;
+  border: 1px solid #fee2e2;
   font-weight: 600;
-  font-size: 1.1rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  text-decoration: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 10px 20px rgba(118, 159, 211, 0.25);
+  margin: 0;
 }
 
-.primaryBtnBlue:hover {
-  transform: translateY(-3px);
-  background-color: #90B4E1;
-  box-shadow: 0 15px 25px rgba(118, 159, 211, 0.35);
-}
-
-/* Footer */
+/* Footer con logos oficiales nítidos */
 .footer {
-  padding: 2rem 1rem;
+  padding: 1.5rem 1rem;
   background: white;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2rem;
+  gap: 1.2rem;
   width: 100%;
 }
 
@@ -137,52 +178,44 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 2.5rem;
-  flex-wrap: wrap;
+  gap: 2rem;
 }
 
 .divider {
   width: 1px;
-  height: 40px;
-  background-color: #e2e8f0;
+  height: 35px;
+  background-color: #cbd5e1;
 }
 
 .footerLogoImg {
-  height: 60px;
+  height: 45px; /* Tamaño balanceado para el pie */
   width: auto;
   object-fit: contain;
-  filter: grayscale(100%) opacity(0.7);
-  transition: all 0.3s ease;
+  opacity: 0.95; /* Logotipos nítidos y profesionales */
+  transition: opacity 0.2s ease;
 }
 
 .footerLogoImg:hover {
-  filter: grayscale(0%) opacity(1);
+  opacity: 1;
 }
 
 .footerText {
-  font-family: var(--font-barlow), sans-serif;
-  font-weight: 600;
   color: #94a3b8;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin: 0;
   text-align: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .heroContent {
-    padding: 2rem;
+    padding: 2rem 1.5rem;
+    border-radius: 1.5rem;
   }
-
+  .projectShortName {
+    font-size: 3.5rem;
+  }
   .title {
-    font-size: 1.8rem;
-  }
-
-  .logoRow {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .divider {
-    width: 60px;
-    height: 1px;
+    font-size: 1.5rem;
   }
 }

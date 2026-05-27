@@ -262,22 +262,6 @@ export default function StatsPage() {
         )}
         
       </div>
-      {/* Logos institucionales fijos en la esquina */}
-      <div className={styles.fixedLogos}>
-                      <Image 
-                        src={logoColorImg} 
-                        alt="Modernización" 
-                        className={styles.sidebarLogo}
-                        style={{ height: '35px', width: 'auto' }}
-                      />
-                      <div className={styles.verticalDivider}></div>
-                      <Image 
-                        src={logoSaludImg} 
-                        alt="Salud Pública" 
-                        className={styles.sidebarLogo}
-                        style={{ height: '35px', width: 'auto' }}
-                      />
-                    </div>
     </>
   );
 }

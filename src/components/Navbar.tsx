@@ -6,6 +6,10 @@ import { signOut, useSession } from "next-auth/react";
 import { Activity, BarChart3, ShieldCheck, LogOut } from 'lucide-react';
 import styles from "./Navbar.module.css";
 
+import Image from "next/image";
+import logoColorImg from "../../public/logo_color.png";
+import logoSaludImg from "../../public/Logo_Salud_Publica_colorH.png";
+
 export default function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -47,6 +51,21 @@ export default function Navbar() {
       </div>
 
       <div className={styles.rightSection}>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginRight: '1rem' }}>
+          <Image 
+            src={logoColorImg} 
+            alt="Modernización" 
+            style={{ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
+          />
+          <div style={{ width: '1px', height: '20px', backgroundColor: '#cbd5e1' }}></div>
+          <Image 
+            src={logoSaludImg} 
+            alt="Salud Pública" 
+            style={{ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
+          />
+        </div>
+
         <div className={styles.userInfo}>
           <span className={styles.userRole}>{session?.user?.role || 'Personal'}</span>
           <span className={styles.userName}>{session?.user?.name || 'Usuario'}</span>
