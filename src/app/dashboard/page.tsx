@@ -105,13 +105,12 @@ export default function SeguimientoPage() {
   const [filterEst, setFilterEst] = useState("Todos");
   const [filterRiesgo, setFilterRiesgo] = useState("Si");
   const [filterDias, setFilterDias] = useState("30");
-  const [filterFppDesde, setFilterFppDesde] = useState("");
-  const [filterFppHasta, setFilterFppHasta] = useState("");
+  const [filterTrimestre, setFilterTrimestre] = useState("Todos"); 
+  const [aplicadoTrimestre, setAplicadoTrimestre] = useState("Todos");
+  
   // Estados que reflejan lo que REALMENTE está aplicado (se actualizan solo al presionar Aplicar)
   const [aplicadoRiesgo, setAplicadoRiesgo] = useState("Si");
   const [aplicadoDias, setAplicadoDias] = useState("30");
-  const [aplicadoFppDesde, setAplicadoFppDesde] = useState("");
-  const [aplicadoFppHasta, setAplicadoFppHasta] = useState("");
 
   const [totalGlobal, setTotalGlobal] = useState(0);
 
@@ -137,7 +136,7 @@ export default function SeguimientoPage() {
   // Carga inicial
   useEffect(() => {
     fetchFiltros();
-    fetchPacientes(undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, true); // 👈 Pasamos true al final
+    fetchPacientes(undefined, false, undefined, "Todos", "Si", "30", undefined, true);
   }, []);
 
   // Nuevos estados para el Autocomplete
@@ -177,15 +176,10 @@ export default function SeguimientoPage() {
     // Reseteamos el formulario de filtros
     setFilterRiesgo("Todas");
     setFilterDias("0");
-    setFilterFppDesde("");
-    setFilterFppHasta("");
-    
 
     // Reseteamos las etiquetas del resumen
     setAplicadoRiesgo("Todas");
     setAplicadoDias("0");
-    setAplicadoFppDesde("");
-    setAplicadoFppHasta("");
 
     fetchPacientes(dni, true);
   };
@@ -199,14 +193,15 @@ export default function SeguimientoPage() {
     // Restauramos estado del formulario
     setFilterRiesgo("Si");
     setFilterDias("30");
+    setFilterTrimestre("Todos");
 
     // Restauramos etiquetas del resumen
     setAplicadoRiesgo("Si");
     setAplicadoDias("30");
+    setAplicadoTrimestre("Todos");
 
     // Pasamos los valores directo para no depender del estado que aún no se actualizó
-    fetchPacientes("", false, undefined, undefined, undefined, "Si", "30", undefined, true);
-  };
+    fetchPacientes("", false, undefined, "Todos", "Si", "30", undefined, true);  };
 
   // Limpia el filtro de establecimiento y relanza la búsqueda con todos los centros
   const limpiarEst = () => {
@@ -247,8 +242,7 @@ export default function SeguimientoPage() {
     dniDirecto?: string,
     esExacto: boolean = false,
     estDirecto?: string,
-    fppDesdeDirecto?: string,
-    fppHastaDirecto?: string,
+    trimestreDirecto?: string,
     riesgoDirecto?: string,    // ← nuevo
     diasDirecto?: string,
     excluirDerivadasDirecto?: boolean,
@@ -258,8 +252,7 @@ export default function SeguimientoPage() {
     try {
       const dniABuscar = dniDirecto !== undefined ? dniDirecto : filterDni;
       const estABuscar = estDirecto !== undefined ? estDirecto : filterEst;
-      const fppDesdeABuscar = fppDesdeDirecto !== undefined ? fppDesdeDirecto : filterFppDesde;
-      const fppHastaABuscar = fppHastaDirecto !== undefined ? fppHastaDirecto : filterFppHasta;
+      const trimestreABuscar = trimestreDirecto !== undefined ? trimestreDirecto : filterTrimestre; // 👈 Nuevo
       const riesgoABuscar = riesgoDirecto !== undefined ? riesgoDirecto : filterRiesgo;  // ← nuevo
       const diasABuscar = diasDirecto !== undefined ? diasDirecto : filterDias;
       const excluirDerivadasABuscar = excluirDerivadasDirecto !== undefined 
@@ -270,6 +263,7 @@ export default function SeguimientoPage() {
         establecimiento: estABuscar,
         riesgo: riesgoABuscar,   // ← cambiado
         dias: diasABuscar,
+        trimestre: trimestreABuscar, // 👈 Nuevo
         excluirDerivadas: excluirDerivadasABuscar ? "true" : "false"        // ← cambiado
       };
 
@@ -286,12 +280,7 @@ export default function SeguimientoPage() {
       if (esExacto || (dniABuscar && dniABuscar.length > 7)) {
         queryParams.exact = "true";
       }
-
-      if (fppDesdeABuscar) queryParams.fppDesde = fppDesdeABuscar;
-      if (fppHastaABuscar) queryParams.fppHasta = fppHastaABuscar;
-      
-      
-        
+  
       const query = new URLSearchParams(queryParams);
       const res = await apiFetch(`/pacientes?${query}`);
       const data = await res.json();
@@ -361,30 +350,13 @@ export default function SeguimientoPage() {
       if (estNombre) partes.push(estNombre);
     }
 
-    if (aplicadoFppDesde) {
-      const [anio, mes, dia] = aplicadoFppDesde.split('-');
-      partes.push(`FPP desde ${dia}/${mes}/${anio}`);
-    }
-
-    if (aplicadoFppHasta) {
-      const [anio, mes, dia] = aplicadoFppHasta.split('-');
-      partes.push(`FPP hasta ${dia}/${mes}/${anio}`);
+    if (aplicadoTrimestre !== "Todos") {
+      partes.push(`${aplicadoTrimestre}° Trimestre`);
     }
 
     if (partes.length === 0) return "";
 
-    const partesMain = partes.filter(p => !p.startsWith("FPP"));
-    const partesFpp = partes.filter(p => p.startsWith("FPP"));
-
-    const lineaPrincipal = partesMain.length > 0 ? ` — ${partesMain.join(" — ")}` : "";
-    const lineaFpp = partesFpp.length > 0 ? ` — ${partesFpp.join(" — ")}` : "";
-
-    return (
-      <>
-        {lineaPrincipal}
-        {lineaFpp && <><br />{lineaFpp}</>}
-      </>
-    );
+    return ` — ${partes.join(" — ")}`;
   };
 
   return (
@@ -524,55 +496,26 @@ export default function SeguimientoPage() {
             </div>
 
             <div className={styles.filterGroup}>
-              <label className={styles.filterLabel}>FPP Desde</label>
-              <div className={styles.fppWrapper}>
-                <input
-                  type="date"
-                  className={styles.searchInput}
-                  value={filterFppDesde}
-                  onChange={(e) => setFilterFppDesde(e.target.value)}
-                />
-                {filterFppDesde && (
-                  <button
-                    className={styles.clearDateBtn}
-                    onClick={limpiarFppDesde}
-                    title="Limpiar fecha desde"
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
+              <label className={styles.filterLabel}>Trimestre Gesta</label>
+              <select 
+                className={styles.selectInput} 
+                value={filterTrimestre} 
+                onChange={(e) => setFilterTrimestre(e.target.value)}
+              >
+                <option value="Todos">Todos los trimestres</option>
+                <option value="1">1° Trimestre (menos de 14 sem)</option> {/* 👈 Cambiado < por &lt; */}
+                <option value="2">2° Trimestre (14 sem a 27 sem)</option>
+                <option value="3">3° Trimestre (mas de 28 sem)</option>
+              </select>
             </div>
 
-            <div className={styles.filterGroup}>
-              <label className={styles.filterLabel}>FPP Hasta</label>
-              <div className={styles.fppWrapper}>
-                <input
-                  type="date"
-                  className={styles.searchInput}
-                  value={filterFppHasta}
-                  onChange={(e) => setFilterFppHasta(e.target.value)}
-                />
-                {filterFppHasta && (
-                  <button
-                    className={styles.clearDateBtn}
-                    onClick={limpiarFppHasta}
-                    title="Limpiar fecha hasta"
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-           
               <div className={styles.filterGroup}>
                 <label className={styles.filterLabel}>Derivadas</label>
                 <button
                   onClick={() => {
                     const nuevoValor = !excluirDerivadas;
                     setExcluirDerivadas(nuevoValor);
-                    fetchPacientes(undefined, false, undefined, undefined, undefined, undefined, undefined, nuevoValor);
+                    fetchPacientes(undefined, false, undefined, filterTrimestre, undefined, undefined, nuevoValor, false);
                   }}
                   style={{
                     width: '100%',
@@ -598,9 +541,8 @@ export default function SeguimientoPage() {
               onClick={() => {
                 setAplicadoRiesgo(filterRiesgo);
                 setAplicadoDias(filterDias);
-                setAplicadoFppDesde(filterFppDesde);
-                setAplicadoFppHasta(filterFppHasta);
-                fetchPacientes(undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, false); // 👈 Forzamos false aquí
+                setAplicadoTrimestre(filterTrimestre);
+                fetchPacientes(undefined, false, undefined, filterTrimestre, undefined, undefined, undefined, false);
               }}
             >
               Aplicar Filtros
@@ -711,16 +653,6 @@ export default function SeguimientoPage() {
                       </div>
                     </th>
 
-                    <th onClick={() => handleSort('dias')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent}>
-                        <span>Días sin Control</span>
-                        <span className={styles.sortIcon}>
-                          {sortConfig.key === 'dias' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
-                        </span>
-                      </div>
-                    </th>
-
-                    {/* NUEVA COLUMNA: ÚLTIMO CONTACTO */}
                     <th onClick={() => handleSort('fecha_ultimo_contacto')} className={styles.sortableHeader}>
                       <div className={styles.headerContent}>
                         <span>Último Contacto</span>
@@ -730,18 +662,6 @@ export default function SeguimientoPage() {
                       </div>
                     </th>
 
-                    {/* COLUMNA: DÍAS SIN CONTACTO - Ordena por el número calculado en la API */}
-                    <th
-                      onClick={() => handleSort('dias_sin_contacto')}
-                      className={styles.sortableHeader}
-                    >
-                      <div className={styles.headerContent}>
-                        <span>Días sin Contacto</span>
-                        <span className={styles.sortIcon}>
-                          {sortConfig.key === 'dias_sin_contacto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
-                        </span>
-                      </div>
-                    </th>
                     <th className={styles.tableTh}>Fuente</th>
                   </tr>
                 </thead>
@@ -785,27 +705,32 @@ export default function SeguimientoPage() {
                           <td style={{ color: '#475569', textAlign: 'center' }}>
                             {p.eg_actual ? `${p.eg_actual}s` : "-"}
                           </td>
-                          <td style={{ color: '#475569' }}>
-                            {p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : "-"}
-                          </td>
                           <td>
-                            <span className={getSemaforoClass(p.dias, p.eg_actual)}>
-                              {p.dias === 999 ? "S/D" : p.dias}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span style={{ color: '#475569', fontWeight: 500 }}>
+                                {p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : "-"}
+                              </span>
+                              <div>
+                                <span className={getSemaforoClass(p.dias, p.eg_actual)}>
+                                  {p.dias === 999 ? "S/D" : `${p.dias} días`}
+                                </span>
+                              </div>
+                            </div>
                           </td>
 
-                          {/* COLUMNA: ÚLTIMO CONTACTO */}
-                          <td style={{ color: '#475569' }}>
-                            {p.fecha_ultimo_contacto
-                              ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR')
-                              : "-"}
-                          </td>
-
-                          {/* COLUMNA: DÍAS SIN CONTACTO */}
                           <td>
-                            <span className={getSemaforoClass(diasSC, p.eg_actual)}>
-                              {diasSC === 999 ? "S/D" : diasSC}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span style={{ color: '#475569', fontWeight: 500 }}>
+                                {p.fecha_ultimo_contacto
+                                  ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR')
+                                  : "-"}
+                              </span>
+                              <div>
+                                <span className={getSemaforoClass(diasSC, p.eg_actual)}>
+                                  {diasSC === 999 ? "S/D" : `${diasSC} días`}
+                                </span>
+                              </div>
+                            </div>
                           </td>
 
                           <td className={styles.tableTd}>

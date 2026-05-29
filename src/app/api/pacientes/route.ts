@@ -21,10 +21,11 @@ export async function GET(request: Request) {
   const establecimiento = searchParams.get("establecimiento");
   const riesgo = searchParams.get("riesgo") || "Si";
   const dias = searchParams.get("dias") || "0";
-  const fppDesde = searchParams.get("fppDesde");
-  const fppHasta = searchParams.get("fppHasta");
+  
+  // 👈 NUEVO: Reemplazamos fppDesde/Hasta por el parámetro único de trimestre
+  const trimestre = searchParams.get("trimestre") || "Todos"; 
+  
   const excluirDerivadas = searchParams.get("excluirDerivadas") === "true";
-
   const permitirFallback = searchParams.get("permitirFallback") !== "false";
 
   try {
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
       securityClause = ` AND (${localClause} OR derivacion_maternidad_id = '${matId}')`;
     }
 
-    // 2. Obtener el total para el contador del Dashboard (siempre con el conteo base de lo asignado en curso)
+    // 2. Obtener el total para el contador del Dashboard
     const countQuery = `
       SELECT COUNT(*) 
       FROM pacientes_gold 
@@ -91,16 +92,16 @@ export async function GET(request: Request) {
           }
         }
 
-        if (fppDesde) {
-          params.push(fppDesde);
-          whereClause += ` AND fecha_probable_parto >= $${params.length}`;
-        } else if (!fppDesde && !fppHasta && !dni) {
+        // 👈 NUEVO: Filtro lógico por semanas de edad gestacional (Trimestres)
+        if (trimestre === "1") {
+          whereClause += ` AND p.eg_actual < 14`;
+        } else if (trimestre === "2") {
+          whereClause += ` AND p.eg_actual >= 14 AND p.eg_actual < 28`;
+        } else if (trimestre === "3") {
+          whereClause += ` AND p.eg_actual >= 28`;
+        } else if (trimestre === "Todos" && !dni) {
+          // Si no filtra por trimestre ni DNI, mantenemos el control de FPP a futuro por defecto
           whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`;
-        }
-
-        if (fppHasta) {
-          params.push(fppHasta);
-          whereClause += ` AND fecha_probable_parto <= $${params.length}`;
         }
 
         if (dni) {
@@ -110,11 +111,9 @@ export async function GET(request: Request) {
 
         if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
           params.push(establecimiento);
-          // Si el código enviado es un SISA (numérico de 14 dígitos aprox), filtramos directo por sisa_centro_salud
           if (/^\d+$/.test(establecimiento.trim()) && establecimiento.trim().length >= 10) {
             whereClause += ` AND p.sisa_centro_salud = $${params.length}`;
           } else {
-            // Si es un CUIE (alfanumérico de 6), priorizamos mapearlo al SISA o buscarlo por cuie alternativo
             whereClause += ` AND (p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $${params.length}) OR p.cuie_seguimiento = $${params.length})`;
           }
         }
@@ -142,17 +141,14 @@ export async function GET(request: Request) {
       return await query(sql, params);
     };
 
-    // 3. Intento de Consulta Principal (Filtros estrictos activados)
     let result = await ejecutarConsultaPacientes(true);
     let fallbackActivo = false;
 
-    // 👈 MODIFICADO AQUÍ: Agregamos la condición 'permitirFallback'
     if (result.rows.length === 0 && !dni && permitirFallback) {
       result = await ejecutarConsultaPacientes(false);
       fallbackActivo = true;
     }
 
-    // 4. Mapeo para el Frontend
     const pacientes = result.rows.map(p => {
       let dom = "";
       if (p.calle_domicilio) {
@@ -171,6 +167,7 @@ export async function GET(request: Request) {
         nombre: `${p.apellido}, ${p.nombre}`,
         telefono: p.telefono || "-",
         fpp: p.fecha_probable_parto,
+        domicilio: dom || "No registrado",
         ult_control: p.fecha_ultimo_control,
         establecimiento: p.nombre_establecimiento_oficial || "No asignado",
         cuie_seguimiento: p.cuie_seguimiento,
@@ -179,7 +176,6 @@ export async function GET(request: Request) {
         dias: p.dias_atraso !== null ? p.dias_atraso : 999,
         fecha_ultimo_contacto: p.fecha_ultimo_contacto,
         dias_sin_contacto: diasSContacto,
-        domicilio: dom || "No registrado",
         fuente_principal: p.fuente_principal === 'sumar' 
                 ? 'SUMAR' 
                 : (p.fuente_principal === 'v_embarazosdw' ? 'POF' : p.fuente_principal || 'S/D'),
@@ -187,12 +183,12 @@ export async function GET(request: Request) {
       };
     });
 
-    const fechaRes = await query(`SELECT MAX(ingestion_at) as ultima_actualizacion FROM pacientes_gold`);
+    const fechaRes = await query("SELECT MAX(ingestion_at) as ultima_actualizacion FROM pacientes_gold");
     
     return NextResponse.json({
       data: pacientes,
       totalGlobal,
-      fallbackActivo, // 👈 LE AVISAMOS AL PANEL SI SE REBAJARON LOS FILTROS
+      fallbackActivo,
       ultimaActualizacion: fechaRes.rows[0].ultima_actualizacion ?? null
     });
 

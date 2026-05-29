@@ -87,7 +87,7 @@ export default function Navbar() {
         </div>
 
         <button
-          onClick={() => signOut({ callbackUrl: '/salud-dashboard/login' })}
+          onClick={() => signOut({ callbackUrl: '/salud-dashboard' })}
           className={styles.logoutBtn}
           title="Cerrar Sesión"
         >
