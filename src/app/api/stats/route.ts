@@ -80,13 +80,13 @@ export async function GET(request: Request) {
         SUM(CASE WHEN (
           SELECT MAX(s.fecha_contacto) 
           FROM seguimientos s 
-          WHERE s.paciente_id = pacientes_gold.id 
+          WHERE s.paciente_id = pacientes_gold.id AND embarazo_en_curso = true 
             AND s.contacto_logrado = true -- 👈 FILTRO CORRECTO DE TONY
         ) < CURRENT_DATE - INTERVAL '30 days' 
         OR NOT EXISTS (
           SELECT 1 
           FROM seguimientos s 
-          WHERE s.paciente_id = pacientes_gold.id 
+          WHERE s.paciente_id = pacientes_gold.id AND embarazo_en_curso = true 
             AND s.contacto_logrado = true -- 👈 FILTRO CORRECTO DE TONY
         )
         THEN 1 ELSE 0 END) as sin_contacto_reciente
@@ -128,6 +128,7 @@ export async function GET(request: Request) {
       FROM pacientes_gold p
       INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
       WHERE p.fecha_probable_parto >= ${fechaUmbral}
+        AND p.embarazo_en_curso = true
         AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
         AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') 
         AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
