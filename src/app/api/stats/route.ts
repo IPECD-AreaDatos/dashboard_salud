@@ -77,6 +77,11 @@ export async function GET(request: Request) {
         SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
         SUM(CASE WHEN nombre_centro_derivado IS NOT NULL AND nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
 
+        /* 👈 NUEVOS KPIs: Cobertura y actividad de controles en ventanas de tiempo */
+        SUM(CASE WHEN fecha_ultimo_control = CURRENT_DATE THEN 1 ELSE 0 END) as controles_hoy,
+        SUM(CASE WHEN fecha_ultimo_control >= CURRENT_DATE - INTERVAL '7 days' THEN 1 ELSE 0 END) as controles_semana,
+        SUM(CASE WHEN fecha_ultimo_control >= CURRENT_DATE - INTERVAL '30 days' THEN 1 ELSE 0 END) as controles_mes,
+
         SUM(CASE WHEN (
           SELECT MAX(s.fecha_contacto) 
           FROM seguimientos s 
@@ -160,6 +165,12 @@ export async function GET(request: Request) {
         sinTelefono: parseInt(kpis.sin_telefono) || 0,
         derivadas: parseInt(kpis.derivadas) || 0,
         sinContactoReciente: parseInt(kpis.sin_contacto_reciente) || 0
+      },
+      /* 👈 NUEVO OBJETO: Enviamos los contadores de actividad reciente */
+      actividad: {
+        hoy: parseInt(kpis.controles_hoy) || 0,
+        semana: parseInt(kpis.controles_semana) || 0,
+        mes: parseInt(kpis.controles_mes) || 0
       },
       topGeneral: topGenRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 })),
       topRiesgoAtraso: topRsgRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }))

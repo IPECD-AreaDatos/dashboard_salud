@@ -27,6 +27,8 @@ interface Paciente {
   nombre_centro_derivado?: string | null;
   derivacion_maternidad_id?: string | null;
   cuie_seguimiento?: string | null;
+  fecha_proximo_turno: string | null;
+  dias_para_turno: number;
 }
 
 // Función helper para calcular la diferencia de días
@@ -59,6 +61,14 @@ const getSemaforoClass = (dias: number, eg: number | null) => {
   if (dias > 60) return styles.semaforoRojo;
   if (dias > 30) return styles.semaforoAmarillo;
   return styles.semaforoVerde;
+};
+
+// 👈 NUEVA FUNCIÓN: Semáforo invertido para alertas de proximidad de turnos
+const getSemaforoTurnoClass = (dias: number) => {
+  if (dias === 999) return styles.semaforoGris;
+  if (dias < 3) return styles.semaforoRojo;       // Menos de 3 días: ¡Crítico / Inminente!
+  if (dias <= 7) return styles.semaforoAmarillo;  // Entre 3 y 7 días: Próximo
+  return styles.semaforoVerde;                    // Más de 7 días: Programado con tiempo
 };
 
 const romanToArabic = (text: string) => {
@@ -662,6 +672,16 @@ export default function SeguimientoPage() {
                       </div>
                     </th>
 
+                    {/* 👈 NUEVA CABECERA: COLUMNA TURNO */}
+                    <th onClick={() => handleSort('fecha_proximo_turno')} className={styles.sortableHeader}>
+                      <div className={styles.headerContent}>
+                        <span>Próximo Turno</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfig.key === 'fecha_proximo_turno' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
+                    </th>
+
                     <th className={styles.tableTh}>Fuente</th>
                   </tr>
                 </thead>
@@ -728,6 +748,27 @@ export default function SeguimientoPage() {
                               <div>
                                 <span className={getSemaforoClass(diasSC, p.eg_actual)}>
                                   {diasSC === 999 ? "S/D" : `${diasSC} días`}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* 👈 NUEVA CELDA: DATOS DEL TURNO Y SU SEMÁFORO INVERTIDO */}
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span style={{ color: '#475569', fontWeight: 500 }}>
+                                {p.fecha_proximo_turno ? new Date(p.fecha_proximo_turno).toLocaleDateString('es-AR') : "-"}
+                              </span>
+                              <div>
+                                <span className={getSemaforoTurnoClass(p.dias_para_turno)}>
+                                  {p.dias_para_turno === 999 
+                                    ? "Sin Turno" 
+                                    : p.dias_para_turno === 0 
+                                      ? "Hoy" 
+                                      : p.dias_para_turno === 1 
+                                        ? "Mañana" 
+                                        : `En ${p.dias_para_turno} días`
+                                  }
                                 </span>
                               </div>
                             </div>

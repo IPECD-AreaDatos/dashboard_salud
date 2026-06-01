@@ -128,6 +128,11 @@ export async function GET(request: Request) {
               FROM seguimientos sec 
               WHERE sec.paciente_id = p.id 
                 AND sec.contacto_logrado = true) as fecha_ultimo_contacto,
+          /* 👈 NUEVA SUBQUERY: Trae la fecha del turno programado más cercano en el futuro */
+          (SELECT MIN(sec.proxima_cita)
+              FROM seguimientos sec
+              WHERE sec.paciente_id = p.id 
+                AND sec.proxima_cita >= CURRENT_DATE) as fecha_proximo_turno,
           p.calle_domicilio, p.nro_puerta_domicilio, p.localidad_domicilio, p.fuente_principal, p.eg_actual,
           p.nombre_centro_derivado,
           p.derivacion_maternidad_id,
@@ -156,10 +161,19 @@ export async function GET(request: Request) {
       }
 
       const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
       const ultContacto = p.fecha_ultimo_contacto ? new Date(p.fecha_ultimo_contacto) : null;
       const diasSContacto = ultContacto
         ? Math.floor((hoy.getTime() - ultContacto.getTime()) / (1000 * 60 * 60 * 24))
         : 999;
+      
+      /* 👈 NUEVO CÁLCULO: Días faltantes para el próximo turno */
+      const proxTurno = p.fecha_proximo_turno ? new Date(p.fecha_proximo_turno) : null;
+      if (proxTurno) proxTurno.setHours(0, 0, 0, 0);
+      
+      const diasParaTurno = proxTurno
+        ? Math.floor((proxTurno.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+        : 999; // 999 actua como Sin Turno
 
       return {
         id: p.id,
@@ -176,6 +190,9 @@ export async function GET(request: Request) {
         dias: p.dias_atraso !== null ? p.dias_atraso : 999,
         fecha_ultimo_contacto: p.fecha_ultimo_contacto,
         dias_sin_contacto: diasSContacto,
+        // 👈 NUEVAS PROPIEDADES ENVIADAS AL FRONTEND
+        fecha_proximo_turno: p.fecha_proximo_turno,
+        dias_para_turno: diasParaTurno,
         fuente_principal: p.fuente_principal === 'sumar' 
                 ? 'SUMAR' 
                 : (p.fuente_principal === 'v_embarazosdw' ? 'POF' : p.fuente_principal || 'S/D'),

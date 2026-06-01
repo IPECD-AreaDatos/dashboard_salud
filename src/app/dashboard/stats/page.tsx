@@ -1,3 +1,4 @@
+/*src/app/dashboard/stats/page.tsx*/
 "use client";
 import React, { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
@@ -99,6 +100,32 @@ export default function StatsPage() {
     transition: 'all 0.2s'
   });
 
+  // 👈 NUEVO: Cálculo dinámico de rangos de fechas para las etiquetas de los KPIs
+  const obtenerEtiquetasActividad = () => {
+    const hoy = new Date();
+    
+    // Formateador nativo para Argentina (DD/MM)
+    const opciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit' };
+    const formatear = (d: Date) => d.toLocaleDateString('es-AR', opciones);
+
+    // 1. Hoy
+    const textoHoy = hoy.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    // 2. Última semana (Hoy menos 7 días hasta Hoy)
+    const fechaSemanaPasada = new Date();
+    fechaSemanaPasada.setDate(hoy.getDate() - 7);
+    const textoSemana = `${formatear(fechaSemanaPasada)} al ${formatear(hoy)}`;
+
+    // 3. Último mes (Hoy menos 30 días hasta Hoy)
+    const fechaMesPasado = new Date();
+    fechaMesPasado.setDate(hoy.getDate() - 30);
+    const textoMes = `${formatear(fechaMesPasado)} al ${formatear(hoy)}`;
+
+    return { textoHoy, textoSemana, textoMes };
+  };
+
+  const { textoHoy, textoSemana, textoMes } = obtenerEtiquetasActividad();
+
   return (
     <>
       <Navbar />
@@ -184,6 +211,50 @@ export default function StatsPage() {
                   {data.gestion?.sinContactoReciente}
                 </span>
               </div>
+            </div>
+            {/* Cobertura de Controles Médicos Unificada con la Estética del Sistema */}
+            <h2 className={styles.sectionTitle}>Cobertura de Controles Médicos</h2>
+            <div className={styles.kpiRow}>
+              
+              {/* Tarjeta 1: Último Día */}
+              <div className={styles.kpiCard}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span className={styles.kpiLabel}>Controles en el Último Día</span>
+                  <small style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 550, marginTop: '2px' }}>
+                    ({textoHoy})
+                  </small>
+                </div>
+                <span className={styles.kpiValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>
+                  {(data.actividad?.hoy || 0).toLocaleString('es-AR')}
+                </span>
+              </div>
+
+              {/* Tarjeta 2: Última Semana */}
+              <div className={styles.kpiCard}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span className={styles.kpiLabel}>Controles en la Última Semana</span>
+                  <small style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 550, marginTop: '2px' }}>
+                    ({textoSemana})
+                  </small>
+                </div>
+                <span className={styles.kpiValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>
+                  {(data.actividad?.semana || 0).toLocaleString('es-AR')}
+                </span>
+              </div>
+
+              {/* Tarjeta 3: Último Mes */}
+              <div className={styles.kpiCard}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span className={styles.kpiLabel}>Controles en el Último Mes</span>
+                  <small style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 550, marginTop: '2px' }}>
+                    ({textoMes})
+                  </small>
+                </div>
+                <span className={styles.kpiValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>
+                  {(data.actividad?.mes || 0).toLocaleString('es-AR')}
+                </span>
+              </div>
+
             </div>
           </>
         )}
