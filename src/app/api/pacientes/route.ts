@@ -66,6 +66,9 @@ export async function GET(request: Request) {
     const ejecutarConsultaPacientes = async (aplicarRestriccionesGestión: boolean) => {
       const params: any[] = [];
       let whereClause = `WHERE embarazo_en_curso = true`;
+      if (trimestre === "Todos" && !dni) {
+        whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`;
+      }
 
       if (dni && exact) {
         params.push(dni.trim());
@@ -99,10 +102,7 @@ export async function GET(request: Request) {
           whereClause += ` AND p.eg_actual >= 14 AND p.eg_actual < 28`;
         } else if (trimestre === "3") {
           whereClause += ` AND p.eg_actual >= 28`;
-        } else if (trimestre === "Todos" && !dni) {
-          // Si no filtra por trimestre ni DNI, mantenemos el control de FPP a futuro por defecto
-          whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`;
-        }
+        } 
 
         if (dni) {
           params.push(`${dni}%`);
