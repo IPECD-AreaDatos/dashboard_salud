@@ -65,10 +65,10 @@ export async function GET(request: Request) {
     // Función auxiliar para armar la query y sus parámetros
     const ejecutarConsultaPacientes = async (aplicarRestriccionesGestión: boolean) => {
       const params: any[] = [];
-      let whereClause = `WHERE embarazo_en_curso = true`;
-      if (trimestre === "Todos" && !dni) {
-        whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`;
-      }
+      let whereClause = `WHERE embarazo_en_curso = true AND fecha_probable_parto >= CURRENT_DATE`;
+      //if (trimestre === "Todos" && !dni) {
+      //  whereClause += ` AND fecha_probable_parto >= CURRENT_DATE`; independientemente del trimestre debe ser true
+      //}
 
       if (dni && exact) {
         params.push(dni.trim());

@@ -72,7 +72,12 @@ export async function GET(request: Request) {
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as rsg_20_34,
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus,
 
-        SUM(CASE WHEN (CURRENT_DATE - fecha_ultimo_control) > 30 OR fecha_ultimo_control IS NULL THEN 1 ELSE 0 END) as controles_pendientes,
+        SUM(CASE WHEN (
+              (CURRENT_DATE - fecha_ultimo_control) > 30 
+              OR fecha_ultimo_control IS NULL
+            )
+            AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')
+            THEN 1 ELSE 0 END) as controles_pendientes,
         SUM(CASE WHEN fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
         SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
         SUM(CASE WHEN nombre_centro_derivado IS NOT NULL AND nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
@@ -83,17 +88,21 @@ export async function GET(request: Request) {
         SUM(CASE WHEN fecha_ultimo_control >= CURRENT_DATE - INTERVAL '30 days' THEN 1 ELSE 0 END) as controles_mes,
 
         SUM(CASE WHEN (
-          SELECT MAX(s.fecha_contacto) 
-          FROM seguimientos s 
-          WHERE s.paciente_id = pacientes_gold.id AND embarazo_en_curso = true 
-            AND s.contacto_logrado = true -- 👈 FILTRO CORRECTO DE TONY
-        ) < CURRENT_DATE - INTERVAL '30 days' 
-        OR NOT EXISTS (
-          SELECT 1 
-          FROM seguimientos s 
-          WHERE s.paciente_id = pacientes_gold.id AND embarazo_en_curso = true 
-            AND s.contacto_logrado = true -- 👈 FILTRO CORRECTO DE TONY
-        )
+            nombre_centro_derivado IS NULL OR nombre_centro_derivado = ''
+          )
+          AND (
+            (
+              SELECT MAX(s.fecha_contacto) 
+              FROM seguimientos s 
+              WHERE s.paciente_id = pacientes_gold.id AND embarazo_en_curso = true 
+                AND s.contacto_logrado = true
+            ) < CURRENT_DATE - INTERVAL '30 days' 
+            OR NOT EXISTS (
+              SELECT 1 FROM seguimientos s 
+              WHERE s.paciente_id = pacientes_gold.id AND embarazo_en_curso = true 
+                AND s.contacto_logrado = true
+            )
+          )
         THEN 1 ELSE 0 END) as sin_contacto_reciente
         
       FROM pacientes_gold
