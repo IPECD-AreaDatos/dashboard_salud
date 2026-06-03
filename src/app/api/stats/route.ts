@@ -50,13 +50,26 @@ export async function GET(request: Request) {
     if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
       statsParams.push(establecimiento);
       if (/^\d+$/.test(establecimiento.trim()) && establecimiento.trim().length >= 10) {
-        centroFilterClause = ` AND sisa_centro_salud = $1`;
+        centroFilterClause = ` AND (sisa_centro_salud = $1 OR sisa_centro_derivado = $1)`;
       } else {
-        centroFilterClause = ` AND (sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $1) OR cuie_seguimiento = $1)`;
+        centroFilterClause = ` AND (
+          sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $1)
+          OR sisa_centro_derivado IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $1)
+          OR cuie_seguimiento = $1
+        )`;
       }
     }
 
-    // 3. Métricas Generales y de Riesgo por Edades
+    // 3. Cláusula de derivación según rol
+    let derivacionClause = "";
+    if (session.user?.role === 'Centro de Salud') {
+      derivacionClause = ` AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')`;
+    }
+    // Maternidad, Coordinador y Admin no necesitan cláusula adicional:
+    // - Maternidad: el securityClause ya incluye propias + derivadas
+    // - Coordinador/Admin: ven todo
+
+    // 4. Métricas Generales y de Riesgo por Edades
     const kpiSql = `
       SELECT
         COUNT(*) as total,
@@ -115,38 +128,52 @@ export async function GET(request: Request) {
     const kpiRes = await query(kpiSql, statsParams);
     const kpis = kpiRes.rows[0];
 
-    // 4. Top Establecimientos con más embarazadas
+    // 5. Top Establecimientos con más embarazadas
     const topGenSql = `
       SELECT 
         s.nombre as name, 
         s.departamento,
         COUNT(p.id) as value
       FROM pacientes_gold p
-      INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
+      INNER JOIN efectores_sisa s ON s.codigo_sisa = (
+        CASE 
+          WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != ''
+            THEN p.sisa_centro_derivado
+          ELSE p.sisa_centro_salud
+        END
+      )
       WHERE p.fecha_probable_parto >= ${fechaUmbral}
         AND p.embarazo_en_curso = true
         AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
         ${securityClause}
+        ${derivacionClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento
       ORDER BY value DESC
     `;
     const topGenRes = await query(topGenSql);
 
-    // 5. Top Establecimientos con Riesgo y > 30 días sin control
+    // 6. Top Establecimientos con Riesgo y > 30 días sin control
     const topRsgSql = `
       SELECT 
         s.nombre as name, 
         s.departamento,
         COUNT(p.id) as value
       FROM pacientes_gold p
-      INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
+      INNER JOIN efectores_sisa s ON s.codigo_sisa = (
+        CASE 
+          WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != ''
+            THEN p.sisa_centro_derivado
+          ELSE p.sisa_centro_salud
+        END
+      )
       WHERE p.fecha_probable_parto >= ${fechaUmbral}
         AND p.embarazo_en_curso = true
         AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
         AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') 
         AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
         ${securityClause}
+        ${derivacionClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento
       ORDER BY value DESC
