@@ -46,7 +46,8 @@ export async function POST(request: Request) {
       telefono_contactado,
       observaciones,
       proxima_cita,
-      personal_salud // Ahora viene inyectado automáticamente desde el Modal
+      personal_salud,
+      usuario_id // 👈 NUEVO: Lo extraemos directo del body que configuramos en el modal
     } = body;
 
     const sql = `
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
         observaciones,
         proxima_cita,
         personal_salud,
-        usuario_id,
+        usuario_id, /* 👈 Tipo int4 */
         created_at,
         updated_at
       ) VALUES (
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
     `;
 
     // Usamos el ID real de la sesión de NextAuth para el usuario_id
-    const usuario_id = session.user.id; 
+    const dbUsuarioId = usuario_id || session.user.id;
     const cita = proxima_cita ? proxima_cita : null;
 
     const params = [
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
       observaciones,
       cita,
       personal_salud,
-      usuario_id
+      dbUsuarioId ? parseInt(dbUsuarioId.toString(), 10) : null // $9 👈 Convertido a número estricto para evitar incompatibilidad de tipos con int4
     ];
 
     const result = await query(sql, params);

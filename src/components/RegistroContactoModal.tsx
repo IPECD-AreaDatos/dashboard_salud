@@ -48,10 +48,18 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
+    
+    // 👈 CAPA DE SEGURIDAD 1: Si la sesión se cayó, frenamos el submit de raíz
+    if (!session || !session.user) {
+      alert("Tu sesión expiró o es inestable. Por favor, refrescá la página y volvé a iniciar sesión para guardar el contacto.");
+      return;
+    }
+
     setSaving(true);
     
-    // Determinamos el nombre del personal automáticamente desde la sesión
-    const identificadorUsuario = session?.user?.username || session?.user?.name || "Desconocido";
+    // Extraemos de forma segura los identificadores que metimos en el authOptions
+    const identificadorUsuario = session.user.username || session.user.name || "Anonimo";
+    const usuarioId = session.user.id ? parseInt(session.user.id, 10) : null;
     
     try {
       const res = await apiFetch("/seguimientos", {
@@ -60,16 +68,19 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
         body: JSON.stringify({
           paciente_id: paciente.id,
           ...formData,
-          personal_salud: identificadorUsuario // Lo enviamos aquí automáticamente
+          personal_salud: identificadorUsuario, // Mantiene compatibilidad con tu columna de texto actual
+          usuario_id: usuarioId                  // 👈 NUEVO: Mandamos el ID real a la columna de la BD
         })
       });
+      
       if (res.ok) {
         onSuccess();
       } else {
-        alert("Error al guardar el contacto");
+        alert("Error al guardar el contacto en el servidor");
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error enviando seguimiento:", error);
+      alert("Ocurrió un error de red al intentar guardar");
     } finally {
       setSaving(false);
     }
