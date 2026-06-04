@@ -162,7 +162,12 @@ export async function GET(request: Request) {
 
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
+      
       const ultContacto = p.fecha_ultimo_contacto ? new Date(p.fecha_ultimo_contacto) : null;
+      if (ultContacto) {
+        ultContacto.setHours(0, 0, 0, 0); // 👈 Limpiamos la hora del contacto registrado
+      }
+
       const diasSContacto = ultContacto
         ? Math.floor((hoy.getTime() - ultContacto.getTime()) / (1000 * 60 * 60 * 24))
         : 999;

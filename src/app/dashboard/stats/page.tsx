@@ -100,26 +100,30 @@ export default function StatsPage() {
     transition: 'all 0.2s'
   });
 
-  // 👈 NUEVO: Cálculo dinámico de rangos de fechas para las etiquetas de los KPIs
+  // 👈 CORREGIDO: Rangos dinámicos calculados a partir del día de ayer cerrado
   const obtenerEtiquetasActividad = () => {
     const hoy = new Date();
+    
+    // Definimos el día de ayer como nuestro punto de anclaje
+    const ayer = new Date();
+    ayer.setDate(hoy.getDate() - 1);
     
     // Formateador nativo para Argentina (DD/MM)
     const opciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit' };
     const formatear = (d: Date) => d.toLocaleDateString('es-AR', opciones);
 
-    // 1. Hoy
-    const textoHoy = hoy.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    // 1. Ayer (Día cerrado)
+    const textoHoy = ayer.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-    // 2. Última semana (Hoy menos 7 días hasta Hoy)
+    // 2. Última semana cerrada (Ayer menos 6 días hasta Ayer, completando 7 días)
     const fechaSemanaPasada = new Date();
-    fechaSemanaPasada.setDate(hoy.getDate() - 7);
-    const textoSemana = `${formatear(fechaSemanaPasada)} al ${formatear(hoy)}`;
+    fechaSemanaPasada.setDate(ayer.getDate() - 6);
+    const textoSemana = `${formatear(fechaSemanaPasada)} al ${formatear(ayer)}`;
 
-    // 3. Último mes (Hoy menos 30 días hasta Hoy)
+    // 3. Último mes cerrado (Ayer menos 29 días hasta Ayer, completando 30 días)
     const fechaMesPasado = new Date();
-    fechaMesPasado.setDate(hoy.getDate() - 30);
-    const textoMes = `${formatear(fechaMesPasado)} al ${formatear(hoy)}`;
+    fechaMesPasado.setDate(ayer.getDate() - 29);
+    const textoMes = `${formatear(fechaMesPasado)} al ${formatear(ayer)}`;
 
     return { textoHoy, textoSemana, textoMes };
   };

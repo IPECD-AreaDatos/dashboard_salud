@@ -95,10 +95,10 @@ export async function GET(request: Request) {
         SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
         SUM(CASE WHEN nombre_centro_derivado IS NOT NULL AND nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
 
-        /* 👈 NUEVOS KPIs: Cobertura y actividad de controles en ventanas de tiempo */
-        SUM(CASE WHEN fecha_ultimo_control = CURRENT_DATE THEN 1 ELSE 0 END) as controles_hoy,
-        SUM(CASE WHEN fecha_ultimo_control >= CURRENT_DATE - INTERVAL '7 days' THEN 1 ELSE 0 END) as controles_semana,
-        SUM(CASE WHEN fecha_ultimo_control >= CURRENT_DATE - INTERVAL '30 days' THEN 1 ELSE 0 END) as controles_mes,
+        /* 👈 CORREGIDO: Filtramos períodos cerrados tomando como techo el día de ayer (CURRENT_DATE - 1) */
+        SUM(CASE WHEN fecha_ultimo_control = CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_hoy,
+        SUM(CASE WHEN fecha_ultimo_control BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_semana,
+        SUM(CASE WHEN fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_mes,
 
         SUM(CASE WHEN (
             nombre_centro_derivado IS NULL OR nombre_centro_derivado = ''

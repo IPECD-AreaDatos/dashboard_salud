@@ -747,7 +747,14 @@ export default function SeguimientoPage() {
                               </span>
                               <div>
                                 <span className={getSemaforoClass(diasSC, p.eg_actual)}>
-                                  {diasSC === 999 ? "S/D" : `${diasSC} días`}
+                                  {diasSC === 999 
+                                    ? "S/D" 
+                                    : diasSC <= 0 
+                                      ? "Hoy"       // 👈 Si es 0 o menor por algún desajuste, muestra Hoy
+                                      : diasSC === 1 
+                                        ? "Ayer"      // 👈 Si es 1, muestra Ayer
+                                        : `${diasSC} días`
+                                  }
                                 </span>
                               </div>
                             </div>
