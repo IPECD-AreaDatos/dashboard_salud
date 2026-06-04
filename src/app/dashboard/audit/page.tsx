@@ -1,10 +1,10 @@
 /*src/app/dashboard/audit/page.tsx*/
 "use client";
 import { useState, useEffect, useMemo } from "react";
-import styles from "../Dashboard.module.css";
+import styles from "../Dashboard.module.css"; // 👈 Unificamos el estilo delicado aquí
 import Navbar from "@/components/Navbar";
-import { Info, Search, Phone, ShieldAlert, RefreshCcw, Filter } from "lucide-react";
-import RegistroContactoModal from "@/components/RegistroContactoModal";
+import { Info, Search, Phone, RefreshCcw, Filter, X } from "lucide-react";
+import InfoPacienteModal from "@/components/InfoPacienteModal";
 import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/api";
 
@@ -18,11 +18,14 @@ interface PacienteAuditoria {
   nombre: string;
   telefono: string;
   fpp: string;
-  ult_control: string;
+  fecha_nacimiento: string | null;
+  eg_actual: number | null;
   establecimiento: string;
-  dias: number;
   motivo_auditoria: string;
-  fecha_ultimo_contacto: string | null;
+  /* 👈 NUEVOS CAMPOS AGREGADOS AL TIPADO DEL FRONT */
+  edad: number | null;
+  fuente_limpia: string;
+  lote: string;
 }
 
 export default function AuditPage() {
@@ -31,15 +34,17 @@ export default function AuditPage() {
   const [pacientes, setPacientes] = useState<PacienteAuditoria[]>([]);
   const [loading, setLoading] = useState(false);
   const [globalTotal, setGlobalTotal] = useState(0);
+  const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null); // 👈 NUEVO ESTADO
 
   // Estados para manejar el criterio y la dirección del ordenamiento
-  const [sortConfig, setSortConfig] = useState<{ key: 'dni' | 'fpp' | 'ult_control'; direction: 'asc' | 'desc' } | null>(null);
-
+  const [sortConfig, setSortConfig] = useState<{ key: 'dni' | 'fpp' | 'fecha_nacimiento' | 'eg_actual'; direction: 'asc' | 'desc' } | null>(null);
   // Filtros
   const [filterDNI, setFilterDNI] = useState("");
   const [filterEst, setFilterEst] = useState("Todos");
   
-  const [establecimientos, setEstablecimientos] = useState<{label: string, value: string, sisa?: string}[]>([]);
+  // Estados para el Autocomplete dinámico de Auditoría
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
 
   // Modal
   const [selectedPaciente, setSelectedPaciente] = useState<PacienteAuditoria | null>(null);
@@ -58,8 +63,30 @@ export default function AuditPage() {
       if (!response.ok) throw new Error("Error fetching data");
 
       const resData = await response.json();
+      const listaPacientes = resData.data || [];
+
       setPacientes(resData.data || []);
       setGlobalTotal(resData.totalGlobal || 0);
+      setUltimaActualizacion(resData.ultimaActualizacion || null);
+
+      // 👈 NUEVO: Guardamos la lista completa de CAPS SOLO si navegamos en el listado general ("Todos")
+      if (estVal === "Todos") {
+        const conteo: { [key: string]: number } = {};
+        listaPacientes.forEach((p: any) => {
+          if (p.establecimiento) {
+            conteo[p.establecimiento] = (conteo[p.establecimiento] || 0) + 1;
+          }
+        });
+
+        const listaMapeada = Object.keys(conteo).sort().map((nombreEst) => ({
+          label: nombreEst,
+          value: nombreEst,
+          cantidad: conteo[nombreEst]
+        }));
+
+        setEstablecimientosConCasos(listaMapeada);
+      }
+
     } catch (error) {
       console.error(error);
     } finally {
@@ -67,33 +94,20 @@ export default function AuditPage() {
     }
   };
 
-  const fetchFiltros = async () => {
-    try {
-      const response = await apiFetch("/filtros");
-      if (!response.ok) throw new Error("Error fetching filtros");
-      const data = await response.json();
-      setEstablecimientos(data.establecimientos || []);
-    } catch (error) {
-      console.error("Error obteniendo filtros:", error);
-    }
-  };
+  // 👈 CONSERVAMOS SOLO EL STATE (Línea 116):
+  const [establecimientosConCasos, setEstablecimientosConCasos] = useState<{label: string, value: string, cantidad: number}[]>([]);
 
+  // El filtrado por tipeo de la lista congelada
+  const filteredEsts = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase();
+    return establecimientosConCasos.filter(est => 
+      est.label.toLowerCase().includes(searchLower)
+    );
+  }, [establecimientosConCasos, searchTerm]);
+  
   useEffect(() => {
-    fetchFiltros();
     fetchPacientes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const handleRefresh = () => {
-    fetchPacientes();
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "Sin registro";
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "Sin registro";
-    return date.toLocaleDateString("es-AR", { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
 
   if (session && session.user?.role !== 'Administrador' && session.user?.role !== 'Coordinador' && session.user?.name !== 'admin') {
     return (
@@ -106,7 +120,7 @@ export default function AuditPage() {
     );
   }
 
-  const handleSort = (key: 'dni' | 'fpp' | 'ult_control') => {
+  const handleSort = (key: 'dni' | 'fpp' | 'fecha_nacimiento' | 'eg_actual') => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
@@ -114,7 +128,6 @@ export default function AuditPage() {
     setSortConfig({ key, direction });
   };
   
-  // FIX REALIZADO AQUÍ: Se eliminó 'React.' para usar directamente 'useMemo'
   const sortedPacientes = useMemo(() => {
     let sortablePacientes = [...pacientes];
     if (sortConfig !== null) {
@@ -122,18 +135,25 @@ export default function AuditPage() {
         let aVal = a[sortConfig.key];
         let bVal = b[sortConfig.key];
   
-        // Tratamiento para valores nulos o S/D (los mandamos al final)
-        if (!aVal || aVal === "S/D") return 1;
-        if (!bVal || bVal === "S/D") return -1;
+        // Tratamiento universal para valores nulos, vacíos o "S/D" (siempre al fondo)
+        if (aVal === null || aVal === undefined || aVal === "S/D" || aVal === "-") return 1;
+        if (bVal === null || bVal === undefined || bVal === "S/D" || bVal === "-") return -1;
   
-        // Si es fecha, convertimos a objeto Date para comparar correctamente
-        if (sortConfig.key === 'fpp' || sortConfig.key === 'ult_control') {
+        // 1. ORDENAMIENTO DE FECHAS (FPP y Fecha de Nacimiento)
+        if (sortConfig.key === 'fpp' || sortConfig.key === 'fecha_nacimiento') {
           return sortConfig.direction === 'asc' 
             ? new Date(aVal).getTime() - new Date(bVal).getTime()
             : new Date(bVal).getTime() - new Date(aVal).getTime();
         }
   
-        // Si es DNI (orden alfanumérico)
+        // 2. ORDENAMIENTO NUMÉRICO / DECIMAL (Edad Gestacional actual de Stage)
+        if (sortConfig.key === 'eg_actual') {
+          return sortConfig.direction === 'asc'
+            ? Number(aVal) - Number(bVal)
+            : Number(bVal) - Number(aVal);
+        }
+  
+        // 3. ORDENAMIENTO ALFANUMÉRICO (DNI)
         return sortConfig.direction === 'asc'
           ? String(aVal).localeCompare(String(bVal), undefined, { numeric: true })
           : String(bVal).localeCompare(String(aVal), undefined, { numeric: true });
@@ -146,12 +166,6 @@ export default function AuditPage() {
     <>
       <Navbar />
       <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.titleArea}>
-            <h1>Auditoría de Inconsistencias</h1>
-            <p>Supervisión de embarazos con datos faltantes, controles atrasados o FPP vencidas.</p>
-          </div>
-        </div>
 
         <div className={styles.mainGrid}>
           {/* CONTROLES Y FILTROS (Lateral) */}
@@ -177,23 +191,77 @@ export default function AuditPage() {
               </div>
             </div>
 
-            <div className={styles.filterGroup}>
+            <div className={styles.filterGroup} style={{ position: 'relative' }}>
               <label className={styles.filterLabel}>Establecimiento</label>
-              <select
-                value={filterEst}
-                onChange={(e) => {
-                  setFilterEst(e.target.value);
-                  fetchPacientes(filterDNI, e.target.value);
-                }}
-                className={styles.selectInput}
-              >
-                <option value="Todos">Todos los establecimientos</option>
-                {establecimientos.map((est) => (
-                  <option key={est.value} value={est.value}>
-                    {est.label}
-                  </option>
-                ))}
-              </select>
+
+              <div className={styles.selectWrapper}>
+                <input
+                  type="text"
+                  className={styles.selectInput}
+                  placeholder="Buscar establecimiento..."
+                  style={filterEst !== "Todos" ? { paddingRight: '2.2rem' } : undefined}
+                  // Si está abierto muestra el término de búsqueda; si está cerrado muestra el centro seleccionado o "Todos"
+                  value={isOpen ? searchTerm : (filterEst === "Todos" ? `Todos los establecimientos (${pacientes.length})` : filterEst)}
+                  onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay seguro para registrar el clic de las opciones
+                />
+                
+                {/* Botón X minimalista para restablecer el filtro rápido */}
+                {filterEst !== "Todos" && !isOpen && (
+                  <button
+                    className={styles.clearBtn}
+                    onClick={() => {
+                      setFilterEst("Todos");
+                      setSearchTerm("");
+                      fetchPacientes(filterDNI, "Todos");
+                    }}
+                    title="Ver todos los centros"
+                    type="button"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              {/* Lista desplegable flotante con scroll y sombreado elegante */}
+              {isOpen && (
+                <div className={styles.customDropdown}>
+                  {filteredEsts.length === 0 ? (
+                    <div className={styles.dropdownOption} style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                      No hay centros con inconsistencias que coincidan
+                    </div>
+                  ) : (
+                    filteredEsts.map((est) => (
+                      <div
+                        key={est.value}
+                        className={styles.dropdownOption}
+                        onClick={() => {
+                          setFilterEst(est.value);
+                          setSearchTerm(est.label);
+                          setIsOpen(false);
+                          fetchPacientes(filterDNI, est.value);
+                        }}
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}
+                      >
+                        {/* El nombre del establecimiento hereda el estilo nativo */}
+                        <span> {est.label}</span>
+                        
+                        {/* 👈 MODIFICADO: Estilo idéntico a seguimiento, ultra sutil, gris y sin fondo */}
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          color: '#64748b', // Slate 500, el gris delicado que usás en las subs
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap',
+                          paddingRight: '4px'
+                        }}>
+                          ({est.cantidad} {est.cantidad === 1 ? 'caso' : 'casos'})
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
             
             <button 
@@ -225,115 +293,104 @@ export default function AuditPage() {
                     {globalTotal.toLocaleString('es-AR')}
                   </span>
                 </div>
-                <p className={styles.statSubtext}>Casos totales con inconsistencias</p>
+                <p className={styles.statSubtext}>Casos con inconsistencias</p>
               </div>
             </div>
 
             <div className={styles.tableHeader}>
-              <h2 className={styles.tableTitle}>
-                Listado de Auditoría
-              </h2>
-              <button
-                className={styles.btnRefresh}
-                onClick={handleRefresh}
-                disabled={loading}
-              >
-                <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                {loading ? "Actualizando..." : "Actualizar"}
-              </button>
+              <h2 className={styles.tableTitle}>Listado de Auditoría</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                {ultimaActualizacion && (
+                  <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                    Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
+                  </span>
+                )}
+                <button className={styles.btnRefresh} onClick={() => fetchPacientes()} disabled={loading}>
+                  <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  {loading ? "Actualizando..." : "Actualizar"}
+                </button>
+              </div>
             </div>
 
+            {/* Render de Tabla Nativa Delicada */}
             <div className={styles.tableResponsive}>
               <table className={styles.pacientesTable}>
                 <thead>
                   <tr>
-                    <th>Paciente</th>
-                    <th onClick={() => handleSort('dni')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                    <th>Paciente / Establecimiento</th>
+                    <th onClick={() => handleSort('dni')} className={styles.sortableHeader}>
                       DNI {sortConfig?.key === 'dni' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                     </th>
-                    <th onClick={() => handleSort('fpp')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                    {/* 👈 NUEVO: Clasp interactivo para Fecha de Nacimiento */}
+                    <th onClick={() => handleSort('fecha_nacimiento')} className={styles.sortableHeader}>
+                      Fecha de Nacimiento {sortConfig?.key === 'fecha_nacimiento' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                    </th>
+
+                    <th onClick={() => handleSort('fpp')} className={styles.sortableHeader}>
                       FPP {sortConfig?.key === 'fpp' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                     </th>
-                    <th onClick={() => handleSort('ult_control')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                      Último Control {sortConfig?.key === 'ult_control' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+
+                    {/* 👈 NUEVO: Clasp interactivo para Edad Gestacional */}
+                    <th onClick={() => handleSort('eg_actual')} className={styles.sortableHeader} style={{ textAlign: 'center' }}>
+                      Edad Gestacional {sortConfig?.key === 'eg_actual' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                     </th>
                     <th>Motivo Auditoría</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
-                        Buscando anomalías...
-                      </td>
-                    </tr>
-                  ) : sortedPacientes.length > 0 ? (
-                    sortedPacientes.map((p) => (
-                      <tr key={p.id} onClick={() => setSelectedPaciente(p)}>
-                        <td>
-                          <div className={styles.pacienteInfo}>
-                            <div className={styles.pacienteNombre}>{p.nombre}</div>
-                            <div className={styles.pacienteSub}>
-                              <Phone className="w-3 h-3 text-emerald-600" /> {p.telefono}
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
-                              {p.establecimiento}
-                            </div>
+                  {sortedPacientes.map((p) => (
+                    <tr key={p.id} onClick={() => setSelectedPaciente(p)}>
+                      <td>
+                        <div className={styles.pacienteInfo}>
+                          <div className={styles.pacienteNombre}>{p.nombre}</div>
+                          
+                          {/* Teléfono con ícono de Lucide */}
+                          <div className={styles.pacienteSub}>
+                            <Phone className="w-3 h-3 text-emerald-600" size={12} /> {p.telefono}
                           </div>
-                        </td>
-                        <td style={{ color: '#475569', fontWeight: 600 }}>{p.dni}</td>
-                        <td>
-                          <span className={styles.fppCell}>{formatDate(p.fpp)}</span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 500, color: '#334155' }}>
-                              {formatDate(p.ult_control)}
-                            </span>
-                            {p.dias !== 999 && p.dias > 0 && (
-                              <span style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 700 }}>
-                                Hace {p.dias} días
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#dc2626', fontWeight: 700, fontSize: '0.8rem', backgroundColor: '#fef2f2', padding: '4px 8px', borderRadius: '4px', border: '1px solid #fecaca' }}>
-                            <ShieldAlert size={14} />
-                            {p.motivo_auditoria}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                          <Info size={40} color="#cbd5e1" />
-                          <p>No se encontraron anomalías con los filtros actuales.</p>
+                        
                         </div>
                       </td>
+                      <td style={{ color: '#475569', fontWeight: 500 }}>
+                        {p.dni !== "S/D" ? Number(p.dni).toLocaleString('es-AR') : "S/D"}
+                      </td>
+                      <td style={{ color: '#475569' }}>
+                        {p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString('es-AR') : "Sin registro"}
+                      </td>
+                      <td className={styles.fppCell}>
+                        {p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : "Sin registro"}
+                      </td>
+                      <td style={{ color: '#475569', textAlign: 'center', fontWeight: 700 }}>
+                        {p.eg_actual !== null ? `${p.eg_actual}s` : "-"}
+                      </td>
+                      <td>
+                        <span style={{
+                          background: '#fef2f2',
+                          color: '#ef4444',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 550,
+                          border: '1px solid #fee2e2'
+                        }}>
+                          {p.motivo_auditoria}
+                        </span>
+                      </td>
                     </tr>
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
           </main>
         </div>
-
-        {/* Modal Reutilizado */}
-        {selectedPaciente && (
-          <RegistroContactoModal
-            paciente={selectedPaciente}
-            onClose={() => setSelectedPaciente(null)}
-            onSuccess={() => {
-                setSelectedPaciente(null);
-                fetchPacientes();
-            }}
-          />
-        )}
       </div>
-
+      {/* 👈 NUEVO MODAL DE LECTURA */}
+      {selectedPaciente && (
+        <InfoPacienteModal
+          paciente={selectedPaciente}
+          onClose={() => setSelectedPaciente(null)}
+        />
+      )}
     </>
   );
 }
