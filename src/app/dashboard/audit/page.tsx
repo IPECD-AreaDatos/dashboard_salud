@@ -1,6 +1,7 @@
 /*src/app/dashboard/audit/page.tsx*/
 "use client";
 import { useState, useEffect, useMemo } from "react";
+import { registrarLog } from "@/lib/analytics";
 import styles from "../Dashboard.module.css"; // 👈 Unificamos el estilo delicado aquí
 import Navbar from "@/components/Navbar";
 import { Info, Search, Phone, RefreshCcw, Filter, X } from "lucide-react";
@@ -107,6 +108,8 @@ export default function AuditPage() {
   
   useEffect(() => {
     fetchPacientes();
+    // 👈 NUEVO: Logea que el auditor visualizó las inconsistencias del lote nocturno
+    registrarLog({ modulo: "Auditoría", accion: "VISUALIZAR_LISTADO" });
   }, []);
 
   if (session && session.user?.role !== 'Administrador' && session.user?.role !== 'Coordinador' && session.user?.name !== 'admin') {

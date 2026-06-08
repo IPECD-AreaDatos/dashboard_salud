@@ -128,3 +128,6 @@ npm run start
 - **Diseño General**: Toda la paleta de colores y tamaños reside en los módulos CSS locales. Las variables principales se heredan del contenedor general, fomentando una fácil transición si alguna vez se decide migrar a TailwindCSS.
 
 **Creado y optimizado por el equipo para mejorar la usabilidad del sistema de salud pública provincial.**
+
+
+

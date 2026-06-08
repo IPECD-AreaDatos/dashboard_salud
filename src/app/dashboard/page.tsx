@@ -1,6 +1,7 @@
 /*src/app/dashboard/page.tsx*/
 "use client";
 import { useState, useEffect } from "react";
+import { registrarLog } from "@/lib/analytics";
 import styles from "./Dashboard.module.css";
 import Navbar from "@/components/Navbar";
 import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw, X } from "lucide-react";
@@ -148,6 +149,8 @@ export default function SeguimientoPage() {
   useEffect(() => {
     fetchFiltros();
     fetchPacientes(undefined, false, undefined, "Todos", "Si", "30", undefined, true);
+    // 👈 NUEVO: Logea que el centro o el administrador entró a la grilla de seguimiento
+    registrarLog({ modulo: "Seguimiento", accion: "VISUALIZAR_LISTADO" });
   }, []);
 
   // Nuevos estados para el Autocomplete

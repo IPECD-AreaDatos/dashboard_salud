@@ -1,6 +1,7 @@
 /*src/app/dashboard/stats/page.tsx*/
 "use client";
 import React, { useEffect, useState } from "react";
+import { registrarLog } from "@/lib/analytics";
 import Navbar from "@/components/Navbar";
 import { useSession } from "next-auth/react";
 import styles from "./Stats.module.css";
@@ -55,6 +56,12 @@ export default function StatsPage() {
       .catch(err => {
         console.error(err);
         setLoading(false);
+      });
+      // 👈 NUEVO LOG: Registra cada vez que un directivo o admin entra a auditar los gráficos globales
+      registrarLog({ 
+        modulo: "Estadísticas", 
+        accion: "VISUALIZAR_ESTADISTICAS",
+        detalles: "El usuario ingresó a revisar el panel de control de gestión y reportes estadísticos."
       });
   }, []);
 

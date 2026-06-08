@@ -187,6 +187,7 @@ export async function GET(request: Request) {
         telefono: p.telefono || "-",
         fpp: p.fecha_probable_parto,
         domicilio: dom || "No registrado",
+        localidad: p.localidad_domicilio || "No especificada",
         ult_control: p.fecha_ultimo_control,
         establecimiento: p.nombre_establecimiento_oficial || "No asignado",
         cuie_seguimiento: p.cuie_seguimiento,
