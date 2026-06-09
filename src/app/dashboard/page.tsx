@@ -4,13 +4,15 @@ import { useState, useEffect } from "react";
 import { registrarLog } from "@/lib/analytics";
 import styles from "./Dashboard.module.css";
 import Navbar from "@/components/Navbar";
-import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw, X } from "lucide-react";
+import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw, X, Download} from "lucide-react";
 import RegistroContactoModal from "@/components/RegistroContactoModal";
 import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/api";
 import Image from "next/image";
 import logoColorImg from "../../../public/logo_color.png";
 import logoSaludImg from "../../../public/Logo_Salud_Publica_colorH.png";
+
+import * as XLSX from 'xlsx';
 
 interface Paciente {
   id: number;
@@ -41,6 +43,8 @@ const calcularDiasSinContacto = (fechaContacto: string) => {
   const diferencia = hoy.getTime() - inicio.getTime();
   return Math.floor(diferencia / (1000 * 60 * 60 * 24));
 };
+
+
 
 const getSemaforoClass = (dias: number, eg: number | null) => {
   if (dias === 999) return styles.semaforoGris;
@@ -373,6 +377,52 @@ export default function SeguimientoPage() {
     return ` — ${partes.join(" — ")}`;
   };
 
+  const exportarAExcel = () => {
+    if (!pacientes || pacientes.length === 0) {
+      alert("No hay datos en la tabla para exportar con los filtros actuales.");
+      return;
+    }
+
+    // Estructuramos las columnas del reporte con nombres claros y profesionales
+    const datosFormateados = pacientes.map((p: any) => ({
+      "Paciente / Embarazada": p.nombre,
+      "DNI": p.dni,
+      "Fecha Probable Parto (FPP)": p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : 'Sin Registro',
+      "Edad Gestacional Actual": p.eg_actual ? `${p.eg_actual} semanas` : 'S/D',
+      "Último Control Médico": p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : 'Sin Registro',
+      "Días de Atraso en Controles": p.dias === 999 ? 'Sin controles' : `${p.dias} días`,
+      "Último Contacto Logrado": p.fecha_ultimo_contacto ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR') : 'S/D',
+      "Fecha Próximo Turno": p.fecha_proximo_turno ? new Date(p.fecha_proximo_turno).toLocaleDateString('es-AR') : 'Sin Turno',
+      "Teléfono": p.telefono,
+      "Domicilio Declarado": p.domicilio,
+      "Fuente de Sincronización": p.fuente_principal || 'S/D'
+    }));
+
+    // Creación del libro de Excel mediante SheetJS
+    const hoja = XLSX.utils.json_to_sheet(datosFormateados);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Listado de Seguimiento");
+
+    // Autoajuste dinámico de los anchos de columna para evitar textos solapados
+    const anchosColumnas = Object.keys(datosFormateados[0]).map(key => ({
+      wch: Math.max(key.length + 3, 16)
+    }));
+    hoja['!cols'] = anchosColumnas;
+
+    // Nombre dinámico con la fecha de la descarga y el nombre del CAPS/Maternidad
+    const nombreEfector = session?.user?.name?.replace(/\s+/g, '_') || 'Efector';
+    const fechaDescarga = new Date().toISOString().split('T')[0];
+    
+    XLSX.writeFile(libro, `Listado_Seguimiento_${nombreEfector}_${fechaDescarga}.xlsx`);
+
+    // Inyección automática a tu capa de Logs de Auditoría
+    registrarLog({
+      modulo: "Seguimiento",
+      accion: "EXPORTAR_EXCEL",
+      detalles: `Exportó planilla Excel con ${pacientes.length} registros usando filtros activos.`
+    }).catch(err => console.error("Error al registrar log de exportación:", err));
+  };
+
   return (
     <>
       <Navbar />
@@ -614,6 +664,15 @@ export default function SeguimientoPage() {
                     Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
                   </span>
                 )}
+                <button 
+                  className={styles.btnRefresh} /* Usa la misma clase para que mantenga el tamaño y radio */
+                  onClick={exportarAExcel}
+                  style={{ backgroundColor: '#769FD3', color: 'white', borderColor: '#769FD3' }} /* Un verde esmeralda bien de Excel */
+                  type="button"
+                >
+                  <Download size={16} style={{ marginRight: '4px', display: 'inline' }} />
+
+                </button>
                 <button
                   className={styles.btnRefresh}
                   onClick={() => fetchPacientes()}

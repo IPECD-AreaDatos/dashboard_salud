@@ -19,7 +19,13 @@ export default function Navbar() {
     { name: 'Estadísticas', href: '/dashboard/stats', icon: BarChart3 },
   ];
 
-  if (session?.user?.role === 'Administrador' || session?.user?.role === 'Coordinador' || session?.user?.name === 'admin') {
+  if (
+    session?.user?.role === 'Administrador' || 
+    session?.user?.role === 'Coordinador' || 
+    session?.user?.role === 'Centro de Salud' || 
+    session?.user?.role === 'Maternidad' || 
+    session?.user?.name === 'admin'
+  ) {
     menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });
   }
 

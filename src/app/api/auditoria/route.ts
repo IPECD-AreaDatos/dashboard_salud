@@ -7,10 +7,15 @@ import { authOptions } from "../auth/[...nextauth]/route";
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   
-  // Solo permitimos Admin y Coord
-  const allowedRoles = ['Administrador', 'Coordinador'];
-  if (!session || (!allowedRoles.includes(session.user?.role) && session.user?.name !== 'admin')) {
-    return NextResponse.json({ error: "No autorizado para auditoría" }, { status: 403 });
+  if (
+    !session || 
+    (session.user?.role !== 'Administrador' && 
+     session.user?.role !== 'Coordinador' && 
+     session.user?.role !== 'Centro de Salud' && 
+     session.user?.role !== 'Maternidad' && 
+     session.user?.name !== 'admin')
+  ) {
+    return NextResponse.json({ error: "No autorizado para consultar auditoría" }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -18,16 +23,41 @@ export async function GET(request: Request) {
   const establecimiento = searchParams.get("establecimiento");
 
   try {
+    const sisa = session.user?.sisa_code;
+    const cuie = session.user?.cuie_code;
+    const userRole = session.user?.role;
+
     const params: any[] = [];
+    
+    // 🛡️ 1. CAPA DE SEGURIDAD AUTOMÁTICA EN SEGUNDO PLANO (RBAC)
+    // Inicializamos las cláusulas. Si es Administrador queda libre (1=1), si es efector se restringe acá mismo.
     let filteringClauses = `WHERE 1=1`;
 
+    if (userRole === 'Centro de Salud') {
+      if (sisa) {
+        filteringClauses += ` AND uni.centro_salud_raw = '${sisa}'`;
+      } else if (cuie) {
+        filteringClauses += ` AND (uni.centro_salud_raw = '${cuie}' OR uni.centro_salud_raw IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+      }
+    } else if (userRole === 'Maternidad') {
+      const matId = session.user?.maternidad_id;
+      let localClause = "";
+      if (sisa) {
+        localClause = `uni.centro_salud_raw = '${sisa}'`;
+      } else if (cuie) {
+        localClause = `(uni.centro_salud_raw = '${cuie}' OR uni.centro_salud_raw IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+      }
+      filteringClauses += ` AND (${localClause} OR uni.batch_id IN (SELECT DISTINCT batch_id FROM pacientes_gold WHERE derivacion_maternidad_id = '${matId}'))`;
+    }
+
+    // 🔍 2. FILTROS MANUALES (DNI e Insumo del Autocomplete de Gestión)
     if (dni) {
         params.push(`${dni}%`);
         filteringClauses += ` AND uni.dni LIKE $${params.length}`;
     }
 
-    if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
-      // 👈 NUEVO: Si seleccionan el fallback, filtramos las que quedaron sin join exitoso
+    // El filtro por establecimiento explícito solo aplica si el usuario es de gestión central (Admin/Coord)
+    if ((userRole === 'Administrador' || userRole === 'Coordinador') && establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
       if (establecimiento === "Establecimiento no mapeado") {
         filteringClauses += ` AND s.nombre IS NULL`;
       } else {
@@ -36,7 +66,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Unificados con filtros por el DÍA de la última ingesta, incluyendo fecha_nacimiento y eg_actual
+    // 📊 3. QUERY UNIFICADA DE AUDITORÍA CON FILTRO RBAC APLICADO AL FINAL
     const sql = `
       WITH unificado AS (
         SELECT 
@@ -50,7 +80,7 @@ export async function GET(request: Request) {
           (data_json::json->>'eg_actual')::numeric as eg_actual,
           COALESCE(data_json::json->>'sisa_centro_salud', data_json::json->>'cuie_seguimiento') as centro_salud_raw,
           fuente,
-          batch_id, /* 👈 CLAVE: Extraer el batch_id de la tabla stage */
+          batch_id, 
           'Edad gestacional inválida (< 2 semanas) o ausente' as motivo_auditoria
         FROM pacientes_sin_fpp_stage
         WHERE ingestion_at::date = (SELECT MAX(ingestion_at)::date FROM pacientes_sin_fpp_stage)
@@ -68,7 +98,7 @@ export async function GET(request: Request) {
           (data_json::json->>'edad_calculada')::numeric as eg_actual,
           COALESCE(data_json::json->>'sisa_centro_salud', data_json::json->>'cuie_seguimiento') as centro_salud_raw,
           fuente,
-          batch_id, /* 👈 CLAVE */
+          batch_id, 
           'Edad calculada inconsistente (< 10 años) o ausente' as motivo_auditoria
         FROM pacientes_sin_fnac_stage
         WHERE ingestion_at::date = (SELECT MAX(ingestion_at)::date FROM pacientes_sin_fnac_stage)
@@ -86,7 +116,7 @@ export async function GET(request: Request) {
           (data_json::json->>'eg_actual')::numeric as eg_actual,
           COALESCE(data_json::json->>'sisa_centro_salud', data_json::json->>'cuie_seguimiento') as centro_salud_raw,
           fuente,
-          batch_id, /* 👈 CLAVE */
+          batch_id, 
           'DNI inválido o no informado' as motivo_auditoria
         FROM pacientes_sin_dni_stage
         WHERE ingestion_at::date = (SELECT MAX(ingestion_at)::date FROM pacientes_sin_dni_stage)
@@ -106,7 +136,7 @@ export async function GET(request: Request) {
         uni.motivo_auditoria,
         uni.fuente,
         EXTRACT(YEAR FROM AGE(CURRENT_DATE, uni.fecha_nacimiento))::int as edad_paciente,
-        uni.batch_id, /* 👈 Retornar al SELECT final externo */
+        uni.batch_id, 
         s.nombre as nombre_establecimiento_oficial
       FROM unificado uni
       LEFT JOIN efectores_sisa s ON (uni.centro_salud_raw = s.cuie OR uni.centro_salud_raw = s.codigo_sisa)
@@ -131,15 +161,12 @@ export async function GET(request: Request) {
         eg_actual: p.eg_actual !== null ? parseFloat(p.eg_actual) : null,
         establecimiento: p.nombre_establecimiento_oficial || "Establecimiento no mapeado",
         motivo_auditoria: `[${fuenteFormateada}] — ${p.motivo_auditoria}`,
-        
-        /* 👈 NUEVOS CAMPOS EXPUESTOS */
         edad: p.edad_paciente || null,
         fuente_limpia: fuenteFormateada,
         lote: p.batch_id || "S/D"
       };
     });
 
-    // 👈 NUEVO: Obtenemos el techo de la última fecha de sincronización del set de datos
     const fechaRes = await query(`
       SELECT GREATEST(
         (SELECT MAX(ingestion_at) FROM pacientes_sin_fpp_stage),
@@ -152,7 +179,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       data: pacientes,
       totalGlobal: pacientes.length,
-      ultimaActualizacion // 👈 NUEVO: Retornamos la fecha para que el Front la renderice al lado del botón
+      ultimaActualizacion 
     });
   } catch (error) {
     console.error("Error en API Auditoría:", error);
