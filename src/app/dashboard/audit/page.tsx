@@ -36,6 +36,9 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(false);
   const [globalTotal, setGlobalTotal] = useState(0);
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null); // 👈 NUEVO ESTADO
+  
+  // 👈 NUEVO: Estado para congelar el número total de la provincia (18)
+  const [totalAbsoluto, setTotalAbsoluto] = useState<number | null>(null);
 
   // Estados para manejar el criterio y la dirección del ordenamiento
   const [sortConfig, setSortConfig] = useState<{ key: 'dni' | 'fpp' | 'fecha_nacimiento' | 'eg_actual'; direction: 'asc' | 'desc' } | null>(null);
@@ -69,6 +72,11 @@ export default function AuditPage() {
       setPacientes(resData.data || []);
       setGlobalTotal(resData.totalGlobal || 0);
       setUltimaActualizacion(resData.ultimaActualizacion || null);
+
+      // 👈 NUEVO: Si es la primera carga global, congelamos el número 18 para siempre
+      if (totalAbsoluto === null && estVal === "Todos") {
+        setTotalAbsoluto(resData.totalGlobal || 0);
+      }
 
       // 👈 NUEVO: Guardamos la lista completa de CAPS SOLO si navegamos en el listado general ("Todos")
       if (estVal === "Todos") {
@@ -230,38 +238,67 @@ export default function AuditPage() {
               {/* Lista desplegable flotante con scroll y sombreado elegante */}
               {isOpen && (
                 <div className={styles.customDropdown}>
+
+                  {/* 👈 EN CASO DE QUEDAR ATRAPADO: Esta opción limpia el filtro y recupera el listado maestro */}
+                  <div
+                    className={styles.dropdownOption}
+                    onClick={() => {
+                      setFilterEst("Todos");
+                      setSearchTerm("");
+                      setIsOpen(false);
+                      fetchPacientes(filterDNI, "Todos");
+                    }}
+                    style={{ 
+                      fontWeight: 700, 
+                      color: '#0284c7', /* Azul sutil para denotar una acción global */
+                      borderBottom: '1px dashed #e2e8f0',
+                      paddingBottom: '8px',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <span>Todos los establecimientos</span>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+                      ({totalAbsoluto !== null ? totalAbsoluto : globalTotal} casos)
+                    </span>
+                  </div>
+
                   {filteredEsts.length === 0 ? (
-                    <div className={styles.dropdownOption} style={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                      No hay centros con inconsistencias que coincidan
-                    </div>
-                  ) : (
-                    filteredEsts.map((est) => (
-                      <div
-                        key={est.value}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          setFilterEst(est.value);
-                          setSearchTerm(est.label);
-                          setIsOpen(false);
-                          fetchPacientes(filterDNI, est.value);
-                        }}
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}
-                      >
-                        {/* El nombre del establecimiento hereda el estilo nativo */}
-                        <span> {est.label}</span>
-                        
-                        {/* 👈 MODIFICADO: Estilo idéntico a seguimiento, ultra sutil, gris y sin fondo */}
-                        <span style={{ 
-                          fontSize: '0.75rem', 
-                          color: '#64748b', // Slate 500, el gris delicado que usás en las subs
-                          fontWeight: 500,
-                          whiteSpace: 'nowrap',
-                          paddingRight: '4px'
-                        }}>
-                          ({est.cantidad} {est.cantidad === 1 ? 'caso' : 'casos'})
-                        </span>
+                    // Solo mostramos el cartel de vacío si el usuario escribió algo que realmente no coincide
+                    searchTerm !== "" && (
+                      <div className={styles.dropdownOption} style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                        No hay centros con inconsistencias que coincidan
                       </div>
-                    ))
+                    )
+                  ) : (
+                    filteredEsts
+                      .filter((est) => est.value !== "Todos") /* Filtro de seguridad para no duplicarlo si ya existía */
+                      .map((est) => (
+                        <div
+                          key={est.value}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setFilterEst(est.value);
+                            setSearchTerm(est.label);
+                            setIsOpen(false);
+                            fetchPacientes(filterDNI, est.value);
+                          }}
+                          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}
+                        >
+                          <span>{est.label}</span>
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            color: '#64748b', 
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            paddingRight: '4px'
+                          }}>
+                            ({est.cantidad} {est.cantidad === 1 ? 'caso' : 'casos'})
+                          </span>
+                        </div>
+                      ))
                   )}
                 </div>
               )}
@@ -366,16 +403,8 @@ export default function AuditPage() {
                       <td style={{ color: '#475569', textAlign: 'center', fontWeight: 700 }}>
                         {p.eg_actual !== null ? `${p.eg_actual}s` : "-"}
                       </td>
-                      <td>
-                        <span style={{
-                          background: '#fef2f2',
-                          color: '#ef4444',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          fontSize: '0.8rem',
-                          fontWeight: 550,
-                          border: '1px solid #fee2e2'
-                        }}>
+                      <td className={styles.columnaMotivo}>
+                        <span className={styles.badgeAlerta}>
                           {p.motivo_auditoria}
                         </span>
                       </td>

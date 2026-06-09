@@ -1,16 +1,4 @@
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
+/*src\components\InfoPacienteModal.module.css*/
 
 .modalContent {
   background: #ffffff;
@@ -21,6 +9,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  max-height: 85vh; /* Conservamos el tope de altura */
 }
 
 .modalHeader {
@@ -58,8 +47,23 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  overflow-y: auto; /* Conservamos el scroll interno */
+  padding-right: 1rem;
 }
 
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
 .alertCard {
   display: flex;
   gap: 12px;
@@ -68,7 +72,6 @@
   padding: 1rem;
   border-radius: 0.5rem;
 }
-
 .alertCard strong {
   color: #991b1b;
   font-size: 0.85rem;

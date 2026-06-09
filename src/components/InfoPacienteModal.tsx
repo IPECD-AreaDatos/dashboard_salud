@@ -37,7 +37,7 @@ export default function InfoPacienteModal({ paciente, onClose }: any) {
     <div className={styles.modalOverlay}>
       <div className={styles.modalContent}>
         
-        {/* Cabecera del Modal (Mantenemos la X como único botón de salida) */}
+        {/* Cabecera del Modal */}
         <div className={styles.modalHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <User size={20} style={{ color: '#769FD3' }} />

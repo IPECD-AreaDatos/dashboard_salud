@@ -9,6 +9,21 @@
   align-items: center;
 }
 
+.columnaMotivo {
+  min-width: 260px;       /* Evita que la columna colapse en pantallas chicas */
+  white-space: normal;    /* Permite el salto de línea del texto del error */
+  padding: 12px 8px;
+}
+
+/* 👈 NUEVO: Asegura que el contenedor interno de la alerta acompañe el salto de línea */
+.badgeAlerta {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  height: auto;
+  line-height: 1.4;
+}
+
 .header {
   width: 100%;
   max-width: 800px;
