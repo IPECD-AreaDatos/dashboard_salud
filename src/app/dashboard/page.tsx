@@ -120,13 +120,14 @@ export default function SeguimientoPage() {
   const [filterDni, setFilterDni] = useState("");
   const [filterEst, setFilterEst] = useState("Todos");
   const [filterRiesgo, setFilterRiesgo] = useState("Si");
-  const [filterDias, setFilterDias] = useState("30");
   const [filterTrimestre, setFilterTrimestre] = useState("Todos"); 
   const [aplicadoTrimestre, setAplicadoTrimestre] = useState("Todos");
+
+  const [filterAtrasados, setFilterAtrasados] = useState("Si"); 
+  const [aplicadoAtrasados, setAplicadoAtrasados] = useState("Si");
   
   // Estados que reflejan lo que REALMENTE está aplicado (se actualizan solo al presionar Aplicar)
   const [aplicadoRiesgo, setAplicadoRiesgo] = useState("Si");
-  const [aplicadoDias, setAplicadoDias] = useState("30");
 
   const [totalGlobal, setTotalGlobal] = useState(0);
 
@@ -152,7 +153,7 @@ export default function SeguimientoPage() {
   // Carga inicial
   useEffect(() => {
     fetchFiltros();
-    fetchPacientes(undefined, false, undefined, "Todos", "Si", "30", undefined, true);
+    fetchPacientes(undefined, false, undefined, "Todos", "Si", "Si", undefined, true);
     // 👈 NUEVO: Logea que el centro o el administrador entró a la grilla de seguimiento
     registrarLog({ modulo: "Seguimiento", accion: "VISUALIZAR_LISTADO" });
   }, []);
@@ -193,11 +194,11 @@ export default function SeguimientoPage() {
 
     // Reseteamos el formulario de filtros
     setFilterRiesgo("Todas");
-    setFilterDias("0");
+    setFilterAtrasados("Todas");
 
     // Reseteamos las etiquetas del resumen
     setAplicadoRiesgo("Todas");
-    setAplicadoDias("0");
+    setAplicadoAtrasados("Todas");
 
     fetchPacientes(dni, true);
   };
@@ -210,16 +211,17 @@ export default function SeguimientoPage() {
 
     // Restauramos estado del formulario
     setFilterRiesgo("Si");
-    setFilterDias("30");
+    setFilterAtrasados("Si");
     setFilterTrimestre("Todos");
 
     // Restauramos etiquetas del resumen
     setAplicadoRiesgo("Si");
-    setAplicadoDias("30");
+    setAplicadoAtrasados("Si");
     setAplicadoTrimestre("Todos");
 
     // Pasamos los valores directo para no depender del estado que aún no se actualizó
-    fetchPacientes("", false, undefined, "Todos", "Si", "30", undefined, true);  };
+    fetchPacientes("", false, undefined, "Todos", "Si", "Si", undefined, true);
+  };
 
   // Limpia el filtro de establecimiento y relanza la búsqueda con todos los centros
   const limpiarEst = () => {
@@ -262,7 +264,7 @@ export default function SeguimientoPage() {
     estDirecto?: string,
     trimestreDirecto?: string,
     riesgoDirecto?: string,    // ← nuevo
-    diasDirecto?: string,
+    atrasadosDirecto?: string,
     excluirDerivadasDirecto?: boolean,
     esCargaInicial: boolean = false       // ← nuevo
   ) => {
@@ -272,7 +274,7 @@ export default function SeguimientoPage() {
       const estABuscar = estDirecto !== undefined ? estDirecto : filterEst;
       const trimestreABuscar = trimestreDirecto !== undefined ? trimestreDirecto : filterTrimestre; // 👈 Nuevo
       const riesgoABuscar = riesgoDirecto !== undefined ? riesgoDirecto : filterRiesgo;  // ← nuevo
-      const diasABuscar = diasDirecto !== undefined ? diasDirecto : filterDias;
+      const atrasadosABuscar = atrasadosDirecto !== undefined ? atrasadosDirecto : filterAtrasados;
       const excluirDerivadasABuscar = excluirDerivadasDirecto !== undefined 
         ? excluirDerivadasDirecto 
         : excluirDerivadas;          // ← nuevo
@@ -280,7 +282,7 @@ export default function SeguimientoPage() {
         dni: dniABuscar,
         establecimiento: estABuscar,
         riesgo: riesgoABuscar,   // ← cambiado
-        dias: diasABuscar,
+        controlesAtrasados: atrasadosABuscar === "Si" ? "true" : (atrasadosABuscar === "No" ? "false" : "todos"),
         trimestre: trimestreABuscar, // 👈 Nuevo
         excluirDerivadas: excluirDerivadasABuscar ? "true" : "false"        // ← cambiado
       };
@@ -303,17 +305,34 @@ export default function SeguimientoPage() {
       const res = await apiFetch(`/pacientes?${query}`);
       const data = await res.json();
 
+      const pacientesObtenidos = data.data || [];
+
+      // 👈 FALLBACK INTELIGENTE: Si al cargar la página por primera vez pedimos "Atrasadas" y no hay ninguna, cambiamos automáticamente a "Todas"
+      if (esCargaInicial && atrasadosABuscar === "Si" && !data.fallbackActivo) {
+        const atrasadasReales = pacientesObtenidos.filter((p: Paciente) => {
+          const clase = getSemaforoClass(p.dias, p.eg_actual);
+          return clase === styles.semaforoRojo || clase === styles.semaforoAmarillo || clase === styles.semaforoGris;
+        });
+
+        if (atrasadasReales.length === 0) {
+          setFilterAtrasados("Todas");
+          setAplicadoAtrasados("Todas");
+          await fetchPacientes(dniABuscar, esExacto, estABuscar, trimestreABuscar, riesgoABuscar, "Todas", excluirDerivadasABuscar, false);
+          return; // Finalizamos el ciclo para que la función recursiva de arriba tome el control
+        }
+      }
+
       setUltimaActualizacion(data.ultimaActualizacion || null);
-      setPacientes(data.data || []);
+      setPacientes(pacientesObtenidos);
       setTotalGlobal(data.totalGlobal || 0);
     
       // Si el backend activó la contención, actualizamos la botonera lateral
       if (data.fallbackActivo) {
         setFilterRiesgo("Todas");
-        setFilterDias("0");
+        setFilterAtrasados("Todas");
         // Sincronizamos también las etiquetas del resumen para evitar desajustes visuales
         setAplicadoRiesgo("Todas");
-        setAplicadoDias("0");
+        setAplicadoAtrasados("Todas");
       }
     
     } catch (error) {
@@ -323,7 +342,19 @@ export default function SeguimientoPage() {
     }
   };
 
-  const sortedPacientes = [...pacientes].sort((a, b) => {
+  const pacientesFiltrados = pacientes.filter(p => {
+    // 👈 FILTRADO CLIENT-SIDE: Aseguramos la precisión de "Controles Atrasados" pase lo que pase con la API
+    if (aplicadoAtrasados === "Si") {
+      const clase = getSemaforoClass(p.dias, p.eg_actual);
+      return clase === styles.semaforoRojo || clase === styles.semaforoAmarillo || clase === styles.semaforoGris;
+    } else if (aplicadoAtrasados === "No") {
+      const clase = getSemaforoClass(p.dias, p.eg_actual);
+      return clase === styles.semaforoVerde;
+    }
+    return true; // "Todas"
+  });
+
+  const sortedPacientes = [...pacientesFiltrados].sort((a, b) => {
     if (!sortConfig.key) return 0;
 
     const aValue = a[sortConfig.key];
@@ -359,8 +390,10 @@ export default function SeguimientoPage() {
       partes.push("Embarazadas de Riesgo");
     }
 
-    if (aplicadoDias !== "0") {
-      partes.push(`+${aplicadoDias} días sin control`);
+    if (aplicadoAtrasados === "Si") {
+      partes.push("Controles Atrasados");
+    } else if (aplicadoAtrasados === "No") {
+      partes.push("Controles al día");
     }
 
     if (filterEst !== "Todos") {
@@ -378,13 +411,13 @@ export default function SeguimientoPage() {
   };
 
   const exportarAExcel = () => {
-    if (!pacientes || pacientes.length === 0) {
+    if (!pacientesFiltrados || pacientesFiltrados.length === 0) {
       alert("No hay datos en la tabla para exportar con los filtros actuales.");
       return;
     }
 
     // Estructuramos las columnas del reporte con nombres claros y profesionales
-    const datosFormateados = pacientes.map((p: any) => ({
+    const datosFormateados = pacientesFiltrados.map((p: any) => ({
       "Paciente / Embarazada": p.nombre,
       "DNI": p.dni,
       "Fecha Probable Parto (FPP)": p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : 'Sin Registro',
@@ -419,7 +452,7 @@ export default function SeguimientoPage() {
     registrarLog({
       modulo: "Seguimiento",
       accion: "EXPORTAR_EXCEL",
-      detalles: `Exportó planilla Excel con ${pacientes.length} registros usando filtros activos.`
+      detalles: `Exportó planilla Excel con ${pacientesFiltrados.length} registros usando filtros activos.`
     }).catch(err => console.error("Error al registrar log de exportación:", err));
   };
 
@@ -546,16 +579,15 @@ export default function SeguimientoPage() {
             </div>
 
             <div className={styles.filterGroup}>
-              <label className={styles.filterLabel}>Días sin Control</label>
+              <label className={styles.filterLabel}>Controles Atrasados</label>
               <select
                 className={styles.selectInput}
-                value={filterDias}
-                onChange={(e) => setFilterDias(e.target.value)}
+                value={filterAtrasados}
+                onChange={(e) => setFilterAtrasados(e.target.value)}
               >
-                <option value="30">+ 30 días</option>
-                <option value="60">+ 60 días</option>
-                <option value="90">+ 90 días</option>
-                <option value="0">Ver todas</option>
+                <option value="Si">Sí (Atrasadas)</option>
+                <option value="No">No (Al día)</option>
+                <option value="Todas">Todas</option>
               </select>
             </div>
 
@@ -579,7 +611,7 @@ export default function SeguimientoPage() {
                   onClick={() => {
                     const nuevoValor = !excluirDerivadas;
                     setExcluirDerivadas(nuevoValor);
-                    fetchPacientes(undefined, false, undefined, filterTrimestre, undefined, undefined, nuevoValor, false);
+                    fetchPacientes(undefined, false, undefined, filterTrimestre, filterRiesgo, filterAtrasados, nuevoValor, false);
                   }}
                   style={{
                     width: '100%',
@@ -604,9 +636,9 @@ export default function SeguimientoPage() {
               style={{ width: '100%', marginTop: '1rem' }}
               onClick={() => {
                 setAplicadoRiesgo(filterRiesgo);
-                setAplicadoDias(filterDias);
+                setAplicadoAtrasados(filterAtrasados);
                 setAplicadoTrimestre(filterTrimestre);
-                fetchPacientes(undefined, false, undefined, filterTrimestre, undefined, undefined, undefined, false);
+                fetchPacientes(undefined, false, undefined, filterTrimestre, filterRiesgo, filterAtrasados, undefined, false);
               }}
             >
               Aplicar Filtros
@@ -620,7 +652,7 @@ export default function SeguimientoPage() {
                 <span className={styles.statLabel}>Embarazadas Encontradas</span>
                 <div className={styles.statValueContainer}>
                   <span className={`${styles.statValue} ${styles.textHighlight}`}>
-                    {pacientes.length.toLocaleString('es-AR')}
+                    {pacientesFiltrados.length.toLocaleString('es-AR')}
                   </span>
                 </div>
                 <p className={styles.statSubtext}>Según filtros aplicados</p>

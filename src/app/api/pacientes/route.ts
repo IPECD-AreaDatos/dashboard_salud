@@ -20,7 +20,6 @@ export async function GET(request: Request) {
   const dni = searchParams.get("dni");
   const establecimiento = searchParams.get("establecimiento");
   const riesgo = searchParams.get("riesgo") || "Si";
-  const dias = searchParams.get("dias") || "0";
   
   // 👈 NUEVO: Reemplazamos fppDesde/Hasta por el parámetro único de trimestre
   const trimestre = searchParams.get("trimestre") || "Todos"; 
@@ -86,12 +85,24 @@ export async function GET(request: Request) {
             whereClause += ` AND LOWER(riesgo) IN ('si', 's', 'alto', 'moderado')`;
           }
 
-          if (dias && dias !== "0") {
-            const diasNum = parseInt(dias, 10);
-            if (!isNaN(diasNum)) {
-              params.push(diasNum);
-              whereClause += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > $${params.length})`;
-            }
+          // 👈 NUEVO: Manejo Inteligente de los 3 estados ("true", "false", "todos")
+          const controlesAtrasadosParam = searchParams.get("controlesAtrasados");
+          
+          if (controlesAtrasadosParam === "true") {
+            // Pacientes atrasadas (Semáforo Rojo, Amarillo, Gris)
+            whereClause += ` AND (
+              p.fecha_ultimo_control IS NULL OR 
+              (p.eg_actual >= 38 AND (CURRENT_DATE - p.fecha_ultimo_control) > 7) OR
+              (p.eg_actual >= 32 AND p.eg_actual < 38 AND (CURRENT_DATE - p.fecha_ultimo_control) > 15) OR
+              ((p.eg_actual < 32 OR p.eg_actual IS NULL) AND (CURRENT_DATE - p.fecha_ultimo_control) > 30)
+            )`;
+          } else if (controlesAtrasadosParam === "false") {
+            // Pacientes al día (Semáforo Verde)
+            whereClause += ` AND p.fecha_ultimo_control IS NOT NULL AND NOT (
+              (p.eg_actual >= 38 AND (CURRENT_DATE - p.fecha_ultimo_control) > 7) OR
+              (p.eg_actual >= 32 AND p.eg_actual < 38 AND (CURRENT_DATE - p.fecha_ultimo_control) > 15) OR
+              ((p.eg_actual < 32 OR p.eg_actual IS NULL) AND (CURRENT_DATE - p.fecha_ultimo_control) > 30)
+            )`;
           }
         }
 

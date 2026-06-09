@@ -176,25 +176,23 @@ export default function AuditPage() {
               <Filter size={18} /> Filtros de Búsqueda
             </h2>
 
-            {/* 👈 MODIFICADO: El buscador por DNI ahora solo se muestra al Administrador/Coordinador */}
-            {esPerfilGestion && (
-              <div className={styles.filterGroup}>
-                <label className={styles.filterLabel}>Buscar por DNI</label>
-                <div className={styles.searchWrapper}>
-                  <Search className={styles.searchIcon} size={16} />
-                  <input
-                    type="text"
-                    placeholder="DNI de la embarazada..."
-                    value={filterDNI}
-                    onChange={(e) => setFilterDNI(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') fetchPacientes(filterDNI, filterEst);
-                    }}
-                    className={styles.searchInput}
-                  />
-                </div>
+            {/* Habilitamos el buscador por DNI para TODOS los perfiles */}
+            <div className={styles.filterGroup}>
+              <label className={styles.filterLabel}>Buscar por DNI</label>
+              <div className={styles.searchWrapper}>
+                <Search className={styles.searchIcon} size={16} />
+                <input
+                  type="text"
+                  placeholder="DNI de la embarazada..."
+                  value={filterDNI}
+                  onChange={(e) => setFilterDNI(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') fetchPacientes(filterDNI, filterEst);
+                  }}
+                  className={styles.searchInput}
+                />
               </div>
-            )}
+            </div>
 
             {/* Selector dinámico o tarjeta informativa según perfil */}
             {esPerfilGestion ? (
@@ -352,7 +350,7 @@ export default function AuditPage() {
               <table className={styles.pacientesTable}>
                 <thead>
                   <tr>
-                    <th>Paciente / Establecimiento</th>
+                    <th>{esPerfilGestion ? "Paciente / Establecimiento" : "Paciente / Contacto"}</th>
                     <th onClick={() => handleSort('dni')} className={styles.sortableHeader}>
                       DNI {sortConfig?.key === 'dni' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                     </th>
@@ -391,6 +389,9 @@ export default function AuditPage() {
                           <div className={styles.pacienteInfo}>
                             <div className={styles.pacienteNombre}>{p.nombre}</div>
                             <div className={styles.pacienteSub}>
+                              {esPerfilGestion && p.establecimiento && (
+                                <span style={{ marginRight: '8px', color: '#64748b', fontWeight: 600 }}>🏢 {p.establecimiento}</span>
+                              )}
                               <Phone className="w-3 h-3 text-emerald-600" size={12} style={{ display: 'inline', marginRight: '4px' }} /> 
                               {p.telefono}
                             </div>
