@@ -405,6 +405,11 @@ export default function SeguimientoPage() {
       partes.push(`${aplicadoTrimestre}° Trimestre`);
     }
 
+    // 👈 AGREGADO: Ahora también mostramos si se están incluyendo las derivadas
+    if (!excluirDerivadas) {
+      partes.push("Incluyendo Derivadas");
+    }
+
     if (partes.length === 0) return "";
 
     return ` — ${partes.join(" — ")}`;
@@ -433,6 +438,22 @@ export default function SeguimientoPage() {
 
     // Creación del libro de Excel mediante SheetJS
     const hoja = XLSX.utils.json_to_sheet(datosFormateados);
+
+    // 🌟 3. INYECCIÓN DE LOS FILTROS APLICADOS AL FINAL DE LA PLANILLA
+    // Obtenemos el texto limpio de los filtros (Ej: " — Embarazadas de Riesgo — +30 días sin control")
+    const textoFiltros = getFiltrosAplicadosTexto();
+    const filtrosLimpios = textoFiltros ? textoFiltros.replace(/^ — /, "") : "Ninguno (Listado Total)";
+
+    // Calculamos dónde termina la tabla para dejar un renglón en blanco y escribir abajo
+    const filaVacia = datosFormateados.length + 2; // +1 por el encabezado, +1 para dejar libre
+    const filaMetadatos = filaVacia + 1;
+
+    // Escribimos los metadatos de control directo en las celdas de la hoja
+    XLSX.utils.sheet_add_aoa(hoja, [
+      [`📌 FILTROS APLICADOS EN EL SISTEMA: ${filtrosLimpios}`],
+      [`📅 Fecha de generación del reporte: ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR')}`]
+    ], { origin: `A${filaVacia}` }); // 👈 Arranca a escribir en la columna A abajo de la tabla
+    
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, hoja, "Listado de Seguimiento");
 
