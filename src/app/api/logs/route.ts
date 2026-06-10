@@ -25,6 +25,7 @@ export async function POST(request: Request) {
         usuario_name, 
         usuario_role, 
         establecimiento_name, 
+        codigo_sisa,
         modulo, 
         accion, 
         detalles,
@@ -32,18 +33,33 @@ export async function POST(request: Request) {
         contacto_exitoso,
         fecha_turno_asignado,
         ip_address
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id;
     `;
     const u = session.user as any;
-    const identificadorCentro =  u.sisa_code || u.cuie_code || (u.maternidad_id ? `MATERNIDAD_${u.maternidad_id}` : null) || "administracion-coordinacion";
+    
+    // El código SISA/CUIE será estrictamente null si no es un Efector de Salud
+    const identificadorCentro = u.sisa_code || u.cuie_code || (u.maternidad_id ? `MATERNIDAD_${u.maternidad_id}` : null);
+    
+    // Extraemos las variables adecuadamente para evitar la confusión
+    const nombreUsuarioLogin = u.username || u.email || "Usuario Desconocido"; 
+
+    // Asignamos el nombre correcto de la dependencia dependiendo del rol
+    let nombreEstablecimiento = session.user.name || "Establecimiento Desconocido";
+    if (u.role === 'Coordinador') {
+      nombreEstablecimiento = "Coordinación";
+    } else if (u.role === 'Administrador') {
+      nombreEstablecimiento = "Administración";
+    }
+
     // Pasamos las variables mapeando la sesión del agente actual
     // Nota: Usamos fallbacks por si algún campo de la sesión viene indefinido
     const params = [
-      (session.user as any).id || 0,
-      session.user.name || "Usuario Desconocido",
-      (session.user as any).role || "Sin Rol",
-      identificadorCentro, // Centro asignado
+      u.id || 0,
+      nombreUsuarioLogin, // El usuario de acceso (ej: ga.caps6.cap)
+      u.role || "Sin Rol",
+      nombreEstablecimiento, // Nombre real del centro (ej: C.A.P.S. 6...)
+      identificadorCentro,   // Código SISA o CUIE (ej: 50180212139123)
       modulo,
       accion,
       detalles || null,
