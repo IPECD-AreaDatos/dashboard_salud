@@ -696,15 +696,16 @@ export default function SeguimientoPage() {
                     Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
                   </span>
                 )}
-                <button 
-                  className={styles.btnRefresh} /* Usa la misma clase para que mantenga el tamaño y radio */
-                  onClick={exportarAExcel}
-                  style={{ backgroundColor: '#769FD3', color: 'white', borderColor: '#769FD3' }} /* Un verde esmeralda bien de Excel */
-                  type="button"
-                >
-                  <Download size={16} style={{ marginRight: '4px', display: 'inline' }} />
-
-                </button>
+                {userRole === 'Centro de Salud' && (
+                  <button 
+                    className={styles.btnRefresh} /* Usa la misma clase para que mantenga el tamaño y radio */
+                    onClick={exportarAExcel}
+                    style={{ backgroundColor: '#769FD3', color: 'white', borderColor: '#769FD3' }} /* Un verde esmeralda bien de Excel */
+                    type="button"
+                  >
+                    <Download size={16} style={{ marginRight: '4px', display: 'inline' }} />
+                  </button>
+                )}
                 <button
                   className={styles.btnRefresh}
                   onClick={() => fetchPacientes()}
