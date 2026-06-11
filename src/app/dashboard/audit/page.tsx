@@ -4,14 +4,10 @@ import { useState, useEffect, useMemo } from "react";
 import { registrarLog } from "@/lib/analytics";
 import styles from "../Dashboard.module.css"; 
 import Navbar from "@/components/Navbar";
-import { Info, Search, Phone, RefreshCcw, Filter, X } from "lucide-react";
+import { Search, Phone, RefreshCcw, Filter, X } from "lucide-react";
 import InfoPacienteModal from "@/components/InfoPacienteModal";
 import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/api";
-
-import Image from "next/image";
-import logoColorImg from "../../../../public/logo_color.png";
-import logoSaludImg from "../../../../public/Logo_Salud_Publica_colorH.png";
 
 interface PacienteAuditoria {
   id: number;

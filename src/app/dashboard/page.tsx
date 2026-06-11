@@ -33,6 +33,14 @@ interface Paciente {
   cuie_seguimiento?: string | null;
   fecha_proximo_turno: string | null;
   dias_para_turno: number;
+
+  /* 🌟 NUEVOS CAMPOS ADAPTADOS DE LA API DE MATERNIDAD */
+  observaciones_riesgo: string;
+  nombre_establecimiento: string;
+  fecha_derivacion: string;
+  motivo_diagnostico_derivacion: string;
+  medico_deriva: string;
+  medico_recibe: string;
 }
 
 // Función helper para calcular la diferencia de días
@@ -365,7 +373,7 @@ export default function SeguimientoPage() {
     if (bValue === null || bValue === undefined || bValue === "null") return -1;
 
     // 👈 TRATAMIENTO ESPECÍFICO PARA LAS COLUMNAS DE FECHA
-    if (sortConfig.key === 'fpp' || sortConfig.key === 'ult_control' || sortConfig.key === 'fecha_ultimo_contacto') {
+    if (sortConfig.key === 'fpp' || sortConfig.key === 'ult_control' || sortConfig.key === 'fecha_ultimo_contacto' || sortConfig.key === 'fecha_derivacion') {
       const timeA = new Date(aValue).getTime();
       const timeB = new Date(bValue).getTime();
       
@@ -742,10 +750,10 @@ export default function SeguimientoPage() {
               <table className={styles.pacientesTable}>
                 <thead>
                   <tr>
-                    <th className={styles.sortableHeader}>Paciente</th>
+                    <th className={styles.sortableHeader} style={{ verticalAlign: 'middle' }}>Paciente</th>
 
                     <th onClick={() => handleSort('dni')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent}>
+                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span>DNI</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'dni' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
@@ -754,7 +762,7 @@ export default function SeguimientoPage() {
                     </th>
 
                     <th onClick={() => handleSort('fpp')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent}>
+                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span>FPP</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'fpp' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
@@ -762,50 +770,87 @@ export default function SeguimientoPage() {
                       </div>
                     </th>
 
-                    <th onClick={() => handleSort('eg_actual')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent}>
-                        <span>Edad Gestacional</span>
+                    {/* 👈 MODIFICADO: Agregamos ancho máximo y permitimos quiebre normal de línea */}
+                    <th onClick={() => handleSort('eg_actual')} className={styles.sortableHeader} style={{ maxWidth: '95px', whiteSpace: 'normal' }}>
+                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
+                        <span style={{ lineHeight: '1.2' }}>Edad<br />Gestacional</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'eg_actual' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       </div>
                     </th>
 
-                    <th onClick={() => handleSort('ult_control')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent}>
-                        <span>Último Control</span>
+                    {/* 👈 MODIFICADO: Permitimos quiebre */}
+                    <th onClick={() => handleSort('ult_control')} className={styles.sortableHeader} style={{ maxWidth: '95px', whiteSpace: 'normal' }}>
+                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
+                        <span style={{ lineHeight: '1.2' }}>Último<br />Control</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'ult_control' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       </div>
                     </th>
 
-                    <th onClick={() => handleSort('fecha_ultimo_contacto')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent}>
-                        <span>Último Contacto</span>
+                    {/* 👈 MODIFICADO: Permitimos quiebre */}
+                    <th onClick={() => handleSort('fecha_ultimo_contacto')} className={styles.sortableHeader} style={{ maxWidth: '100px', whiteSpace: 'normal' }}>
+                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
+                        <span style={{ lineHeight: '1.2' }}>Último<br />Contacto</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'fecha_ultimo_contacto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       </div>
                     </th>
 
-                    {/* 👈 NUEVA CABECERA: COLUMNA TURNO */}
-                    <th onClick={() => handleSort('fecha_proximo_turno')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent}>
-                        <span>Próximo Turno</span>
+                    {/* 👈 MODIFICADO: Permitimos quiebre */}
+                    <th onClick={() => handleSort('fecha_proximo_turno')} className={styles.sortableHeader} style={{ maxWidth: '95px', whiteSpace: 'normal' }}>
+                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
+                        <span style={{ lineHeight: '1.2' }}>Próximo<br />Turno</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'fecha_proximo_turno' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       </div>
                     </th>
 
-                    <th className={styles.tableTh}>Fuente</th>
+                    {/* 🌟 Títulos de Maternidad con quiebres controlados */}
+                    {userRole === 'Maternidad' && (
+                      <>
+                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '100px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                          Observación<br />Riesgo
+                        </th>
+                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '120px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                          Establecimiento<br />Origen
+                        </th>
+                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '100px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                          Centro<br />Derivado
+                        </th>
+                        
+                        <th onClick={() => handleSort('fecha_derivacion')} className={styles.sortableHeader} style={{ maxWidth: '110px', whiteSpace: 'normal' }}>
+                          <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
+                            <span style={{ lineHeight: '1.2' }}>Fecha<br />Derivación</span>
+                            <span className={styles.sortIcon}>
+                              {sortConfig.key === 'fecha_derivacion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                            </span>
+                          </div>
+                        </th>
+
+                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '110px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                          Motivo<br />Diagnóstico
+                        </th>
+                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '90px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                          Médico<br />Deriva
+                        </th>
+                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '90px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                          Médico<br />Recibe
+                        </th>
+                      </>
+                    )}
+
+                    <th className={styles.tableTh} style={{ verticalAlign: 'middle' }}>Fuente</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={17} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         Cargando base de datos Gold...
                       </td>
                     </tr>
@@ -898,6 +943,23 @@ export default function SeguimientoPage() {
                             </div>
                           </td>
 
+                          {/* 🌟 NUEVO: Celdas de datos clínicas exclusivas para rol Maternidad */}
+                          {userRole === 'Maternidad' && (
+                            <>
+                              <td style={{ color: '#475569', fontSize: '0.85rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.observaciones_riesgo}>
+                                {p.observaciones_riesgo}
+                              </td>
+                              <td style={{ color: '#475569', fontSize: '0.85rem' }}>{p.nombre_establecimiento}</td>
+                              <td style={{ color: '#475569', fontSize: '0.85rem' }}>{p.nombre_centro_derivado || "-"}</td>
+                              <td style={{ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{p.fecha_derivacion}</td>
+                              <td style={{ color: '#475569', fontSize: '0.85rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.motivo_diagnostico_derivacion}>
+                                {p.motivo_diagnostico_derivacion}
+                              </td>
+                              <td style={{ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{p.medico_deriva}</td>
+                              <td style={{ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{p.medico_recibe}</td>
+                            </>
+                          )}
+
                           <td className={styles.tableTd}>
                             <span className={styles.fuenteBadge}>
                               {p.fuente_principal === 'sumar' 
@@ -912,7 +974,7 @@ export default function SeguimientoPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={17} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         <AlertCircle className="w-8 h-8 text-orange-400 mx-auto mb-2" />
                         No se encontraron registros para estos filtros.
                       </td>

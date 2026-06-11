@@ -126,8 +126,39 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
               <strong>Domicilio:</strong> {paciente.domicilio} 
               {paciente.localidad && ` (${paciente.localidad})`}
             </p>
+
+            {/* 🌟 NUEVO: Módulo exclusivo para Maternidad con los bloques de texto completos */}
+            {session?.user?.role === 'Maternidad' && (
+              <div style={{ 
+                marginTop: '12px', 
+                paddingTop: '12px', 
+                borderTop: '1px dashed #cbd5e1', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '8px' 
+              }}>
+                <div style={{ backgroundColor: '#fff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9b1734', display: 'block', marginBottom: '2px', textTransform: 'uppercase' }}>
+                    Observación de Riesgo / Antecedentes:
+                  </span>
+                  <p style={{ margin: 0, fontSize: '0.88rem', color: '#334155', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+                    {paciente.observaciones_riesgo || "Sin observaciones cargadas."}
+                  </p>
+                </div>
+
+                <div style={{ backgroundColor: '#fff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3079ce', display: 'block', marginBottom: '2px', textTransform: 'uppercase' }}>
+                    Motivo / Diagnóstico de Derivación:
+                  </span>
+                  <p style={{ margin: 0, fontSize: '0.88rem', color: '#334155', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+                    {paciente.motivo_diagnostico_derivacion || "No se especificó motivo clínico."}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Formulario de registro de llamadas queda exactamente igual abajo */}
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.formGroup}>
               <label className={styles.formLabel}>¿Se logró el contacto?</label>

@@ -147,7 +147,14 @@ export async function GET(request: Request) {
           p.calle_domicilio, p.nro_puerta_domicilio, p.localidad_domicilio, p.fuente_principal, p.eg_actual,
           p.nombre_centro_derivado,
           p.derivacion_maternidad_id,
-          p.cuie_seguimiento
+          p.cuie_seguimiento,
+          /* 🌟 NUEVOS CAMPOS AMPLIADOS PARA MATERNIDAD */
+          p.observaciones_riesgo,
+          p.nombre_establecimiento,
+          p.fecha_derivacion,
+          p.motivo_diagnostico_derivacion,
+          p.medico_deriva,
+          p.medico_recibe
         FROM pacientes_gold p
         LEFT JOIN efectores_sisa s ON (p.sisa_centro_salud = s.codigo_sisa OR p.cuie_seguimiento = s.cuie)
         ${whereClause}
@@ -213,7 +220,14 @@ export async function GET(request: Request) {
         fuente_principal: p.fuente_principal === 'sumar' 
                 ? 'SUMAR' 
                 : (p.fuente_principal === 'v_embarazosdw' ? 'POF' : p.fuente_principal || 'S/D'),
-        eg_actual: p.eg_actual ?? null
+        eg_actual: p.eg_actual ?? null,
+        /* 🌟 NUEVAS PROPIEDADES ENVIADAS AL FRONTEND */
+        observaciones_riesgo: p.observaciones_riesgo || "-",
+        nombre_establecimiento: p.nombre_establecimiento || "-",
+        fecha_derivacion: p.fecha_derivacion ? new Date(p.fecha_derivacion).toLocaleDateString('es-AR') : "-",
+        motivo_diagnostico_derivacion: p.motivo_diagnostico_derivacion || "-",
+        medico_deriva: p.medico_deriva || "-",
+        medico_recibe: p.medico_recibe || "-"
       };
     });
 
