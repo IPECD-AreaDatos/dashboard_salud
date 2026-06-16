@@ -36,6 +36,14 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  // 🛡️ Bloqueo estricto para perfiles de sólo lectura
+  if (session.user?.role?.toLowerCase() === 'lectura') {
+    return NextResponse.json(
+      { error: "Permiso denegado: el perfil de lectura no puede realizar modificaciones ni registrar contactos" },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await request.json();
     const {

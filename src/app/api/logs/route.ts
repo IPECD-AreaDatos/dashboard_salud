@@ -50,6 +50,8 @@ export async function POST(request: Request) {
       nombreEstablecimiento = "Coordinación";
     } else if (u.role === 'Administrador') {
       nombreEstablecimiento = "Administración";
+    } else if (u.role?.toLowerCase() === 'lectura') {
+      nombreEstablecimiento = "Lectura";
     }
 
     // Pasamos las variables mapeando la sesión del agente actual

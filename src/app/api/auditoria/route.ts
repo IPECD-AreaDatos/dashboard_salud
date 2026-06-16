@@ -13,6 +13,7 @@ export async function GET(request: Request) {
      session.user?.role !== 'Coordinador' && 
      session.user?.role !== 'Centro de Salud' && 
      session.user?.role !== 'Maternidad' && 
+     session.user?.role?.toLowerCase() !== 'lectura' &&
      session.user?.name !== 'admin')
   ) {
     return NextResponse.json({ error: "No autorizado para consultar auditoría" }, { status: 403 });
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
     }
 
     // El filtro por establecimiento explícito solo aplica si el usuario es de gestión central (Admin/Coord)
-    if ((userRole === 'Administrador' || userRole === 'Coordinador') && establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
+    if ((userRole === 'Administrador' || userRole === 'Coordinador' || userRole?.toLowerCase() === 'lectura') && establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
       if (establecimiento === "Establecimiento no mapeado") {
         filteringClauses += ` AND s.nombre IS NULL`;
       } else {

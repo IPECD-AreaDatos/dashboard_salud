@@ -24,6 +24,7 @@ export default function Navbar() {
     session?.user?.role === 'Coordinador' || 
     session?.user?.role === 'Centro de Salud' || 
     session?.user?.role === 'Maternidad' || 
+    session?.user?.role?.toLowerCase() === 'lectura' ||
     session?.user?.name === 'admin'
   ) {
     menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });

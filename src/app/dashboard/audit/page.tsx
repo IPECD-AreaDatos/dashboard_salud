@@ -47,7 +47,7 @@ export default function AuditPage() {
   const [selectedPaciente, setSelectedPaciente] = useState<PacienteAuditoria | null>(null);
 
   // 👈 NUEVO: Detectamos de antemano el tipo de perfil del usuario logeado
-  const esPerfilGestion = session?.user?.role === 'Administrador' || session?.user?.role === 'Coordinador' || session?.user?.name === 'admin';
+  const esPerfilGestion = session?.user?.role === 'Administrador' || session?.user?.role === 'Coordinador' || session?.user?.role?.toLowerCase() === 'lectura' || session?.user?.name === 'admin';
   const centroNombreOId = session?.user?.name || "Mi Centro";
 
   const fetchPacientes = async (
