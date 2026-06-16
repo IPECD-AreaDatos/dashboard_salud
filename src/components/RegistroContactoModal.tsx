@@ -21,10 +21,6 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (paciente) fetchHistorial();
-  }, [paciente]);
-
   const fetchHistorial = async () => {
     setLoading(true);
     try {
@@ -37,6 +33,10 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (paciente) fetchHistorial();
+  }, [paciente]);
 
   const handleChange = (e: any) => {
     const { name, value, type, checked } = e.target;
@@ -159,72 +159,98 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
           </div>
 
           {/* Formulario de registro de llamadas queda exactamente igual abajo */}
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.formGroup}>
-              <label className={styles.formLabel}>¿Se logró el contacto?</label>
-              <div className={styles.radioGroup}>
-                <label className={styles.radioLabel}>
-                  <input type="radio" name="contacto_logrado" checked={formData.contacto_logrado} onChange={() => handleLogradoChange(true)} />
-                  Sí, logrado
-                </label>
-                <label className={styles.radioLabel}>
-                  <input type="radio" name="contacto_logrado" checked={!formData.contacto_logrado} onChange={() => handleLogradoChange(false)} />
-                  No, fallido
-                </label>
+          {session?.user?.role?.toLowerCase() === 'lectura' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{
+                padding: '1.2rem',
+                backgroundColor: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                color: '#475569',
+                fontSize: '0.9rem',
+                textAlign: 'center',
+                fontWeight: 550,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}>
+                🔒 Modo de consulta: No posee permisos para registrar contactos o realizar modificaciones.
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={onClose} className={styles.btnCancel} style={{ padding: '0.6rem 1.5rem' }}>
+                  Cerrar
+                </button>
               </div>
             </div>
-
-            <div className={styles.formRow}>
+          ) : (
+            <form onSubmit={handleSubmit} className={styles.form}>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Medio de contacto:</label>
-                <select name="medio_contacto" value={formData.medio_contacto} onChange={handleChange} className={styles.input}>
-                  <option value="llamada">📞 Llamada telefónica</option>
-                  <option value="whatsapp">💬 WhatsApp</option>
-                  <option value="sms">📱 SMS</option>
-                  <option value="visita_domiciliaria">🏠 Visita domiciliaria</option>
-                  <option value="email">📧 Email</option>
-                  <option value="otro">Otro</option>
-                </select>
+                <label className={styles.formLabel}>¿Se logró el contacto?</label>
+                <div className={styles.radioGroup}>
+                  <label className={styles.radioLabel}>
+                    <input type="radio" name="contacto_logrado" checked={formData.contacto_logrado} onChange={() => handleLogradoChange(true)} />
+                    Sí, logrado
+                  </label>
+                  <label className={styles.radioLabel}>
+                    <input type="radio" name="contacto_logrado" checked={!formData.contacto_logrado} onChange={() => handleLogradoChange(false)} />
+                    No, fallido
+                  </label>
+                </div>
               </div>
+
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Medio de contacto:</label>
+                  <select name="medio_contacto" value={formData.medio_contacto} onChange={handleChange} className={styles.input}>
+                    <option value="llamada">📞 Llamada telefónica</option>
+                    <option value="whatsapp">💬 WhatsApp</option>
+                    <option value="sms">📱 SMS</option>
+                    <option value="visita_domiciliaria">🏠 Visita domiciliaria</option>
+                    <option value="email">📧 Email</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Persona contactada:</label>
+                  <select name="persona_contactada" value={formData.persona_contactada} onChange={handleChange} className={styles.input}>
+                    <option value="paciente">La paciente</option>
+                    <option value="familiar">Familiar directo</option>
+                    <option value="vecino">Vecino/Referente</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Teléfono contactado:</label>
+                  <input type="tel" name="telefono_contactado" value={formData.telefono_contactado} onChange={handleChange} className={styles.input} placeholder="Ej: 3784..." />
+                </div>
+                {/* CAMBIO: Se eliminó el campo visual de Personal de Salud */}
+              </div>
+
+              <div className={styles.formRow}>
+                <div className={styles.formGroup} style={{maxWidth: '50%'}}>
+                  <label className={styles.formLabel}>Próxima cita (opcional):</label>
+                  <input type="date" name="proxima_cita" value={formData.proxima_cita} onChange={handleChange} className={styles.input} />
+                </div>
+              </div>
+
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Persona contactada:</label>
-                <select name="persona_contactada" value={formData.persona_contactada} onChange={handleChange} className={styles.input}>
-                  <option value="paciente">La paciente</option>
-                  <option value="familiar">Familiar directo</option>
-                  <option value="vecino">Vecino/Referente</option>
-                  <option value="otro">Otro</option>
-                </select>
+                <label className={styles.formLabel}>Observaciones:</label>
+                <textarea name="observaciones" value={formData.observaciones} onChange={handleChange} className={styles.textarea} placeholder="Describa el resultado del contacto, indicaciones dadas, etc." rows={3} required></textarea>
               </div>
-            </div>
 
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Teléfono contactado:</label>
-                <input type="tel" name="telefono_contactado" value={formData.telefono_contactado} onChange={handleChange} className={styles.input} placeholder="Ej: 3784..." />
+              <div className={styles.modalFooter}>
+                <button type="button" onClick={onClose} className={styles.btnCancel}>Cancelar</button>
+                <button type="submit" disabled={saving} className={styles.btnSave}>
+                  <Save size={16} style={{marginRight: '8px'}} />
+                  {saving ? "Guardando..." : "Guardar"}
+                </button>
               </div>
-              {/* CAMBIO: Se eliminó el campo visual de Personal de Salud */}
-            </div>
-
-            <div className={styles.formRow}>
-              <div className={styles.formGroup} style={{maxWidth: '50%'}}>
-                <label className={styles.formLabel}>Próxima cita (opcional):</label>
-                <input type="date" name="proxima_cita" value={formData.proxima_cita} onChange={handleChange} className={styles.input} />
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.formLabel}>Observaciones:</label>
-              <textarea name="observaciones" value={formData.observaciones} onChange={handleChange} className={styles.textarea} placeholder="Describa el resultado del contacto, indicaciones dadas, etc." rows={3} required></textarea>
-            </div>
-
-            <div className={styles.modalFooter}>
-              <button type="button" onClick={onClose} className={styles.btnCancel}>Cancelar</button>
-              <button type="submit" disabled={saving} className={styles.btnSave}>
-                <Save size={16} style={{marginRight: '8px'}} />
-                {saving ? "Guardando..." : "Guardar"}
-              </button>
-            </div>
-          </form>
+            </form>
+          )}
 
           <div className={styles.historialContainer}>
             <h4 className={styles.historialTitle}>
