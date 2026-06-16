@@ -86,10 +86,18 @@ export async function GET(request: Request) {
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus,
 
         SUM(CASE WHEN (
-              (CURRENT_DATE - fecha_ultimo_control) > 30 
-              OR fecha_ultimo_control IS NULL
+              nombre_centro_derivado IS NULL OR nombre_centro_derivado = ''
             )
-            AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')
+            AND (
+              fecha_ultimo_control IS NULL
+              OR
+              CASE
+                WHEN eg_actual >= 38                      THEN (CURRENT_DATE - fecha_ultimo_control) > 7
+                WHEN eg_actual >= 32 AND eg_actual < 38   THEN (CURRENT_DATE - fecha_ultimo_control) > 15
+                WHEN eg_actual < 32                       THEN (CURRENT_DATE - fecha_ultimo_control) > 30
+                ELSE (CURRENT_DATE - fecha_ultimo_control) > 30
+              END
+            )
             THEN 1 ELSE 0 END) as controles_pendientes,
         SUM(CASE WHEN fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
         SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
@@ -101,22 +109,38 @@ export async function GET(request: Request) {
         SUM(CASE WHEN fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_mes,
 
         SUM(CASE WHEN (
+            -- Condición 1: no derivada
             nombre_centro_derivado IS NULL OR nombre_centro_derivado = ''
           )
           AND (
-            (
-              SELECT MAX(s.fecha_contacto) 
-              FROM seguimientos s 
-              WHERE s.paciente_id = pacientes_gold.id AND embarazo_en_curso = true 
+            -- Condición 2: control atrasado según eg_actual (mismo criterio que controles_pendientes)
+            fecha_ultimo_control IS NULL
+            OR
+            CASE
+              WHEN eg_actual >= 38                    THEN (CURRENT_DATE - fecha_ultimo_control) > 7
+              WHEN eg_actual >= 32 AND eg_actual < 38 THEN (CURRENT_DATE - fecha_ultimo_control) > 15
+              WHEN eg_actual < 32                     THEN (CURRENT_DATE - fecha_ultimo_control) > 30
+              ELSE (CURRENT_DATE - fecha_ultimo_control) > 30
+            END
+          )
+          AND (
+            -- Condición 3: sin contacto logrado dentro del umbral según eg_actual
+            NOT EXISTS (
+              SELECT 1 FROM seguimientos s
+              WHERE s.paciente_id = pacientes_gold.id
+                AND embarazo_en_curso = true
                 AND s.contacto_logrado = true
-            ) < CURRENT_DATE - INTERVAL '30 days' 
-            OR NOT EXISTS (
-              SELECT 1 FROM seguimientos s 
-              WHERE s.paciente_id = pacientes_gold.id AND embarazo_en_curso = true 
-                AND s.contacto_logrado = true
+                AND s.fecha_contacto >= CURRENT_DATE - (
+                  CASE
+                    WHEN eg_actual >= 38                    THEN INTERVAL '7 days'
+                    WHEN eg_actual >= 32 AND eg_actual < 38 THEN INTERVAL '15 days'
+                    WHEN eg_actual < 32                     THEN INTERVAL '30 days'
+                    ELSE                                         INTERVAL '30 days'
+                  END
+                )
             )
           )
-        THEN 1 ELSE 0 END) as sin_contacto_reciente
+          THEN 1 ELSE 0 END) as sin_contacto_reciente
         
       FROM pacientes_gold
       WHERE fecha_probable_parto >= ${fechaUmbral} 

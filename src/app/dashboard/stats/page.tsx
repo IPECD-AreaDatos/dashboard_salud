@@ -199,8 +199,14 @@ export default function StatsPage() {
             <h2 className={styles.sectionTitle} style={{ color: '#587ba8' }}>Gestión Prioritaria del Centro</h2>
             <div className={styles.kpiRow}>
               <div className={`${styles.kpiCard} ${styles.mainCard} ${styles.alertCard}`}>
-                <span className={styles.kpiLabel}>Controles Vencidos (+30 días)</span>
+                <span className={styles.kpiLabel}>Controles Atrasados</span>
                 <span className={styles.kpiValue} style={{ color: '#ef4444' }}>{data.gestion?.controlesPendientes}</span>
+              </div>
+              <div className={`${styles.kpiCard} ${styles.mainCard}`}>
+                <span className={styles.kpiLabel}>REQUIEREN CONTACTO</span>
+                <span className={styles.kpiValue} style={{ color: '#ef4444' }}>
+                  {data.gestion?.sinContactoReciente}
+                </span>
               </div>
               <div className={`${styles.kpiCard} ${styles.mainCard}`}>
                 <span className={styles.kpiLabel}>Partos en los próximos 30 días</span>
@@ -215,13 +221,7 @@ export default function StatsPage() {
                 <span className={styles.kpiValue} style={{ color: '#769FD3' }}>
                   {data.gestion?.derivadas}
                 </span>
-              </div>
-              <div className={`${styles.kpiCard} ${styles.mainCard}`}>
-                <span className={styles.kpiLabel}>Sin Contacto hace +30 días</span>
-                <span className={styles.kpiValue} style={{ color: '#ef4444' }}>
-                  {data.gestion?.sinContactoReciente}
-                </span>
-              </div>
+              </div>              
             </div>
             {/* Cobertura de Controles Médicos Unificada con la Estética del Sistema */}
             <h2 className={styles.sectionTitle}>Cobertura de Controles Médicos</h2>
