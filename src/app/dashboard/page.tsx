@@ -436,7 +436,7 @@ export default function SeguimientoPage() {
       "Fecha Probable Parto (FPP)": p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : 'Sin Registro',
       "Edad Gestacional Actual": p.eg_actual ? `${p.eg_actual} semanas` : 'S/D',
       "Último Control Médico": p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : 'Sin Registro',
-      "Días de Atraso en Controles": p.dias === 999 ? 'Sin controles' : `${p.dias} días`,
+      "Días desde Último Control": p.dias === 999 ? 'Sin controles' : `${p.dias} días`,
       "Último Contacto Logrado": p.fecha_ultimo_contacto ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR') : 'S/D',
       "Fecha Próximo Turno": p.fecha_proximo_turno ? new Date(p.fecha_proximo_turno).toLocaleDateString('es-AR') : 'Sin Turno',
       "Teléfono": p.telefono,
