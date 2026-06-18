@@ -597,14 +597,43 @@ export default function SeguimientoPage() {
                   </span>
                 </div>
               </div>
-              <select
-                className={styles.selectInput}
-                value={filterRiesgo}
-                onChange={(e) => setFilterRiesgo(e.target.value)}
+              
+              {/* 🌟 NUEVO BOTÓN TOGGLE PARA RIESGO */}
+              <button
+                type="button"
+                onClick={() => {
+                  // Si está en 'Si' pasa a 'Todas', y viceversa
+                  const nuevoValorRiesgo = filterRiesgo === "Si" ? "Todas" : "Si";
+                  setFilterRiesgo(nuevoValorRiesgo);
+                  
+                  // Disparamos la búsqueda al instante pasando el nuevo valor directo
+                  fetchPacientes(
+                    undefined, 
+                    false, 
+                    undefined, 
+                    filterTrimestre, 
+                    nuevoValorRiesgo, // 👈 Pasamos el valor fresco recién calculado
+                    filterAtrasados, 
+                    excluirDerivadas, 
+                    false
+                  );
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '8px',
+                  // Cambia de color según esté activo ("Si") o mostrando todo ("Todas")
+                  border: `1px solid ${filterRiesgo === "Si" ? '#769FD3' : '#e2e8f0'}`,
+                  background: filterRiesgo === "Si" ? '#ede9fe' : '#f8fafc',
+                  color: filterRiesgo === "Si" ? '#769FD3' : '#64748b',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
               >
-                <option value="Si">Si</option>
-                <option value="Todas">Todas</option>
-              </select>
+                {filterRiesgo === "Si" ? 'Sí' : 'Todas'}
+              </button>
             </div>
 
             <div className={styles.filterGroup}>

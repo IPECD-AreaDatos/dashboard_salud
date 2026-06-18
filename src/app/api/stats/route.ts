@@ -102,6 +102,24 @@ export async function GET(request: Request) {
         SUM(CASE WHEN fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
         SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
         SUM(CASE WHEN nombre_centro_derivado IS NOT NULL AND nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
+        
+        -- 🌟 NUEVAS MÉTRICAS GLOBALES: Total Controladas al día y Total Contactadas
+        SUM(CASE WHEN 
+          fecha_ultimo_control IS NOT NULL AND (
+            CASE
+              WHEN eg_actual >= 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 7
+              WHEN eg_actual >= 32 AND eg_actual < 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 15
+              ELSE (CURRENT_DATE - fecha_ultimo_control) <= 30
+            END
+          )
+        THEN 1 ELSE 0 END) as total_controladas,
+        
+        SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM seguimientos s 
+          WHERE s.paciente_id = pacientes_gold.id 
+            AND s.contacto_logrado = true 
+            AND s.fecha_contacto >= CURRENT_DATE - 30
+        ) THEN 1 ELSE 0 END) as total_contactadas,
 
         /* 👈 CORREGIDO: Filtramos períodos cerrados tomando como techo el día de ayer (CURRENT_DATE - 1) */
         SUM(CASE WHEN fecha_ultimo_control = CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_hoy,
@@ -204,37 +222,140 @@ export async function GET(request: Request) {
     `;
     const topRsgRes = await query(topRsgSql);
 
+    // 🌟 REFACTOR COMPLETO: Query de CAPS unificada con la estructura real de pacientes_gold
+    const capsResumenSql = `
+      SELECT 
+        s.nombre as caps_name,
+        COUNT(DISTINCT p.id) as total_embarazadas,
+        
+        -- % de Control (Embarazadas con control al día en base al Semáforo de Riesgo / EG)
+        ROUND(
+          (COUNT(DISTINCT CASE WHEN 
+            p.fecha_ultimo_control IS NOT NULL AND (
+              CASE
+                WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7
+                WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15
+                ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30
+              END
+            )
+          THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 
+          1
+        ) as pct_control,
+        
+        -- % de Contacto (Pacientes que registran al menos un seguimiento previo en la tabla)
+        ROUND(
+          (COUNT(DISTINCT seg_any.paciente_id) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 
+          1
+        ) as pct_contacto,
+        
+        -- Descomposición 1: Total absoluto de contactadas efectivas por el CAPS
+        COUNT(DISTINCT CASE WHEN seg_logrado.id IS NOT NULL THEN p.id END) as contactadas_caps,
+        
+        -- Descomposición 2: Acudieron solas (Están al día con el Semáforo de EG y tienen CERO registros de seguimiento telefónico)
+        COUNT(DISTINCT CASE WHEN 
+          p.fecha_ultimo_control IS NOT NULL AND (
+            CASE
+              WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7
+              WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15
+              ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30
+            END
+          )
+          AND seg_any.paciente_id IS NULL 
+        THEN p.id END) as acudieron_solas
+        
+      FROM public.pacientes_gold p
+      
+      -- 🔥 SOLUCIÓN: Hacemos un JOIN con efectores_sisa para tener el nombre correcto y filtrable
+      INNER JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
+      
+      -- Relación para evaluar cualquier tipo de interacción de contacto
+      LEFT JOIN public.seguimientos seg_any ON seg_any.paciente_id = p.id
+      
+      -- Relación para evaluar comunicaciones logradas con éxito
+      LEFT JOIN public.seguimientos seg_logrado ON seg_logrado.paciente_id = p.id AND seg_logrado.contacto_logrado = true
+      
+      WHERE p.embarazo_en_curso = true 
+        AND p.fecha_probable_parto >= CURRENT_DATE
+        AND p.fecha_nacimiento IS NOT NULL
+        
+        -- 🔥 FILTRO ESPECÍFICO: Solo CAPS, barriendo variantes de escritura típicas del SISA
+        AND (
+          LOWER(s.nombre) LIKE '%caps%' 
+          OR LOWER(s.nombre) LIKE '%c.a.p.s.%'
+        )
+        ${securityClause}
+        ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
+        
+      GROUP BY s.nombre
+      ORDER BY total_embarazadas DESC;
+    `;
+    const capsResumenRes = await query(capsResumenSql);
+
+    // 🌟 2. Mapeamos los arrays AFUERA del return para evitar que rompa el parser de Turbopack
+    const generalData = {
+      total: parseInt(kpis.total) || 0,
+      sub15: parseInt(kpis.gen_15) || 0,
+      age15_19: parseInt(kpis.gen_15_19) || 0,
+      age20_34: parseInt(kpis.gen_20_34) || 0,
+      age34plus: parseInt(kpis.gen_34_plus) || 0
+    };
+
+    const riesgoData = {
+      total: parseInt(kpis.total_riesgo) || 0,
+      sub15: parseInt(kpis.rsg_15) || 0,
+      age15_19: parseInt(kpis.rsg_15_19) || 0,
+      age20_34: parseInt(kpis.rsg_20_34) || 0,
+      age34plus: parseInt(kpis.rsg_34_plus) || 0
+    };
+
+    const gestionData = {
+      controlesPendientes: parseInt(kpis.controles_pendientes) || 0,
+      proximosPartos: parseInt(kpis.proximos_partos) || 0,
+      sinTelefono: parseInt(kpis.sin_telefono) || 0,
+      derivadas: parseInt(kpis.derivadas) || 0,
+      sinContactoReciente: parseInt(kpis.sin_contacto_reciente) || 0,
+      controladas: parseInt(kpis.total_controladas) || 0,
+      contactadas: parseInt(kpis.total_contactadas) || 0
+    };
+
+    const actividadData = {
+      hoy: parseInt(kpis.controles_hoy) || 0,
+      semana: parseInt(kpis.controles_semana) || 0,
+      mes: parseInt(kpis.controles_mes) || 0
+    };
+
+    const topGeneralMapped = topGenRes.rows.map(r => ({
+      name: (r.name || '').trim(),
+      departamento: r.departamento,
+      value: parseInt(r.value) || 0
+    }));
+
+    const topRiesgoMapped = topRsgRes.rows.map(r => ({
+      name: (r.name || '').trim(),
+      departamento: r.departamento,
+      value: parseInt(r.value) || 0
+    }));
+
+    const resumenCapsMapped = capsResumenRes.rows.map(r => ({
+      capsName: (r.caps_name || '').trim(),
+      total: parseInt(r.total_embarazadas) || 0,
+      pctControl: parseFloat(r.pct_control) || 0,
+      pctContacto: parseFloat(r.pct_contacto) || 0,
+      contactadasCaps: parseInt(r.contactadas_caps) || 0,
+      acudieronSolas: parseInt(r.acudieron_solas) || 0
+    }));
+
+    // 🌟 3. Devolvemos la respuesta con objetos ya limpios y parseados
     return NextResponse.json({
-      general: {
-        total: parseInt(kpis.total) || 0,
-        sub15: parseInt(kpis.gen_15) || 0,
-        age15_19: parseInt(kpis.gen_15_19) || 0,
-        age20_34: parseInt(kpis.gen_20_34) || 0,
-        age34plus: parseInt(kpis.gen_34_plus) || 0
-      },
-      riesgo: {
-        total: parseInt(kpis.total_riesgo) || 0,
-        sub15: parseInt(kpis.rsg_15) || 0,
-        age15_19: parseInt(kpis.rsg_15_19) || 0,
-        age20_34: parseInt(kpis.rsg_20_34) || 0,
-        age34plus: parseInt(kpis.rsg_34_plus) || 0
-      },
-      gestion: {
-        controlesPendientes: parseInt(kpis.controles_pendientes) || 0,
-        proximosPartos: parseInt(kpis.proximos_partos) || 0,
-        sinTelefono: parseInt(kpis.sin_telefono) || 0,
-        derivadas: parseInt(kpis.derivadas) || 0,
-        sinContactoReciente: parseInt(kpis.sin_contacto_reciente) || 0
-      },
-      /* 👈 NUEVO OBJETO: Enviamos los contadores de actividad reciente */
-      actividad: {
-        hoy: parseInt(kpis.controles_hoy) || 0,
-        semana: parseInt(kpis.controles_semana) || 0,
-        mes: parseInt(kpis.controles_mes) || 0
-      },
-      topGeneral: topGenRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 })),
-      topRiesgoAtraso: topRsgRes.rows.map(r => ({ name: r.name.trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }))
+      general: generalData,
+      riesgo: riesgoData,
+      gestion: gestionData,
+      actividad: actividadData,
+      topGeneral: topGeneralMapped,
+      topRiesgoAtraso: topRiesgoMapped,
+      resumenCaps: resumenCapsMapped
     });
+
   } catch (error) {
     console.error("Error obteniendo estadísticas:", error);
     return NextResponse.json({ error: "Error en DB" }, { status: 500 });

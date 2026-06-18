@@ -109,6 +109,7 @@ npm install
 
 ### 3. Iniciar Servidor en Desarrollo
 \`\`\`bash
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
 npm run dev
 \`\`\`
 El proyecto levantará en \`http://localhost:3000/salud-dashboard\`.
