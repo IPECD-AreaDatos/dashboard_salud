@@ -1,13 +1,15 @@
-/*src/app/dashboard/audit/page.tsx*/
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { registrarLog } from "@/lib/analytics";
 import styles from "../Dashboard.module.css"; 
 import Navbar from "@/components/Navbar";
-import { Search, Phone, RefreshCcw, Filter, X } from "lucide-react";
+// 👈 Agregamos Download (lucide-react)
+import { Search, Phone, RefreshCcw, Filter, X, Download } from "lucide-react";
 import InfoPacienteModal from "@/components/InfoPacienteModal";
 import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/api";
+// 👈 Importamos xlsx para generar el archivo en el cliente
+import { utils, writeFile } from "xlsx";
 
 interface PacienteAuditoria {
   id: number;
@@ -46,7 +48,6 @@ export default function AuditPage() {
   // Modal
   const [selectedPaciente, setSelectedPaciente] = useState<PacienteAuditoria | null>(null);
 
-  // 👈 NUEVO: Detectamos de antemano el tipo de perfil del usuario logeado
   const esPerfilGestion = session?.user?.role === 'Administrador' || session?.user?.role === 'Coordinador' || session?.user?.role?.toLowerCase() === 'lectura' || session?.user?.name === 'admin';
   const centroNombreOId = session?.user?.name || "Mi Centro";
 
@@ -59,8 +60,6 @@ export default function AuditPage() {
       const params = new URLSearchParams();
       if (dniVal) params.append("dni", dniVal);
       
-      // 👈 LÓGICA DE FILTRADO DINÁMICA: 
-      // Si es Admin usa el Autocomplete; si es CAPS, el backend filtrará por su sesión, pasamos "Todos" para saltear el filtro explícito
       if (esPerfilGestion) {
         if (estVal && estVal !== "Todos") params.append("establecimiento", estVal);
       }
@@ -119,8 +118,60 @@ export default function AuditPage() {
     }
   }, [session]);
 
-  // 👈 CORREGIDO: Bloque de seguridad extendido para incluir a Centros de Salud y Maternidades
-  if (!session) return null;
+  // 👈 NUEVA FUNCIÓN: Descarga a Excel estructurado y con metadatos
+  const handleDescargarExcel = () => {
+    if (pacientes.length === 0) return alert("No hay datos para descargar");
+
+    const fechaHoraDescarga = new Date().toLocaleString('es-AR');
+    const centroFiltrado = esPerfilGestion ? filterEst : centroNombreOId;
+
+    // 1. Definimos las filas de Metadatos de cabecera en el Excel
+    const infoFilas = [
+      ["REPORTE DE AUDITORÍA Y CALIDAD DE DATOS OBSTÉTRICOS"],
+      [`Fecha y Hora de Descarga: ${fechaHoraDescarga}`],
+      [`Filtro Establecimiento: ${centroFiltrado}`],
+      [`Filtro DNI: ${filterDNI || "Ninguno"}`],
+      [], // Fila en blanco de separación
+    ];
+
+    // 2. Mapeamos el listado actual (respetando el ordenamiento en pantalla `sortedPacientes`)
+    const headers = [
+      "ID Ficha", "Nombre de la Embarazada", "DNI", "Teléfono", 
+      "Fecha de Nacimiento", "FPP", "EG Actual (Semanas)", 
+      "Establecimiento", "Motivo de Auditoría", "Lote"
+    ];
+
+    const datosMapeados = sortedPacientes.map(p => [
+      p.id,
+      p.nombre,
+      p.dni,
+      p.telefono || "S/R",
+      p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString('es-AR') : "Sin registro",
+      p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : "Sin registro",
+      p.eg_actual !== null ? `${p.eg_actual}s` : "-",
+      p.establecimiento || "S/D",
+      p.motivo_auditoria,
+      p.lote || "-"
+    ]);
+
+    // Combinamos metadatos + encabezado de la tabla + registros
+    const contenidoCompleto = [...infoFilas, headers, ...datosMapeados];
+
+    // 3. Crear el libro de Excel
+    const wb = utils.book_new();
+    const ws = utils.aoa_to_sheet(contenidoCompleto);
+
+    // Añadir la hoja al libro
+    utils.book_append_sheet(wb, ws, "Auditoría");
+
+    // Generar la descarga del archivo comprimido de excel (.xlsx)
+    const nombreArchivo = `Auditoria_${centroFiltrado.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    writeFile(wb, nombreArchivo);
+
+    // Auditoría opcional: Registrar log de descarga si el sistema lo requiere
+    registrarLog({ modulo: "Auditoría", accion: "DESCARGAR_EXCEL", detalles: `Filtro: ${centroFiltrado}` });
+  };
+
 
   const handleSort = (key: 'dni' | 'fpp' | 'fecha_nacimiento' | 'eg_actual') => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -160,6 +211,8 @@ export default function AuditPage() {
     return sortablePacientes;
   }, [pacientes, sortConfig]);
 
+  if (!session) return null;
+
   return (
     <>
       <Navbar />
@@ -172,7 +225,6 @@ export default function AuditPage() {
               <Filter size={18} /> Filtros de Búsqueda
             </h2>
 
-            {/* Habilitamos el buscador por DNI para TODOS los perfiles */}
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>Buscar por DNI</label>
               <div className={styles.searchWrapper}>
@@ -190,7 +242,6 @@ export default function AuditPage() {
               </div>
             </div>
 
-            {/* Selector dinámico o tarjeta informativa según perfil */}
             {esPerfilGestion ? (
               <div className={styles.filterGroup} style={{ position: 'relative' }}>
                 <label className={styles.filterLabel}>Establecimiento</label>
@@ -282,7 +333,6 @@ export default function AuditPage() {
                 )}
               </div>
             ) : (
-              /* SI ES CAPS: Muestra únicamente la tarjeta azul informativa */
               <div className={styles.filterGroup}>
                 <label className={styles.filterLabel}>Establecimiento Auditado</label>
                 <div style={{
@@ -329,14 +379,28 @@ export default function AuditPage() {
               <h2 className={styles.tableTitle}>
                 {esPerfilGestion ? "Listado de Auditoría Provincial" : `Panel de Calidad: ${centroNombreOId}`}
               </h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 {ultimaActualizacion && (
                   <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
                     Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
                   </span>
                 )}
+                
+                {/* 👈 NUEVO: Botón de descarga Excel */}
+                <button 
+                  className={styles.btnRefresh} 
+                  onClick={handleDescargarExcel} 
+                  disabled={pacientes.length === 0}
+                  style={{ backgroundColor: '#769FD3', color: 'white', borderColor: '#769FD3' }}
+                  title="Descargar listado en Excel"
+                >
+                  <Download className="w-4 h-4" size={16} />
+                </button>
+                
+      
+
                 <button className={styles.btnRefresh} onClick={() => fetchPacientes()} disabled={loading}>
-                  <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} size={16} />
                   {loading ? "Actualizando..." : "Actualizar"}
                 </button>
               </div>
@@ -347,24 +411,29 @@ export default function AuditPage() {
                 <thead>
                   <tr>
                     <th>{esPerfilGestion ? "Paciente / Establecimiento" : "Paciente / Contacto"}</th>
+                    
+                    {/* Corregido: cambiados los </td> por </th> */}
                     <th onClick={() => handleSort('dni')} className={styles.sortableHeader}>
                       DNI {sortConfig?.key === 'dni' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                     </th>
+                    
                     <th onClick={() => handleSort('fecha_nacimiento')} className={styles.sortableHeader}>
                       Fecha de Nacimiento {sortConfig?.key === 'fecha_nacimiento' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                     </th>
+                    
                     <th onClick={() => handleSort('fpp')} className={styles.sortableHeader}>
                       FPP {sortConfig?.key === 'fpp' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                     </th>
+                    
                     <th onClick={() => handleSort('eg_actual')} className={styles.sortableHeader} style={{ textAlign: 'center' }}>
                       Edad Gestacional {sortConfig?.key === 'eg_actual' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                     </th>
+                    
                     <th>Motivo Auditoría</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedPacientes.length === 0 ? (
-                    /* 🎉 Si el efector no tiene casos rotos, mostramos este cartel delicado ocupando las 6 columnas */
                     <tr>
                       <td colSpan={6} style={{ padding: '3rem 1rem', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
@@ -376,11 +445,8 @@ export default function AuditPage() {
                       </td>
                     </tr>
                   ) : (
-                    /* 📊 Si hay datos, dibujamos las 6 celdas correspondientes en orden exacto */
                     sortedPacientes.map((p) => (
-                      <tr key={p.id} onClick={() => setSelectedPaciente(p)}>
-                        
-                        {/* Celda 1: Paciente / Establecimiento */}
+                      <tr key={p.id} onClick={() => setSelectedPaciente(p)} style={{ cursor: 'pointer' }}>
                         <td>
                           <div className={styles.pacienteInfo}>
                             <div className={styles.pacienteNombre}>{p.nombre}</div>
@@ -394,27 +460,22 @@ export default function AuditPage() {
                           </div>
                         </td>
 
-                        {/* Celda 2: DNI */}
                         <td style={{ color: '#475569', fontWeight: 500 }}>
                           {p.dni !== "S/D" ? Number(p.dni).toLocaleString('es-AR') : "S/D"}
                         </td>
 
-                        {/* Celda 3: Fecha de Nacimiento */}
                         <td style={{ color: '#475569' }}>
                           {p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString('es-AR') : "Sin registro"}
                         </td>
 
-                        {/* Celda 4: FPP */}
                         <td className={styles.fppCell} style={{ color: '#475569' }}>
                           {p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : "Sin registro"}
                         </td>
 
-                        {/* Celda 5: Edad Gestacional */}
                         <td style={{ color: '#475569', textAlign: 'center', fontWeight: 700 }}>
                           {p.eg_actual !== null ? `${p.eg_actual}s` : "-"}
                         </td>
 
-                        {/* Celda 6: Motivo Auditoría */}
                         <td className={styles.columnaMotivo}>
                           <span className={styles.badgeAlerta}>
                             {p.motivo_auditoria}

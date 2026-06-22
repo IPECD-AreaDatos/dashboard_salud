@@ -109,6 +109,8 @@ export default function SeguimientoPage() {
   const userRole = session?.user?.role;
   const isRestrictedRole = userRole === 'Centro de Salud' || userRole === 'Maternidad';
 
+  const verColumnasAmpliadas = userRole === 'Administrador' || userRole === 'Coordinador' || userRole?.toLowerCase() === 'lectura' || userRole === 'Maternidad';
+
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<{ value: string, label: string, sisa?: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -840,7 +842,7 @@ export default function SeguimientoPage() {
                     </th>
 
                     {/* 🌟 Títulos de Maternidad con quiebres controlados */}
-                    {userRole === 'Maternidad' && (
+                    {verColumnasAmpliadas && (
                       <>
                         <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '100px', lineHeight: '1.2', verticalAlign: 'middle' }}>
                           Observación<br />Riesgo
@@ -973,7 +975,7 @@ export default function SeguimientoPage() {
                           </td>
 
                           {/* 🌟 NUEVO: Celdas de datos clínicas exclusivas para rol Maternidad */}
-                          {userRole === 'Maternidad' && (
+                          {verColumnasAmpliadas && (
                             <>
                               <td style={{ color: '#475569', fontSize: '0.85rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.observaciones_riesgo}>
                                 {p.observaciones_riesgo}

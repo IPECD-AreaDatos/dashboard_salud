@@ -222,13 +222,12 @@ export async function GET(request: Request) {
     `;
     const topRsgRes = await query(topRsgSql);
 
-    // 🌟 REFACTOR COMPLETO: Query de CAPS unificada con la estructura real de pacientes_gold
+    // 7. Query de CAPS unificada (Reflejando números SIN pacientes derivadas)
     const capsResumenSql = `
       SELECT 
         s.nombre as caps_name,
         COUNT(DISTINCT p.id) as total_embarazadas,
         
-        -- % de Control (Embarazadas con control al día en base al Semáforo de Riesgo / EG)
         ROUND(
           (COUNT(DISTINCT CASE WHEN 
             p.fecha_ultimo_control IS NOT NULL AND (
@@ -242,16 +241,13 @@ export async function GET(request: Request) {
           1
         ) as pct_control,
         
-        -- % de Contacto (Pacientes que registran al menos un seguimiento previo en la tabla)
         ROUND(
           (COUNT(DISTINCT seg_any.paciente_id) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 
           1
         ) as pct_contacto,
         
-        -- Descomposición 1: Total absoluto de contactadas efectivas por el CAPS
         COUNT(DISTINCT CASE WHEN seg_logrado.id IS NOT NULL THEN p.id END) as contactadas_caps,
         
-        -- Descomposición 2: Acudieron solas (Están al día con el Semáforo de EG y tienen CERO registros de seguimiento telefónico)
         COUNT(DISTINCT CASE WHEN 
           p.fecha_ultimo_control IS NOT NULL AND (
             CASE
@@ -264,21 +260,17 @@ export async function GET(request: Request) {
         THEN p.id END) as acudieron_solas
         
       FROM public.pacientes_gold p
-      
-      -- 🔥 SOLUCIÓN: Hacemos un JOIN con efectores_sisa para tener el nombre correcto y filtrable
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
-      
-      -- Relación para evaluar cualquier tipo de interacción de contacto
       LEFT JOIN public.seguimientos seg_any ON seg_any.paciente_id = p.id
-      
-      -- Relación para evaluar comunicaciones logradas con éxito
       LEFT JOIN public.seguimientos seg_logrado ON seg_logrado.paciente_id = p.id AND seg_logrado.contacto_logrado = true
       
       WHERE p.embarazo_en_curso = true 
         AND p.fecha_probable_parto >= CURRENT_DATE
         AND p.fecha_nacimiento IS NOT NULL
         
-        -- 🔥 FILTRO ESPECÍFICO: Solo CAPS, barriendo variantes de escritura típicas del SISA
+        -- 👈 NUEVO FILTRO CRUCIAL: Excluimos del padrón del CAPS a aquellas pacientes con derivación activa
+        AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '')
+        
         AND (
           LOWER(s.nombre) LIKE '%caps%' 
           OR LOWER(s.nombre) LIKE '%c.a.p.s.%'

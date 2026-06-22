@@ -31,7 +31,6 @@ export async function GET(request: Request) {
     const params: any[] = [];
     
     // 🛡️ 1. CAPA DE SEGURIDAD AUTOMÁTICA EN SEGUNDO PLANO (RBAC)
-    // Inicializamos las cláusulas. Si es Administrador queda libre (1=1), si es efector se restringe acá mismo.
     let filteringClauses = `WHERE 1=1`;
 
     if (userRole === 'Centro de Salud') {
@@ -51,13 +50,12 @@ export async function GET(request: Request) {
       filteringClauses += ` AND (${localClause} OR uni.batch_id IN (SELECT DISTINCT batch_id FROM pacientes_gold WHERE derivacion_maternidad_id = '${matId}'))`;
     }
 
-    // 🔍 2. FILTROS MANUALES (DNI e Insumo del Autocomplete de Gestión)
+    // 🔍 2. FILTROS MANUALES
     if (dni) {
         params.push(`${dni}%`);
         filteringClauses += ` AND uni.dni LIKE $${params.length}`;
     }
 
-    // El filtro por establecimiento explícito solo aplica si el usuario es de gestión central (Admin/Coord)
     if ((userRole === 'Administrador' || userRole === 'Coordinador' || userRole?.toLowerCase() === 'lectura') && establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
       if (establecimiento === "Establecimiento no mapeado") {
         filteringClauses += ` AND s.nombre IS NULL`;
@@ -67,7 +65,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // 📊 3. QUERY UNIFICADA DE AUDITORÍA CON FILTRO RBAC APLICADO AL FINAL
+    // 📊 3. QUERY UNIFICADA DE AUDITORÍA CON FILTRO AL ÚLTIMO TIMESTAMP EXACTO (Sin ::date)
     const sql = `
       WITH unificado AS (
         SELECT 
@@ -84,7 +82,8 @@ export async function GET(request: Request) {
           batch_id, 
           'Edad gestacional inválida (< 2 semanas) o ausente' as motivo_auditoria
         FROM pacientes_sin_fpp_stage
-        WHERE ingestion_at::date = (SELECT MAX(ingestion_at)::date FROM pacientes_sin_fpp_stage)
+        -- 👈 CORREGIDO: Buscamos el timestamp exacto e inequívoco del último lote
+        WHERE ingestion_at = (SELECT MAX(ingestion_at) FROM pacientes_sin_fpp_stage)
         
         UNION ALL
         
@@ -102,7 +101,8 @@ export async function GET(request: Request) {
           batch_id, 
           'Edad calculada inconsistente (< 10 años) o ausente' as motivo_auditoria
         FROM pacientes_sin_fnac_stage
-        WHERE ingestion_at::date = (SELECT MAX(ingestion_at)::date FROM pacientes_sin_fnac_stage)
+        -- 👈 CORREGIDO: Buscamos el timestamp exacto
+        WHERE ingestion_at = (SELECT MAX(ingestion_at) FROM pacientes_sin_fnac_stage)
         
         UNION ALL
         
@@ -120,7 +120,8 @@ export async function GET(request: Request) {
           batch_id, 
           'DNI inválido o no informado' as motivo_auditoria
         FROM pacientes_sin_dni_stage
-        WHERE ingestion_at::date = (SELECT MAX(ingestion_at)::date FROM pacientes_sin_dni_stage)
+        -- 👈 CORREGIDO: Buscamos el timestamp exacto
+        WHERE ingestion_at = (SELECT MAX(ingestion_at) FROM pacientes_sin_dni_stage)
           AND data_json::json->>'apellido' IS NOT NULL 
           AND data_json::json->>'apellido' != ''
       )
