@@ -1,4 +1,3 @@
-/*src\app\dashboard\stats\page.tsx*/
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import { registrarLog } from "@/lib/analytics";
@@ -14,10 +13,11 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-import { Loader2, PhoneCall, UserCheck, Download } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import * as XLSX from 'xlsx';
 
+// 🌟 FUNCIONES AUXILIARES DECLARADAS ARRIBA DE TODO (Evitan ReferenceErrors globales)
 const romanToArabic = (text: string) => {
   if (!text) return text;
   const map: { [key: string]: string } = {
@@ -39,7 +39,6 @@ export default function StatsPage() {
   const isMaternidad = session?.user?.role === 'Maternidad';
   const isCAPS = session?.user?.role === 'Centro de Salud';
   
-  // Condicional de Roles para el Padrón Gerencial
   const userRole = session?.user?.role;
   const isAdminOrCoord = userRole === 'Administrador' || userRole === 'Coordinador';
 
@@ -47,7 +46,6 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [zonaChart, setZonaChart] = useState<'Todos' | 'Capital' | 'Interior'>('Todos');
 
-  // 🌟 ESTADO Y LÓGICA DE ORDENAMIENTO DE LA TABLA
   const [sortConfigCaps, setSortConfigCaps] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
 
   const handleSortCaps = (key: string) => {
@@ -93,21 +91,18 @@ export default function StatsPage() {
       });
   }, []);
 
-  // 🌟 CALCULADORA DE PORCENTAJES SOBRE EL PADRÓN TOTAL
   const totalPadron = data?.general?.total || 0;
   const getPct = (value: number) => {
     if (!totalPadron) return "0.0%";
     return ((value / totalPadron) * 100).toFixed(1) + "%";
   };
 
-  // 🌟 FUNCIÓN PARA EXPORTAR LA TABLA DE DESEMPEÑO DE CAPS A EXCEL
   const exportarAExcel = () => {
     if (!sortedCaps || sortedCaps.length === 0) {
       alert("No hay datos en la tabla para exportar.");
       return;
     }
 
-    // 1. Construimos un bloque de encabezado y KPIs (Métricas Generales)
     const encabezado = [
       ["ESTADÍSTICAS E INDICADORES PROVINCIALES"],
       ["Fecha de generación:", new Date().toLocaleDateString('es-AR') + " " + new Date().toLocaleTimeString('es-AR')],
@@ -116,33 +111,28 @@ export default function StatsPage() {
       ["Total Padrón Provincial", "Total en Alto Riesgo", "Total Controladas (Al Día)", "Total Contactadas", "Total Derivadas"],
       [
         `${totalPadron} (100%)`,
-        `${data.riesgo?.total || 0} (${getPct(data.riesgo?.total || 0)})`, 
-        `${data.gestion?.controladas || 0} (${getPct(data.gestion?.controladas || 0)})`, 
-        `${data.gestion?.contactadas || 0} (${getPct(data.gestion?.contactadas || 0)})`, 
-        `${data.gestion?.derivadas || 0} (${getPct(data.gestion?.derivadas || 0)})`
+        `${data?.riesgo?.total || 0} (${getPct(data?.riesgo?.total || 0)})`, 
+        `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`, 
+        `${data?.gestion?.contactadas || 0} (${getPct(data?.gestion?.contactadas || 0)})`, 
+        `${data?.gestion?.derivadas || 0} (${getPct(data?.gestion?.derivadas || 0)})`
       ],
       [],
       ["DESEMPEÑO Y COBERTURA POR CAPS"]
     ];
 
-    // Convertimos las filas del encabezado a una hoja de cálculo
     const hoja = XLSX.utils.aoa_to_sheet(encabezado);
 
-    // 2. Formateamos los datos de la tabla de desempeño
     const datosFormateados = sortedCaps.map((caps: any) => ({
       "Centro de Salud (Efector)": romanToArabic(caps.capsName),
       "Padrón Activo": caps.total,
+      "% Riesgo": caps.pctRiesgo,
       "% Controladas": caps.pctControl,
-      "% Contactadas": caps.pctContacto,
-      "Contactadas por CAPS": caps.contactadasCaps,
-      "Acudieron Solas (Espontáneas)": caps.acudieronSolas
+      "% Vínculo Activo": caps.pctVinculo, 
+      "% Turnos Asignados x Tablero": caps.pctTurnosTablero
     }));
 
-    // 3. Inyectamos la tabla debajo de nuestros KPIs (como quitamos filas, ahora arranca en A10)
     XLSX.utils.sheet_add_json(hoja, datosFormateados, { origin: "A10" });
-    
-    // 4. Anchos de columna dinámicos para que se lea bien en Excel
-    hoja['!cols'] = [ { wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 30 } ];
+    hoja['!cols'] = [ { wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 28 } ];
 
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, hoja, "Reporte Provincial");
@@ -150,7 +140,6 @@ export default function StatsPage() {
     const fechaDescarga = new Date().toISOString().split('T')[0];
     XLSX.writeFile(libro, `Reporte_Estadistico_Provincial_${fechaDescarga}.xlsx`);
 
-    // Registro en auditoría
     registrarLog({
       modulo: "Estadísticas",
       accion: "EXPORTAR_EXCEL",
@@ -158,17 +147,7 @@ export default function StatsPage() {
     }).catch(err => console.error("Error al registrar log:", err));
   };
 
-  if (loading || !data) {
-    return (
-      <>
-        <Navbar />
-        <div className={styles.container} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-          <Loader2 className="animate-spin text-slate-400" size={48} />
-        </div>
-      </>
-    );
-  }
-
+  // 🌟 SE MOVIÓ ESTA FUNCIÓN AQUÍ PARA QUE ESTÉ DISPONIBLE ANTES DE SER LLAMADA
   const filterAndFormat = (arr: any[]) => {
     return arr
       .filter(item => {
@@ -184,8 +163,9 @@ export default function StatsPage() {
       }));
   };
 
-  const topGeneral = filterAndFormat(data.topGeneral || []);
-  const topRiesgo = filterAndFormat(data.topRiesgoAtraso || []);
+  // Safe checks con optional chaining preventivo
+  const topGeneral = filterAndFormat(data?.topGeneral || []);
+  const topRiesgo = filterAndFormat(data?.topRiesgoAtraso || []);
 
   const getBtnStyle = (zona: string) => ({
     padding: '6px 16px',
@@ -251,14 +231,14 @@ export default function StatsPage() {
           )}
         </div>
 
-        {/* 🌟 KPIs COMPACTOS SÓLO SI ES ADMIN O COORDINADOR */}
+        {/* KPIs COMPACTOS SÓLO SI ES ADMIN O COORDINADOR */}
         {isAdminOrCoord ? (
           <div className={styles.kpiGridAdmin}>
             <div className={styles.kpiCardAdminMain}>
               <span className={styles.kpiLabel}>Total Padrón Provincial</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
                 <span className={styles.kpiValue} style={{ color: '#0f172a', margin: 0 }}>
-                  {totalPadron.toLocaleString('es-AR')}
+                  {(data?.general?.total || 0).toLocaleString('es-AR')}
                 </span>
                 <span style={{ fontSize: '1.1rem', color: '#94a3b8', fontWeight: 700 }}>(100%)</span>
               </div>
@@ -269,9 +249,9 @@ export default function StatsPage() {
               <span className={styles.kpiLabel} style={{ color: '#991b1b' }}>Total en Alto Riesgo</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
                 <span className={styles.kpiValue} style={{ color: '#dc2626', margin: 0 }}>
-                  {(data.riesgo?.total || 0).toLocaleString('es-AR')}
+                  {(data?.riesgo?.total || 0).toLocaleString('es-AR')}
                 </span>
-                <span style={{ fontSize: '1.1rem', color: '#f87171', fontWeight: 700 }}>({getPct(data.riesgo?.total || 0)})</span>
+                <span style={{ fontSize: '1.1rem', color: '#f87171', fontWeight: 700 }}>({getPct(data?.riesgo?.total || 0)})</span>
               </div>
               <small className={styles.kpiSubtext} style={{ color: '#991b1b' }}>Seguimiento prioritario</small>
             </div>
@@ -280,9 +260,9 @@ export default function StatsPage() {
               <span className={styles.kpiLabel}>Total Controladas</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
                 <span className={styles.kpiSubValue} style={{ color: '#19793cdc', margin: 0 }}>
-                  {(data.gestion?.controladas || 0).toLocaleString('es-AR')}
+                  {(data?.gestion?.controladas || 0).toLocaleString('es-AR')}
                 </span>
-                <span style={{ fontSize: '0.95rem', color: '#14921f8f', fontWeight: 700 }}>({getPct(data.gestion?.controladas || 0)})</span>
+                <span style={{ fontSize: '0.95rem', color: '#14921f8f', fontWeight: 700 }}>({getPct(data?.gestion?.controladas || 0)})</span>
               </div>
               <small className={styles.kpiSubtext}>Controles del último mes</small>
             </div>
@@ -291,9 +271,9 @@ export default function StatsPage() {
               <span className={styles.kpiLabel}>Total Contactadas</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
                 <span className={styles.kpiSubValue} style={{ color: '#1276b8e0', margin: 0 }}>
-                  {(data.gestion?.contactadas || 0).toLocaleString('es-AR')}
+                  {(data?.gestion?.contactadas || 0).toLocaleString('es-AR')}
                 </span>
-                <span style={{ fontSize: '0.95rem', color: '#207ae9c7', fontWeight: 700 }}>({getPct(data.gestion?.contactadas || 0)})</span>
+                <span style={{ fontSize: '0.95rem', color: '#207ae9c7', fontWeight: 700 }}>({getPct(data?.gestion?.contactadas || 0)})</span>
               </div>
               <small className={styles.kpiSubtext}>Gestión del último mes</small>
             </div>
@@ -302,37 +282,37 @@ export default function StatsPage() {
               <span className={styles.kpiLabel}>Total Derivadas</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
                 <span className={styles.kpiSubValue} style={{ color: '#d67a10', margin: 0 }}>
-                  {(data.gestion?.derivadas || 0).toLocaleString('es-AR')}
+                  {(data?.gestion?.derivadas || 0).toLocaleString('es-AR')}
                 </span>
-                <span style={{ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 }}>({getPct(data.gestion?.derivadas || 0)})</span>
+                <span style={{ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 }}>({getPct(data?.gestion?.derivadas || 0)})</span>
               </div>
               <small className={styles.kpiSubtext}>Referidas a mayor nivel</small>
             </div>
           </div>
         ) : (
-          /* 🌟 INTERFAZ TRADICIONAL ORIGINAL PARA CAPS O MATERNIDAD */
+          /* 🌟 INTERFAZ TRADICIONAL ORIGINAL TOTALMENTE BLINDADA CONTRA NULLS */
           <>
             <h2 className={styles.sectionTitle}>Embarazadas General</h2>
             <div className={styles.kpiRow}>
               <div className={`${styles.kpiCard} ${styles.genTotal}`}>
                 <span className={styles.kpiLabel}>Total</span>
-                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.general?.total || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data?.general?.total || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCard}>
                 <span className={styles.kpiLabel}>Menores a 15 años</span>
-                <span className={`${styles.kpiValue} ${styles.valRed}`}>{(data.general?.sub15 || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valRed}`}>{(data?.general?.sub15 || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCard}>
                 <span className={styles.kpiLabel}>15 a 19 años</span>
-                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.general?.age15_19 || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data?.general?.age15_19 || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCard}>
                 <span className={styles.kpiLabel}>20 a 34 años</span>
-                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.general?.age20_34 || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data?.general?.age20_34 || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCard}>
                 <span className={styles.kpiLabel}>Mayores a 34 años</span>
-                <span className={`${styles.kpiValue} ${styles.valRed}`}>{(data.general?.age34plus || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valRed}`}>{(data?.general?.age34plus || 0).toLocaleString('es-AR')}</span>
               </div>
             </div>
 
@@ -340,23 +320,23 @@ export default function StatsPage() {
             <div className={styles.kpiRow}>
               <div className={`${styles.kpiCard} ${styles.rsgTotal}`}>
                 <span className={styles.kpiLabel}>Total Riesgo</span>
-                <span className={`${styles.kpiValue} ${styles.valRed}`}>{(data.riesgo?.total || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valRed}`}>{(data?.riesgo?.total || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCard}>
                 <span className={styles.kpiLabel}>Menores a 15 años</span>
-                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.riesgo?.sub15 || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data?.riesgo?.sub15 || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCard}>
                 <span className={styles.kpiLabel}>15 a 19 años</span>
-                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.riesgo?.age15_19 || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data?.riesgo?.age15_19 || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCard}>
                 <span className={styles.kpiLabel}>20 a 34 años</span>
-                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.riesgo?.age20_34 || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data?.riesgo?.age20_34 || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCard}>
                 <span className={styles.kpiLabel}>Mayores a 34 años</span>
-                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data.riesgo?.age34plus || 0).toLocaleString('es-AR')}</span>
+                <span className={`${styles.kpiValue} ${styles.valBlack}`}>{(data?.riesgo?.age34plus || 0).toLocaleString('es-AR')}</span>
               </div>
             </div>
           </>
@@ -369,23 +349,23 @@ export default function StatsPage() {
             <div className={styles.kpiGridAdmin}>
               <div className={styles.kpiCardCompact}>
                 <span className={styles.kpiLabel}>Controles Atrasados</span>
-                <span className={styles.kpiSubValue} style={{ color: '#ef4444' }}>{data.gestion?.controlesPendientes}</span>
+                <span className={styles.kpiSubValue} style={{ color: '#ef4444' }}>{data?.gestion?.controlesPendientes}</span>
               </div>
               <div className={styles.kpiCardCompact}>
                 <span className={styles.kpiLabel}>REQUIEREN CONTACTO</span>
-                <span className={styles.kpiSubValue} style={{ color: '#ef4444' }}>{data.gestion?.sinContactoReciente}</span>
+                <span className={styles.kpiSubValue} style={{ color: '#ef4444' }}>{data?.gestion?.sinContactoReciente}</span>
               </div>
               <div className={styles.kpiCardCompact}>
                 <span className={styles.kpiLabel}>Partos en 30 días</span>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3' }}>{data.gestion?.proximosPartos}</span>
+                <span className={styles.kpiSubValue} style={{ color: '#769FD3' }}>{data?.gestion?.proximosPartos}</span>
               </div>
               <div className={styles.kpiCardCompact}>
                 <span className={styles.kpiLabel}>Sin Teléfono</span>
-                <span className={styles.kpiSubValue} style={{ color: '#4b5563' }}>{data.gestion?.sinTelefono}</span>
+                <span className={styles.kpiSubValue} style={{ color: '#4b5563' }}>{data?.gestion?.sinTelefono}</span>
               </div>
               <div className={styles.kpiCardCompact}>
                 <span className={styles.kpiLabel}>Derivadas</span>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3' }}>{data.gestion?.derivadas}</span>
+                <span className={styles.kpiSubValue} style={{ color: '#769FD3' }}>{data?.gestion?.derivadas}</span>
               </div>              
             </div>
 
@@ -394,23 +374,23 @@ export default function StatsPage() {
               <div className={styles.kpiCardCompact} style={{ textAlign: 'center' }}>
                 <span className={styles.kpiLabel}>Último Día</span>
                 <small className={styles.kpiSubtext}>({textoHoy})</small>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>{(data.actividad?.hoy || 0).toLocaleString('es-AR')}</span>
+                <span className={styles.kpiSubValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>{(data?.actividad?.hoy || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCardCompact} style={{ textAlign: 'center' }}>
                 <span className={styles.kpiLabel}>Última Semana</span>
                 <small className={styles.kpiSubtext}>({textoSemana})</small>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>{(data.actividad?.semana || 0).toLocaleString('es-AR')}</span>
+                <span className={styles.kpiSubValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>{(data?.actividad?.semana || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.kpiCardCompact} style={{ textAlign: 'center' }}>
                 <span className={styles.kpiLabel}>Último Mes</span>
                 <small className={styles.kpiSubtext}>({textoMes})</small>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>{(data.actividad?.mes || 0).toLocaleString('es-AR')}</span>
+                <span className={styles.kpiSubValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>{(data?.actividad?.mes || 0).toLocaleString('es-AR')}</span>
               </div>
             </div>
           </>
         )}
 
-        {/* 🌟 TABLA COMPARATIVA SÓLO COMPILADA PARA ADMIN / COORD */}
+        {/* TABLA COMPARATIVA GERENCIAL POR PORCENTAJES PUROS */}
         {isAdminOrCoord && (
           <div className={styles.tableContainerCaps}>
             <div className={styles.tableHeaderArea}>
@@ -430,11 +410,19 @@ export default function StatsPage() {
                         </span>
                       </div>
                     </th>
-                    <th onClick={() => handleSortCaps('total')} className={styles.sortableHeader} title="Se actualiza todos los días (Foto actual del padrón)">
+                    <th onClick={() => handleSortCaps('total')} className={styles.sortableHeader} title="Padrón activo total del CAPS sin pacientes derivadas">
                       <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
                         <span>Padrón Activo</span>
                         <span className={styles.sortIcon}>
                           {sortConfigCaps.key === 'total' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
+                    </th>
+                    <th onClick={() => handleSortCaps('pctRiesgo')} className={styles.sortableHeader} title="Proporción de embarazadas con riesgo obstétrico sobre el padrón activo">
+                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                        <span>% Riesgo</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfigCaps.key === 'pctRiesgo' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       </div>
                     </th>
@@ -446,27 +434,19 @@ export default function StatsPage() {
                         </span>
                       </div>
                     </th>
-                    <th onClick={() => handleSortCaps('pctContacto')} className={styles.sortableHeader} title="Dato histórico acumulado durante el embarazo">
+                    <th onClick={() => handleSortCaps('pctVinculo')} className={styles.sortableHeader} title="Mide pacientes vinculadas por llamada o asistencia espontánea">
                       <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
-                        <span>% Contactadas</span>
+                        <span>% Vínculo Activo</span>
                         <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'pctContacto' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
+                          {sortConfigCaps.key === 'pctVinculo' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       </div>
                     </th>
-                    <th onClick={() => handleSortCaps('contactadasCaps')} className={styles.sortableHeader} title="Dato histórico acumulado durante el embarazo">
+                    <th onClick={() => handleSortCaps('pctTurnosTablero')} className={styles.sortableHeader} title="Pacientes que concretaron turnos como resultado directo de una gestión del tablero">
                       <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
-                        <span>Contactadas por CAPS</span>
+                        <span>% Turnos Asignados x Tablero</span>
                         <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'contactadasCaps' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
-                        </span>
-                      </div>
-                    </th>
-                    <th onClick={() => handleSortCaps('acudieronSolas')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
-                        <span>Acudieron Solas (Espontáneas)</span>
-                        <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'acudieronSolas' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
+                          {sortConfigCaps.key === 'pctTurnosTablero' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       </div>
                     </th>
@@ -474,28 +454,59 @@ export default function StatsPage() {
                 </thead>
                 <tbody>
               {sortedCaps && sortedCaps.length > 0 ? (
-                sortedCaps.map((caps: any, i: number) => (
-                  <tr key={i}>
-                    <td style={{ fontWeight: 550, color: '#334155' }}>{romanToArabic(caps.capsName)}</td>
-                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{caps.total}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className={caps.pctControl > 75 ? styles.badgeControlOk : styles.badgeControlAlert}>
-                        {caps.pctControl}%
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center', fontWeight: 500, color: '#475569' }}>{caps.pctContacto}%</td>
-                    <td className={styles.tdContactadas}>
-                      <div>
-                        <PhoneCall size={14} /> {caps.contactadasCaps} <small>pacs</small>
-                      </div>
-                    </td>
-                    <td className={styles.tdSolas}>
-                      <div>
-                        <UserCheck size={15} /> {caps.acudieronSolas} <small>pacs</small>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                sortedCaps.map((caps: any, i: number) => {
+                  
+                  const totalCaps = caps.total || 0;
+                  const absRiesgo = Math.round((totalCaps * (caps.pctRiesgo ?? 0)) / 100);
+                  const absControladas = Math.round((totalCaps * (caps.pctControl ?? 0)) / 100);
+                  const absVinculadas = Math.round((totalCaps * (caps.pctVinculo ?? 0)) / 100);
+                  const absTurnos = Math.round((totalCaps * (caps.pctTurnosTablero ?? 0)) / 100);
+
+                  return (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 550, color: '#334155' }}>{romanToArabic(caps.capsName)}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{totalCaps}</td>
+                      
+                      {/* % Riesgo (Texto simple rojo) */}
+                      <td 
+                        style={{ textAlign: 'center', fontWeight: 550, color: '#b91c1c', cursor: 'help' }}
+                        title={`${absRiesgo} de ${totalCaps} pacientes activas presentan criterios de riesgo obstétrico bajo seguimiento.`}
+                      >
+                        {caps.pctRiesgo}%
+                      </td>
+
+                      {/* % Controladas (Usa tus clases CSS condicionales) */}
+                      <td 
+                        style={{ textAlign: 'center', cursor: 'help' }}
+                        title={`${absControladas} de ${totalCaps} pacientes se encuentran con controles médicos al día.`}
+                      >
+                        <span className={caps.pctControl > 75 ? styles.badgeControlOk : styles.badgeControlAlert}>
+                          {caps.pctControl}%
+                        </span>
+                      </td>
+                      
+                      {/* 🌟 % Vínculo Activo CORREGIDO: Celda limpia + span para el badge amarillo */}
+                      <td 
+                        style={{ textAlign: 'center', cursor: 'help' }}
+                        title={`${absVinculadas} de ${totalCaps} pacientes mantienen un vínculo activo (seguimiento proactivo o asistencia espontánea).`}
+                      >
+                        <span style={{ backgroundColor: '#fef9c3', color: '#a16207', padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'inline-block' }}>
+                          {caps.pctVinculo}%
+                        </span>
+                      </td>
+
+                      {/* 🌟 % Turnos Asignados CORREGIDO: Celda limpia + span para el badge celeste */}
+                      <td 
+                        style={{ textAlign: 'center', cursor: 'help' }}
+                        title={`${absTurnos} de ${totalCaps} pacientes obtuvieron un turno médico efectivo coordinado a través de este tablero.`}
+                      >
+                        <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'inline-block' }}>
+                          {caps.pctTurnosTablero}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
@@ -526,7 +537,7 @@ export default function StatsPage() {
                   {isMaternidad ? "Top 15 — Centros de Salud que derivaron pacientes" : "Top 15 — Establecimientos con más embarazadas"}
                 </h3>
                 <div className={styles.chartWrapper}>
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={350}>
                     <BarChart data={topGeneral} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" />
@@ -543,7 +554,7 @@ export default function StatsPage() {
                   {isMaternidad ? "Top 15 — Riesgo y sin control (>30 días) por centro de origen" : "Top 15 — Embarazadas de riesgo con control atrasado (>30 días)"}
                 </h3>
                 <div className={styles.chartWrapper}>
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={350}>
                     <BarChart data={topRiesgo} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" />

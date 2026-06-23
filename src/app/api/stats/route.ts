@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
     const sisa = session.user?.sisa_code;
     const cuie = session.user?.cuie_code;
-    
+   
     // 1. Cláusula de Seguridad RBAC (Tony)
     let securityClause = "";
     if (session.user?.role === 'Centro de Salud') {
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     // 2. Cláusula Dinámica de Selección de Centro para Coordinador/Admin (Prioridad SISA)
     let centroFilterClause = "";
     const statsParams: any[] = [];
-    
+   
     if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
       statsParams.push(establecimiento);
       if (/^\d+$/.test(establecimiento.trim()) && establecimiento.trim().length >= 10) {
@@ -65,21 +65,18 @@ export async function GET(request: Request) {
     if (session.user?.role === 'Centro de Salud') {
       derivacionClause = ` AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')`;
     }
-    // Maternidad, Coordinador y Admin no necesitan cláusula adicional:
-    // - Maternidad: el securityClause ya incluye propias + derivadas
-    // - Coordinador/Admin: ven todo
 
     // 4. Métricas Generales y de Riesgo por Edades
     const kpiSql = `
       SELECT
         COUNT(*) as total,
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
-        
+       
         SUM(CASE WHEN edad_actual < 15 THEN 1 ELSE 0 END) as gen_15,
         SUM(CASE WHEN edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as gen_15_19,
         SUM(CASE WHEN edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as gen_20_34,
         SUM(CASE WHEN edad_actual > 34 THEN 1 ELSE 0 END) as gen_34_plus,
-        
+       
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual < 15 THEN 1 ELSE 0 END) as rsg_15,
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as rsg_15_19,
         SUM(CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as rsg_20_34,
@@ -92,7 +89,7 @@ export async function GET(request: Request) {
               fecha_ultimo_control IS NULL
               OR
               CASE
-                WHEN eg_actual >= 38                      THEN (CURRENT_DATE - fecha_ultimo_control) > 7
+                WHEN eg_actual >= 38                    THEN (CURRENT_DATE - fecha_ultimo_control) > 7
                 WHEN eg_actual >= 32 AND eg_actual < 38   THEN (CURRENT_DATE - fecha_ultimo_control) > 15
                 WHEN eg_actual < 32                       THEN (CURRENT_DATE - fecha_ultimo_control) > 30
                 ELSE (CURRENT_DATE - fecha_ultimo_control) > 30
@@ -102,36 +99,32 @@ export async function GET(request: Request) {
         SUM(CASE WHEN fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
         SUM(CASE WHEN telefono IS NULL OR telefono = '' OR telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
         SUM(CASE WHEN nombre_centro_derivado IS NOT NULL AND nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
-        
-        -- 🌟 NUEVAS MÉTRICAS GLOBALES: Total Controladas al día y Total Contactadas
-        SUM(CASE WHEN 
+       
+        SUM(CASE WHEN
           fecha_ultimo_control IS NOT NULL AND (
             CASE
               WHEN eg_actual >= 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 7
               WHEN eg_actual >= 32 AND eg_actual < 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 15
               ELSE (CURRENT_DATE - fecha_ultimo_control) <= 30
-            END
+            END -- 🌟 CORREGIDO AQUÍ: Se cambió la llave por END
           )
         THEN 1 ELSE 0 END) as total_controladas,
-        
+       
         SUM(CASE WHEN EXISTS (
-          SELECT 1 FROM seguimientos s 
-          WHERE s.paciente_id = pacientes_gold.id 
-            AND s.contacto_logrado = true 
+          SELECT 1 FROM seguimientos s
+          WHERE s.paciente_id = pacientes_gold.id
+            AND s.contacto_logrado = true
             AND s.fecha_contacto >= CURRENT_DATE - 30
         ) THEN 1 ELSE 0 END) as total_contactadas,
 
-        /* 👈 CORREGIDO: Filtramos períodos cerrados tomando como techo el día de ayer (CURRENT_DATE - 1) */
         SUM(CASE WHEN fecha_ultimo_control = CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_hoy,
         SUM(CASE WHEN fecha_ultimo_control BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_semana,
         SUM(CASE WHEN fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_mes,
 
         SUM(CASE WHEN (
-            -- Condición 1: no derivada
             nombre_centro_derivado IS NULL OR nombre_centro_derivado = ''
           )
           AND (
-            -- Condición 2: control atrasado según eg_actual (mismo criterio que controles_pendientes)
             fecha_ultimo_control IS NULL
             OR
             CASE
@@ -142,11 +135,9 @@ export async function GET(request: Request) {
             END
           )
           AND (
-            -- Condición 3: sin contacto logrado dentro del umbral según eg_actual
             NOT EXISTS (
               SELECT 1 FROM seguimientos s
               WHERE s.paciente_id = pacientes_gold.id
-                AND embarazo_en_curso = true
                 AND s.contacto_logrado = true
                 AND s.fecha_contacto >= CURRENT_DATE - (
                   CASE
@@ -159,26 +150,26 @@ export async function GET(request: Request) {
             )
           )
           THEN 1 ELSE 0 END) as sin_contacto_reciente
-        
+       
       FROM pacientes_gold
-      WHERE fecha_probable_parto >= ${fechaUmbral} 
+      WHERE fecha_probable_parto >= ${fechaUmbral}
         AND embarazo_en_curso = true
         AND fecha_nacimiento IS NOT NULL
         ${securityClause}
-        ${centroFilterClause} -- 👈 SE APLICA EL FILTRO UNIFICADO SISA AQUÍ
+        ${centroFilterClause}
     `;
     const kpiRes = await query(kpiSql, statsParams);
     const kpis = kpiRes.rows[0];
 
     // 5. Top Establecimientos con más embarazadas
     const topGenSql = `
-      SELECT 
-        s.nombre as name, 
+      SELECT
+        s.nombre as name,
         s.departamento,
         COUNT(p.id) as value
       FROM pacientes_gold p
       INNER JOIN efectores_sisa s ON s.codigo_sisa = (
-        CASE 
+        CASE
           WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != ''
             THEN p.sisa_centro_derivado
           ELSE p.sisa_centro_salud
@@ -197,13 +188,13 @@ export async function GET(request: Request) {
 
     // 6. Top Establecimientos con Riesgo y > 30 días sin control
     const topRsgSql = `
-      SELECT 
-        s.nombre as name, 
+      SELECT
+        s.nombre as name,
         s.departamento,
         COUNT(p.id) as value
       FROM pacientes_gold p
       INNER JOIN efectores_sisa s ON s.codigo_sisa = (
-        CASE 
+        CASE
           WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != ''
             THEN p.sisa_centro_derivado
           ELSE p.sisa_centro_salud
@@ -212,7 +203,7 @@ export async function GET(request: Request) {
       WHERE p.fecha_probable_parto >= ${fechaUmbral}
         AND p.embarazo_en_curso = true
         AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
-        AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') 
+        AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado')
         AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
         ${securityClause}
         ${derivacionClause}
@@ -222,14 +213,21 @@ export async function GET(request: Request) {
     `;
     const topRsgRes = await query(topRsgSql);
 
-    // 7. Query de CAPS unificada (Reflejando números SIN pacientes derivadas)
+    // 7. Query de CAPS unificada (Con columnas de base de datos validadas: id_seguimiento, tipo_contacto)
     const capsResumenSql = `
-      SELECT 
+      SELECT
         s.nombre as caps_name,
         COUNT(DISTINCT p.id) as total_embarazadas,
-        
+       
+        -- % de Riesgo
         ROUND(
-          (COUNT(DISTINCT CASE WHEN 
+          (COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0),
+          1
+        ) as pct_riesgo,
+
+        -- % de Control (Embarazadas con fecha_ultimo_control al día)
+        ROUND(
+          (COUNT(DISTINCT CASE WHEN
             p.fecha_ultimo_control IS NOT NULL AND (
               CASE
                 WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7
@@ -237,53 +235,53 @@ export async function GET(request: Request) {
                 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30
               END
             )
-          THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 
+          THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0),
           1
         ) as pct_control,
-        
+       
+        -- % de Vínculo Activo (Seguimiento proactivo + Demanda espontánea)
         ROUND(
-          (COUNT(DISTINCT seg_any.paciente_id) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 
+          (COUNT(DISTINCT CASE WHEN
+            seg_any.paciente_id IS NOT NULL
+            OR (
+              p.fecha_ultimo_control IS NOT NULL AND (
+                CASE
+                  WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7
+                  WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15
+                  ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30
+                END
+              )
+            )
+          THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0),
           1
-        ) as pct_contacto,
-        
-        COUNT(DISTINCT CASE WHEN seg_logrado.id IS NOT NULL THEN p.id END) as contactadas_caps,
-        
-        COUNT(DISTINCT CASE WHEN 
-          p.fecha_ultimo_control IS NOT NULL AND (
-            CASE
-              WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7
-              WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15
-              ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30
-            END
-          )
-          AND seg_any.paciente_id IS NULL 
-        THEN p.id END) as acudieron_solas
-        
+        ) as pct_vinculo,
+
+        -- % Turnos Asignados x Tablero (Filtramos usando 'tipo_contacto' verificado en tus imágenes)
+        ROUND(
+          (COUNT(DISTINCT CASE WHEN LOWER(seg_any.medio_contacto) LIKE '%turno%' OR LOWER(seg_any.observaciones) LIKE '%turno%' OR LOWER(seg_any.observaciones) LIKE '%agend%' THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0),
+          1
+        ) as pct_turnos_tablero
+       
       FROM public.pacientes_gold p
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
       LEFT JOIN public.seguimientos seg_any ON seg_any.paciente_id = p.id
-      LEFT JOIN public.seguimientos seg_logrado ON seg_logrado.paciente_id = p.id AND seg_logrado.contacto_logrado = true
-      
-      WHERE p.embarazo_en_curso = true 
+     
+      WHERE p.embarazo_en_curso = true
         AND p.fecha_probable_parto >= CURRENT_DATE
         AND p.fecha_nacimiento IS NOT NULL
-        
-        -- 👈 NUEVO FILTRO CRUCIAL: Excluimos del padrón del CAPS a aquellas pacientes con derivación activa
         AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '')
-        
         AND (
-          LOWER(s.nombre) LIKE '%caps%' 
+          LOWER(s.nombre) LIKE '%caps%'
           OR LOWER(s.nombre) LIKE '%c.a.p.s.%'
         )
         ${securityClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
-        
+       
       GROUP BY s.nombre
       ORDER BY total_embarazadas DESC;
     `;
     const capsResumenRes = await query(capsResumenSql);
 
-    // 🌟 2. Mapeamos los arrays AFUERA del return para evitar que rompa el parser de Turbopack
     const generalData = {
       total: parseInt(kpis.total) || 0,
       sub15: parseInt(kpis.gen_15) || 0,
@@ -331,13 +329,12 @@ export async function GET(request: Request) {
     const resumenCapsMapped = capsResumenRes.rows.map(r => ({
       capsName: (r.caps_name || '').trim(),
       total: parseInt(r.total_embarazadas) || 0,
+      pctRiesgo: parseFloat(r.pct_riesgo) || 0,
       pctControl: parseFloat(r.pct_control) || 0,
-      pctContacto: parseFloat(r.pct_contacto) || 0,
-      contactadasCaps: parseInt(r.contactadas_caps) || 0,
-      acudieronSolas: parseInt(r.acudieron_solas) || 0
+      pctVinculo: parseFloat(r.pct_vinculo) || 0,
+      pctTurnosTablero: parseFloat(r.pct_turnos_tablero) || 0
     }));
 
-    // 🌟 3. Devolvemos la respuesta con objetos ya limpios y parseados
     return NextResponse.json({
       general: generalData,
       riesgo: riesgoData,

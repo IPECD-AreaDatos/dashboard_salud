@@ -320,11 +320,11 @@
 }
 
 .badgeControlAlert {
-  background-color: #fef9c3;
-  color: #854d0e;
-  padding: 2px 8px;
+  background-color: #c3fec3c4;
+  color: #3fad24ea;
+  padding: 4px 14px;
   border-radius: 12px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
