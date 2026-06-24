@@ -233,36 +233,37 @@ export default function StatsPage() {
 
         {/* KPIs COMPACTOS SÓLO SI ES ADMIN O COORDINADOR */}
         {isAdminOrCoord ? (
-          <div className={styles.kpiGridAdmin}>
-            <div className={styles.kpiCardAdminMain}>
+          <>
+            <div className={styles.kpiGridAdmin}>
+            <div className={styles.kpiCardCompact}>
               <span className={styles.kpiLabel}>Total Padrón Provincial</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
-                <span className={styles.kpiValue} style={{ color: '#0f172a', margin: 0 }}>
+                <span className={styles.kpiSubValue} style={{ color: '#0f172a', margin: 0 }}>
                   {(data?.general?.total || 0).toLocaleString('es-AR')}
                 </span>
-                <span style={{ fontSize: '1.1rem', color: '#94a3b8', fontWeight: 700 }}>(100%)</span>
+                <span style={{ fontSize: '0.95rem', color: '#94a3b8', fontWeight: 700 }}>(100%)</span>
               </div>
               <small className={styles.kpiSubtext}>Embarazadas activas</small>
             </div>
-
-            <div className={styles.kpiCardAdminRiesgo}>
+            
+            <div className={styles.kpiCardCompact}>
               <span className={styles.kpiLabel} style={{ color: '#991b1b' }}>Total en Alto Riesgo</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
-                <span className={styles.kpiValue} style={{ color: '#dc2626', margin: 0 }}>
+                <span className={styles.kpiSubValue} style={{ color: '#dc2626', margin: 0 }}>
                   {(data?.riesgo?.total || 0).toLocaleString('es-AR')}
                 </span>
-                <span style={{ fontSize: '1.1rem', color: '#f87171', fontWeight: 700 }}>({getPct(data?.riesgo?.total || 0)})</span>
+                <span style={{ fontSize: '0.95rem', color: '#f87171', fontWeight: 700 }}>({getPct(data?.riesgo?.total || 0)})</span>
               </div>
               <small className={styles.kpiSubtext} style={{ color: '#991b1b' }}>Seguimiento prioritario</small>
             </div>
 
-            <div className={styles.kpiCardCompact}>
+            <div className={`${styles.kpiCardCompact} ${styles.kpiCardVerde}`}>
               <span className={styles.kpiLabel}>Total Controladas</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
-                <span className={styles.kpiSubValue} style={{ color: '#19793cdc', margin: 0 }}>
+                <span className={`${styles.kpiSubValue} ${styles.valGreen}`}>
                   {(data?.gestion?.controladas || 0).toLocaleString('es-AR')}
                 </span>
-                <span style={{ fontSize: '0.95rem', color: '#14921f8f', fontWeight: 700 }}>({getPct(data?.gestion?.controladas || 0)})</span>
+                <span style={{ fontSize: '0.95rem', color: '#16a34a', fontWeight: 700 }}>({getPct(data?.gestion?.controladas || 0)})</span>
               </div>
               <small className={styles.kpiSubtext}>Controles del último mes</small>
             </div>
@@ -288,7 +289,27 @@ export default function StatsPage() {
               </div>
               <small className={styles.kpiSubtext}>Referidas a mayor nivel</small>
             </div>
-          </div>
+            </div>
+
+            {/* 🌟 NUEVA FILA DE DESGLOSE POR ZONA (MÁS COMPACTA) */}
+            <div className={styles.kpiDesgloseGrid}>
+              {/* --- PADRÓN --- */}
+              <KpiDesgloseCard label="Padrón Capital" pct={getPct(data?.general?.desgloseZona?.capital || 0)} value={data?.general?.desgloseZona?.capital || 0} valueColor="#0f172a" pctColor="#94a3b8" />
+              <KpiDesgloseCard label="Padrón Interior" pct={getPct(data?.general?.desgloseZona?.interior || 0)} value={data?.general?.desgloseZona?.interior || 0} valueColor="#0f172a" pctColor="#94a3b8" />
+              {/* --- RIESGO --- */}
+              <KpiDesgloseCard label="Riesgo Capital" pct={getPct(data?.riesgo?.desgloseZona?.capital || 0)} value={data?.riesgo?.desgloseZona?.capital || 0} valueColor="#dc2626" pctColor="#f87171" labelColor="#991b1b" />
+              <KpiDesgloseCard label="Riesgo Interior" pct={getPct(data?.riesgo?.desgloseZona?.interior || 0)} value={data?.riesgo?.desgloseZona?.interior || 0} valueColor="#dc2626" pctColor="#f87171" labelColor="#991b1b" />
+              {/* --- CONTROLADAS --- */}
+              <KpiDesgloseCard label="Controladas Capital" pct={getPct(data?.gestion?.desgloseZona?.controladas?.capital || 0)} value={data?.gestion?.desgloseZona?.controladas?.capital || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" />
+              <KpiDesgloseCard label="Controladas Interior" pct={getPct(data?.gestion?.desgloseZona?.controladas?.interior || 0)} value={data?.gestion?.desgloseZona?.controladas?.interior || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" />
+              {/* --- CONTACTADAS --- */}
+              <KpiDesgloseCard label="Contactadas Capital" pct={getPct(data?.gestion?.desgloseZona?.contactadas?.capital || 0)} value={data?.gestion?.desgloseZona?.contactadas?.capital || 0} valueColor="#1276b8e0" pctColor="#207ae9c7" />
+              <KpiDesgloseCard label="Contactadas Interior" pct={getPct(data?.gestion?.desgloseZona?.contactadas?.interior || 0)} value={data?.gestion?.desgloseZona?.contactadas?.interior || 0} valueColor="#1276b8e0" pctColor="#207ae9c7" />
+              {/* --- DERIVADAS --- */}
+              <KpiDesgloseCard label="Derivadas Capital" pct={getPct(data?.gestion?.desgloseZona?.derivadas?.capital || 0)} value={data?.gestion?.desgloseZona?.derivadas?.capital || 0} valueColor="#d67a10" pctColor="#f1a23a" />
+              <KpiDesgloseCard label="Derivadas Interior" pct={getPct(data?.gestion?.desgloseZona?.derivadas?.interior || 0)} value={data?.gestion?.desgloseZona?.derivadas?.interior || 0} valueColor="#d67a10" pctColor="#f1a23a" />
+            </div>
+          </>
         ) : (
           /* 🌟 INTERFAZ TRADICIONAL ORIGINAL TOTALMENTE BLINDADA CONTRA NULLS */
           <>
@@ -467,40 +488,38 @@ export default function StatsPage() {
                       <td style={{ fontWeight: 550, color: '#334155' }}>{romanToArabic(caps.capsName)}</td>
                       <td style={{ textAlign: 'center', fontWeight: 600 }}>{totalCaps}</td>
                       
-                      {/* % Riesgo (Texto simple rojo) */}
                       <td 
-                        style={{ textAlign: 'center', fontWeight: 550, color: '#b91c1c', cursor: 'help' }}
+                        style={{ textAlign: 'center', cursor: 'help' }}
                         title={`${absRiesgo} de ${totalCaps} pacientes activas presentan criterios de riesgo obstétrico bajo seguimiento.`}
                       >
-                        {caps.pctRiesgo}%
+                        <span className={styles.badgeRiesgo}>
+                          {caps.pctRiesgo}%
+                        </span>
                       </td>
 
-                      {/* % Controladas (Usa tus clases CSS condicionales) */}
                       <td 
                         style={{ textAlign: 'center', cursor: 'help' }}
                         title={`${absControladas} de ${totalCaps} pacientes se encuentran con controles médicos al día.`}
                       >
-                        <span className={caps.pctControl > 75 ? styles.badgeControlOk : styles.badgeControlAlert}>
+                        <span className={caps.pctControl > 75 ? styles.badgeVerde : styles.badgeRojo}>
                           {caps.pctControl}%
                         </span>
                       </td>
                       
-                      {/* 🌟 % Vínculo Activo CORREGIDO: Celda limpia + span para el badge amarillo */}
                       <td 
                         style={{ textAlign: 'center', cursor: 'help' }}
                         title={`${absVinculadas} de ${totalCaps} pacientes mantienen un vínculo activo (seguimiento proactivo o asistencia espontánea).`}
                       >
-                        <span style={{ backgroundColor: '#fef9c3', color: '#a16207', padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'inline-block' }}>
+                        <span className={styles.badgeAmarillo}>
                           {caps.pctVinculo}%
                         </span>
                       </td>
 
-                      {/* 🌟 % Turnos Asignados CORREGIDO: Celda limpia + span para el badge celeste */}
                       <td 
                         style={{ textAlign: 'center', cursor: 'help' }}
                         title={`${absTurnos} de ${totalCaps} pacientes obtuvieron un turno médico efectivo coordinado a través de este tablero.`}
                       >
-                        <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'inline-block' }}>
+                        <span className={styles.badgeCeleste}>
                           {caps.pctTurnosTablero}%
                         </span>
                       </td>
@@ -573,3 +592,20 @@ export default function StatsPage() {
     </>
   );
 }
+
+// 🌟 NUEVO: Componente para las tarjetas de desglose
+const KpiDesgloseCard = ({ label, pct, value, className, valueColor, pctColor, labelColor }: any) => (
+  <div className={`${styles.kpiCardCompact} ${styles.kpiDesgloseCard} ${className || ''}`}>
+    <span className={styles.kpiDesgloseLabel} style={{ color: labelColor }}>
+      {label}
+    </span>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginTop: '0.25rem' }}>
+      <span className={styles.kpiDesgloseValue} style={{ color: valueColor }}>
+        {pct}
+      </span>
+      <span style={{ fontSize: '0.75rem', color: pctColor, fontWeight: 600 }}>
+        ({(value || 0).toLocaleString('es-AR')})
+      </span>
+    </div>
+  </div>
+);
