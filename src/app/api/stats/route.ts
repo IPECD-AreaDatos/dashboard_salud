@@ -66,17 +66,32 @@ export async function GET(request: Request) {
       derivacionClause = ` AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')`;
     }
 
-    // 4. Métricas Generales y de Riesgo por Edades (🌟 OPTIMIZADA CON SUBQUERIES PARA EVITAR DUPLICACIONES)
+    // 4. Métricas Generales y de Riesgo por Edades (Con lógica de contingencia para efectores del limbo)
     const kpiSql = `
       SELECT
         COUNT(DISTINCT p.id) as total,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
 
-        -- Desglose de Padrón y Riesgo por Zona (Buscando el depto directo en una subquery limpia para blindar los totales)
-        SUM(CASE WHEN (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) = 'CAPITAL' THEN 1 ELSE 0 END) as total_capital,
-        SUM(CASE WHEN (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_interior,
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) = 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_capital,
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_interior,
+        -- 🌟 REFACTORIZADO CON FALLBACK: Si el centro no se encuentra en efectores_sisa, clasifica según el departamento_domicilio de la paciente
+        SUM(CASE WHEN COALESCE(
+          (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1),
+          UPPER(TRIM(p.departamento_domicilio))
+        ) = 'CAPITAL' THEN 1 ELSE 0 END) as total_capital,
+        
+        SUM(CASE WHEN COALESCE(
+          (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1),
+          UPPER(TRIM(p.departamento_domicilio))
+        ) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_interior,
+        
+        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE(
+          (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1),
+          UPPER(TRIM(p.departamento_domicilio))
+        ) = 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_capital,
+        
+        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE(
+          (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1),
+          UPPER(TRIM(p.departamento_domicilio))
+        ) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_interior,
 
         SUM(CASE WHEN p.edad_actual < 15 THEN 1 ELSE 0 END) as gen_15,
         SUM(CASE WHEN p.edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as gen_15_19,
@@ -95,19 +110,19 @@ export async function GET(request: Request) {
        
         SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN 1 ELSE 0 END) as total_controladas,
 
-        -- Desglose de Controladas por Zona
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) = 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_capital,
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_interior,
+        -- Desglose de Controladas por Zona con Fallback
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_capital,
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_interior,
        
         SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - 30) THEN 1 ELSE 0 END) as total_contactadas,
 
-        -- Desglose de Contactadas por Zona
-        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) = 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_capital,
-        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_interior,
+        -- Desglose de Contactadas por Zona con Fallback
+        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_capital,
+        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_interior,
 
-        -- Desglose de Derivadas por Zona
-        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) = 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_capital,
-        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND (SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1) <> 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_interior,
+        -- Desglose de Derivadas por Zona con Fallback
+        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_capital,
+        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_interior,
 
         SUM(CASE WHEN p.fecha_ultimo_control = CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_hoy,
         SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_semana,
