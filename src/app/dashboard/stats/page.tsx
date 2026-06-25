@@ -11,7 +11,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  Label
 } from "recharts";
 import { Loader2, Download } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -598,7 +599,7 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* 🌟 GRÁFICO GLOBAL RECHARTS CORREGIDO Y SEGURO */}
+            {/* 🌟 GRÁFICO GLOBAL RECHARTS CON EJES ETIQUETADOS */}
             <div className={styles.chartCard} style={{ width: '100%', marginBottom: '1.5rem' }}>
               <h3 className={styles.chartTitle}>
                 Distribución del Padrón Clínico y Cobertura de Controles por Semanas de Embarazo (EG)
@@ -606,12 +607,24 @@ export default function StatsPage() {
               <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' }}>
                 Monitoreo de captación temprana y continuidad del control prenatal según segmentación de edad gestacional.
               </p>
-              <div className={styles.chartWrapper} style={{ height: '380px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data?.distribucionEG || []} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <div className={styles.chartWrapper} style={{ height: '400px' }}> {/* Subimos a 400px para dar espacio al label inferior */}
+                <ResponsiveContainer width="100%" height="100%" minHeight={350}>
+                  <BarChart data={data?.distribucionEG || []} margin={{ top: 20, right: 30, left: 30, bottom: 30 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="rango" tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} />
-                    <YAxis tick={{ fill: '#475569' }} />
+                    
+                    {/* Eje X con etiqueta de semanas */}
+                    <XAxis 
+                      dataKey="rango" 
+                      tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                    >
+                      <Label value="Semanas de Edad Gestacional (EG)" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
+                    </XAxis>
+                    
+                    {/* Eje Y con etiqueta de cantidad de embarazadas */}
+                    <YAxis tick={{ fill: '#475569' }}>
+                      <Label value="Cantidad de Embarazadas" angle={-90} position="insideLeft" offset={-10} fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
+                    </YAxis>
+                    
                     <Tooltip cursor={{ fill: '#f1f5f9' }} />
                     <Bar dataKey="Embarazos Activos" fill="#608bc4" radius={[4, 4, 0, 0]} barSize={24} />
                     <Bar dataKey="Controladas (Al día)" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={24} />
