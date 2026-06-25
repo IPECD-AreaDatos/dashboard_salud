@@ -4,6 +4,12 @@ import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers"; // <--- IMPORTANTE
 
+export const metadata: Metadata = {
+  title: "SegEm - IMI",
+  description: "Seguimiento de Embarazadas de Alto Riesgo - IMI",
+};
+
+
 
 // Configuramos Barlow Regular y Semibold
 const barlow = Barlow({ 
