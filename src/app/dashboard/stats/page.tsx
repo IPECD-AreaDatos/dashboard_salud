@@ -45,6 +45,7 @@ export default function StatsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [zonaChart, setZonaChart] = useState<'Todos' | 'Capital' | 'Interior'>('Todos');
+  const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null);
 
   const [sortConfigCaps, setSortConfigCaps] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
 
@@ -72,24 +73,28 @@ export default function StatsPage() {
     return sortableItems;
   }, [data, sortConfigCaps]);
 
+  // 🌟 EFFECT CORREGIDO: Escucha 'zonaChart' y ejecuta el log de analíticas de forma segura
   useEffect(() => {
-    apiFetch("/stats")
+    setLoading(true);
+    apiFetch(`/stats?establecimiento=${zonaChart}`)
       .then(res => res.json())
       .then(resData => {
         setData(resData);
+        setUltimaActualizacion(resData.ultimaActualizacion || null);
         setLoading(false);
       })
       .catch(err => {
-        console.error(err);
+        console.error("Error al cargar estadísticas:", err);
         setLoading(false);
       });
       
-      registrarLog({ 
-        modulo: "Estadísticas", 
-        accion: "VISUALIZAR_ESTADISTICAS",
-        detalles: "El usuario ingresó a revisar el panel de control de gestión y reportes estadísticos."
-      });
-  }, []);
+    registrarLog({ 
+      modulo: "Estadísticas", 
+      accion: "VISUALIZAR_ESTADISTICAS",
+      detalles: `El usuario revisó el panel estadístico filtrando por la zona: ${zonaChart}.`
+    }).catch(err => console.error("Error al registrar log:", err));
+
+  }, [zonaChart]);
 
   const totalPadron = data?.general?.total || 0;
   const getPct = (value: number) => {
@@ -201,6 +206,17 @@ export default function StatsPage() {
 
   const { textoHoy, textoSemana, textoMes } = obtenerEtiquetasActividad();
 
+  if (loading || !data) {
+    return (
+      <>
+        <Navbar />
+        <div className={styles.container} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+          <Loader2 className="animate-spin text-slate-400" size={48} />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <Navbar />
@@ -212,8 +228,14 @@ export default function StatsPage() {
             <h1>Estadísticas e Indicadores Provinciales</h1>
             <p>Panel de control clínico y auditoría de gestión de efectores.</p>
           </div>
-          {isAdminOrCoord && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {/* 🌟 SECCIÓN DE LA DERECHA ACOMODADA PROLIJAMENTE */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
+            {ultimaActualizacion && (
+              <span style={{ fontSize: '0.805rem', color: '#64748b', fontWeight: 500, backgroundColor: '#f1f5f9', padding: '3px 10px', borderRadius: '6px' }}>
+                Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
+              </span>
+            )}
+            {isAdminOrCoord && (
               <button 
                 onClick={exportarAExcel}
                 style={{ 
@@ -227,8 +249,8 @@ export default function StatsPage() {
               >
                 <Download size={16} /> Descargar Reporte
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* KPIs COMPACTOS SÓLO SI ES ADMIN O COORDINADOR */}
@@ -265,18 +287,23 @@ export default function StatsPage() {
                 </span>
                 <span style={{ fontSize: '0.95rem', color: '#16a34a', fontWeight: 700 }}>({getPct(data?.gestion?.controladas || 0)})</span>
               </div>
-              <small className={styles.kpiSubtext}>Controles del último mes</small>
+              {/* 🌟 Etiqueta refinada con el período clínico */}
+              <small className={styles.kpiSubtext}>Controles vigentes en el mes</small>
             </div>
 
+            {/* Tarjeta de Total Contactadas mutada a Vínculo Activo */}
             <div className={styles.kpiCardCompact}>
-              <span className={styles.kpiLabel}>Total Contactadas</span>
+              <span className={styles.kpiLabel}>Total Vínculo Activo</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
                 <span className={styles.kpiSubValue} style={{ color: '#1276b8e0', margin: 0 }}>
-                  {(data?.gestion?.contactadas || 0).toLocaleString('es-AR')}
+                  {((data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0)).toLocaleString('es-AR')}
                 </span>
-                <span style={{ fontSize: '0.95rem', color: '#207ae9c7', fontWeight: 700 }}>({getPct(data?.gestion?.contactadas || 0)})</span>
+                {/* 🌟 Muestra el porcentaje consolidado de vínculo activo real sobre el padrón */}
+                <span style={{ fontSize: '0.95rem', color: '#207ae9c7', fontWeight: 700 }}>
+                  ({getPct((data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0))})
+                </span>
               </div>
-              <small className={styles.kpiSubtext}>Gestión del último mes</small>
+              <small className={styles.kpiSubtext}>Gestión y demanda del último mes</small>
             </div>
 
             <div className={styles.kpiCardCompact}>
@@ -302,9 +329,21 @@ export default function StatsPage() {
               {/* --- CONTROLADAS --- */}
               <KpiDesgloseCard label="Controladas Capital" pct={getPct(data?.gestion?.desgloseZona?.controladas?.capital || 0)} value={data?.gestion?.desgloseZona?.controladas?.capital || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" />
               <KpiDesgloseCard label="Controladas Interior" pct={getPct(data?.gestion?.desgloseZona?.controladas?.interior || 0)} value={data?.gestion?.desgloseZona?.controladas?.interior || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" />
-              {/* --- CONTACTADAS --- */}
-              <KpiDesgloseCard label="Contactadas Capital" pct={getPct(data?.gestion?.desgloseZona?.contactadas?.capital || 0)} value={data?.gestion?.desgloseZona?.contactadas?.capital || 0} valueColor="#1276b8e0" pctColor="#207ae9c7" />
-              <KpiDesgloseCard label="Contactadas Interior" pct={getPct(data?.gestion?.desgloseZona?.contactadas?.interior || 0)} value={data?.gestion?.desgloseZona?.contactadas?.interior || 0} valueColor="#1276b8e0" pctColor="#207ae9c7" />
+              {/* --- NUEVO DESGLOSE: SEGUIMIENTO PROACTIVO VS ASISTENCIA ESPONTÁNEA --- */}
+              <KpiDesgloseCard 
+                label="Seguimiento Proactivo" 
+                pct={getPct(data?.gestion?.contactadas || 0)} 
+                value={data?.gestion?.contactadas || 0} 
+                valueColor="#1276b8e0" 
+                pctColor="#207ae9c7" 
+              />
+              <KpiDesgloseCard 
+                label="Asistencia Espontánea" 
+                pct={getPct(data?.gestion?.acudieronSolas || 0)} 
+                value={data?.gestion?.acudieronSolas || 0} 
+                valueColor="#1276b8e0" 
+                pctColor="#207ae9c7" 
+              />
               {/* --- DERIVADAS --- */}
               <KpiDesgloseCard label="Derivadas Capital" pct={getPct(data?.gestion?.desgloseZona?.derivadas?.capital || 0)} value={data?.gestion?.desgloseZona?.derivadas?.capital || 0} valueColor="#d67a10" pctColor="#f1a23a" />
               <KpiDesgloseCard label="Derivadas Interior" pct={getPct(data?.gestion?.desgloseZona?.derivadas?.interior || 0)} value={data?.gestion?.desgloseZona?.derivadas?.interior || 0} valueColor="#d67a10" pctColor="#f1a23a" />
@@ -447,7 +486,14 @@ export default function StatsPage() {
                         </span>
                       </div>
                     </th>
-                    <th onClick={() => handleSortCaps('pctControl')} className={styles.sortableHeader} title="Se actualiza todos los días (Pacientes al día)">
+                    <th 
+                      onClick={() => handleSortCaps('pctControl')} 
+                      className={styles.sortableHeader} 
+                      title={`Se actualiza todos los días (Pacientes con controles al día)
+                    • < 32 semanas: control en los últimos 30 días.
+                    • 32 a 37 semanas: control en los últimos 15 días.
+                    • ≥ 38 semanas: control en los últimos 7 días.`}
+                    >
                       <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
                         <span>% Controladas</span>
                         <span className={styles.sortIcon}>
@@ -497,18 +543,20 @@ export default function StatsPage() {
                         </span>
                       </td>
 
+                      {/* % Controladas con Tooltip explicatorio de períodos */}
                       <td 
                         style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absControladas} de ${totalCaps} pacientes se encuentran con controles médicos al día.`}
+                        title={`${absControladas} de ${totalCaps} pacientes se encuentran con controles al día:\n• < 32 semanas: control en los últimos 30 días.\n• 32 a 37 semanas: control en los últimos 15 días.\n• ≥ 38 semanas: control en los últimos 7 días.`}
                       >
                         <span className={caps.pctControl > 75 ? styles.badgeVerde : styles.badgeRojo}>
                           {caps.pctControl}%
                         </span>
                       </td>
                       
+                      {/* % Vínculo Activo con Tooltip Desglosado */}
                       <td 
                         style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absVinculadas} de ${totalCaps} pacientes mantienen un vínculo activo (seguimiento proactivo o asistencia espontánea).`}
+                        title={`${absVinculadas} de ${totalCaps} pacientes mantienen un vínculo activo:\n• ${caps.contactadasCaps || 0} por seguimiento proactivo (llamadas efectivas).\n• ${caps.acudieronSolas || 0} por asistencia espontánea (demanda propia).`}
                       >
                         <span className={styles.badgeAmarillo}>
                           {caps.pctVinculo}%
@@ -539,7 +587,7 @@ export default function StatsPage() {
           </div>
         )}
 
-        {/* Gráficos de barras abajo de todo */}
+        {/* GRÁFICOS DE BARRAS ABAJO DE TODO */}
         {!isCAPS && (
           <div className={styles.chartsSection}>
             {!isMaternidad && (
@@ -549,7 +597,30 @@ export default function StatsPage() {
                 <button style={getBtnStyle('Interior')} onClick={() => setZonaChart('Interior')}>Solo Interior</button>
               </div>
             )}
+
+            {/* 🌟 GRÁFICO GLOBAL RECHARTS CORREGIDO Y SEGURO */}
+            <div className={styles.chartCard} style={{ width: '100%', marginBottom: '1.5rem' }}>
+              <h3 className={styles.chartTitle}>
+                Distribución del Padrón Clínico y Cobertura de Controles por Semanas de Embarazo (EG)
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' }}>
+                Monitoreo de captación temprana y continuidad del control prenatal según segmentación de edad gestacional.
+              </p>
+              <div className={styles.chartWrapper} style={{ height: '380px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data?.distribucionEG || []} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="rango" tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} />
+                    <YAxis tick={{ fill: '#475569' }} />
+                    <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                    <Bar dataKey="Embarazos Activos" fill="#608bc4" radius={[4, 4, 0, 0]} barSize={24} />
+                    <Bar dataKey="Controladas (Al día)" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={24} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
             
+            {/* TOPS HISTÓRICOS EN PARALELO */}
             <div className={styles.chartsGrid}>
               <div className={styles.chartCard}>
                 <h3 className={styles.chartTitle}>
@@ -585,6 +656,7 @@ export default function StatsPage() {
                 </div>
               </div>
             </div>
+
           </div>
         )}
 
@@ -593,7 +665,7 @@ export default function StatsPage() {
   );
 }
 
-// 🌟 NUEVO: Componente para las tarjetas de desglose
+// NUEVO: Componente para las tarjetas de desglose
 const KpiDesgloseCard = ({ label, pct, value, className, valueColor, pctColor, labelColor }: any) => (
   <div className={`${styles.kpiCardCompact} ${styles.kpiDesgloseCard} ${className || ''}`}>
     <span className={styles.kpiDesgloseLabel} style={{ color: labelColor }}>
