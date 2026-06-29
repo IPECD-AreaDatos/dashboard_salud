@@ -431,7 +431,7 @@ export default function StatsPage() {
             </div>
 
             <h2 className={styles.sectionTitle}>Cobertura de Controles Médicos</h2>
-            <div className={styles.kpiGridAdmin}>
+            <div className={styles.kpiGridCentered}>
               <div className={styles.kpiCardCompact} style={{ textAlign: 'center' }}>
                 <span className={styles.kpiLabel}>Último Día</span>
                 <small className={styles.kpiSubtext}>({textoHoy})</small>
@@ -588,10 +588,11 @@ export default function StatsPage() {
           </div>
         )}
 
-        {/* GRÁFICOS DE BARRAS ABAJO DE TODO */}
-        {!isCAPS && (
+        {/* 🌟 GRÁFICOS DE BARRAS AHORA VISIBLES PARA TODOS, CON LÓGICA CONDICIONAL */}
+        {(isAdminOrCoord || isMaternidad || isCAPS) && (
           <div className={styles.chartsSection}>
-            {!isMaternidad && (
+            {/* Los filtros de zona solo son para Admin/Coordinador */}
+            {isAdminOrCoord && (
               <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', justifyContent: 'center' }}>
                 <button style={getBtnStyle('Todos')} onClick={() => setZonaChart('Todos')}>Toda la Provincia</button>
                 <button style={getBtnStyle('Capital')} onClick={() => setZonaChart('Capital')}>Solo Capital</button>
@@ -599,76 +600,109 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* 🌟 GRÁFICO GLOBAL RECHARTS CON EJES ETIQUETADOS */}
-            <div className={styles.chartCard} style={{ width: '100%', marginBottom: '1.5rem' }}>
-              <h3 className={styles.chartTitle}>
-                Distribución del Padrón Clínico y Cobertura de Controles por Semanas de Embarazo (EG)
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' }}>
-                Monitoreo de captación temprana y continuidad del control prenatal según segmentación de edad gestacional.
-              </p>
-              <div className={styles.chartWrapper} style={{ height: '400px' }}> {/* Subimos a 400px para dar espacio al label inferior */}
-                <ResponsiveContainer width="100%" height="100%" minHeight={350}>
-                  <BarChart data={data?.distribucionEG || []} margin={{ top: 20, right: 30, left: 30, bottom: 30 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    
-                    {/* Eje X con etiqueta de semanas */}
-                    <XAxis 
-                      dataKey="rango" 
-                      tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
-                    >
-                      <Label value="Semanas de Edad Gestacional (EG)" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
-                    </XAxis>
-                    
-                    {/* Eje Y con etiqueta de cantidad de embarazadas */}
-                    <YAxis tick={{ fill: '#475569' }}>
-                      <Label value="Cantidad de Embarazadas" angle={-90} position="insideLeft" offset={-10} fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
-                    </YAxis>
-                    
-                    <Tooltip cursor={{ fill: '#f1f5f9' }} />
-                    <Bar dataKey="Embarazos Activos" fill="#608bc4" radius={[4, 4, 0, 0]} barSize={24} />
-                    <Bar dataKey="Controladas (Al día)" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={24} />
-                  </BarChart>
-                </ResponsiveContainer>
+            {/* 🌟 CONTENEDOR PARA EL GRÁFICO GLOBAL CON MÁRGENES */}
+            <div className={styles.fullWidthChartContainer}>
+              <div className={styles.chartCard} style={{ width: '100%', marginBottom: '1.5rem' }}>
+                <h3 className={styles.chartTitle}>
+                  Distribución del Padrón Clínico y Cobertura de Controles por Semanas de Embarazo (EG)
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' }}>
+                  Monitoreo de captación temprana y continuidad del control prenatal según segmentación de edad gestacional.
+                </p>
+                <div className={styles.chartWrapper} style={{ height: '400px' }}> {/* Subimos a 400px para dar espacio al label inferior */}
+                  <ResponsiveContainer width="100%" height="100%" minHeight={350}>
+                    <BarChart data={data?.distribucionEG || []} margin={{ top: 20, right: 30, left: 30, bottom: 30 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      
+                      {/* Eje X con etiqueta de semanas */}
+                      <XAxis 
+                        dataKey="rango" 
+                        tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                      >
+                        <Label value="Semanas de Edad Gestacional (EG)" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
+                      </XAxis>
+                      
+                      {/* Eje Y con etiqueta de cantidad de embarazadas */}
+                      <YAxis tick={{ fill: '#475569' }}>
+                        <Label value="Cantidad de Embarazadas" angle={-90} position="insideLeft" offset={-10} fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
+                      </YAxis>
+                      
+                      <Tooltip 
+                        cursor={{ fill: '#f1f5f9' }} 
+                        labelFormatter={(label) => `${label} semanas`}
+                      />
+                      <Bar dataKey="Embarazos Activos" fill="#608bc4" radius={[4, 4, 0, 0]} barSize={24} />
+                      <Bar dataKey="Controladas (Al día)" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={24} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
             
-            {/* TOPS HISTÓRICOS EN PARALELO */}
-            <div className={styles.chartsGrid}>
-              <div className={styles.chartCard}>
-                <h3 className={styles.chartTitle}>
-                  {isMaternidad ? "Top 15 — Centros de Salud que derivaron pacientes" : "Top 15 — Establecimientos con más embarazadas"}
-                </h3>
-                <div className={styles.chartWrapper}>
-                  <ResponsiveContainer width="100%" height="100%" minHeight={350}>
-                    <BarChart data={topGeneral} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" />
-                      <YAxis dataKey="name" type="category" width={240} tick={{ fill: '#475569', fontSize: 11 }} />
-                      <Tooltip cursor={{ fill: '#f1f5f9' }} formatter={(value: number) => [value, "Cantidad"]} />
-                      <Bar dataKey="value" fill="#608bc4" radius={[0, 7, 7, 0]} barSize={16} />
-                    </BarChart>
-                  </ResponsiveContainer>
+            {/* Los gráficos de TOPs solo se muestran para Admin, Coord y Maternidad */}
+            {(isAdminOrCoord || isMaternidad) && (
+              <div className={styles.chartsGrid}>
+                <div className={styles.chartCard}>
+                  <h3 className={styles.chartTitle}>
+                    {isMaternidad ? "Top 15 — Centros de Salud que derivaron pacientes" : "Top 15 — Establecimientos con más embarazadas"}
+                  </h3>
+                  <div className={styles.chartWrapper}>
+                    <ResponsiveContainer width="100%" height="100%" minHeight={350}>
+                      {/* 🌟 AJUSTE: Aumentamos margen izquierdo y inferior para dar espacio a las etiquetas */}
+                      <BarChart data={topGeneral} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                        {/* 🌟 AJUSTE: Añadimos la etiqueta al eje X */}
+                        <XAxis type="number">
+                          <Label value="Cantidad de Embarazadas" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
+                        </XAxis>
+                        <YAxis 
+                          dataKey="name" 
+                          type="category" 
+                          width={220} // Un poco menos de ancho para compensar el margen
+                          tick={{ fill: '#475569', fontSize: 11 }} 
+                          tickFormatter={(value) => value.length > 35 ? `${value.substring(0, 35)}...` : value} // Trunca texto largo
+                        />
+                        <Tooltip 
+                          cursor={{ fill: '#f1f5f9' }} 
+                          formatter={(value: number) => [value, "Cantidad"]} 
+                        />
+                        <Bar dataKey="value" fill="#608bc4" radius={[0, 7, 7, 0]} barSize={16} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
 
-              <div className={styles.chartCard}>
-                <h3 className={styles.chartTitle}>
-                  {isMaternidad ? "Top 15 — Riesgo y sin control (>30 días) por centro de origen" : "Top 15 — Embarazadas de riesgo con control atrasado (>30 días)"}
-                </h3>
-                <div className={styles.chartWrapper}>
-                  <ResponsiveContainer width="100%" height="100%" minHeight={350}>
-                    <BarChart data={topRiesgo} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" />
-                      <YAxis dataKey="name" type="category" width={240} tick={{ fill: '#475569', fontSize: 11 }} />
-                      <Tooltip cursor={{ fill: '#f1f5f9' }} formatter={(value: number) => [value, "Cantidad"]} />
-                      <Bar dataKey="value" fill="#ef4444" radius={[0, 7, 7, 0]} barSize={16} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className={styles.chartCard}>
+                  <h3 className={styles.chartTitle}>
+                    {isMaternidad ? "Top 15 — Riesgo y sin control (>30 días) por centro de origen" : "Top 15 — Embarazadas de riesgo con control atrasado (>30 días)"}
+                  </h3>
+                  <div className={styles.chartWrapper}>
+                    <ResponsiveContainer width="100%" height="100%" minHeight={350}>
+                      {/* 🌟 AJUSTE: Aumentamos margen izquierdo y inferior para dar espacio a las etiquetas */}
+                      <BarChart data={topRiesgo} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                        {/* 🌟 AJUSTE: Añadimos la etiqueta al eje X */}
+                        <XAxis type="number">
+                          <Label value="Cantidad de Embarazadas" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
+                        </XAxis>
+                        <YAxis 
+                          dataKey="name" 
+                          type="category" 
+                          width={220} // Un poco menos de ancho para compensar el margen
+                          tick={{ fill: '#475569', fontSize: 11 }} 
+                          tickFormatter={(value) => value.length > 35 ? `${value.substring(0, 35)}...` : value} // Trunca texto largo
+                        />
+                        <Tooltip 
+                          cursor={{ fill: '#f1f5f9' }} 
+                          formatter={(value: number) => [value, "Cantidad"]} 
+                        />
+                        <Bar dataKey="value" fill="#ef4444" radius={[0, 7, 7, 0]} barSize={16} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
           </div>
         )}
