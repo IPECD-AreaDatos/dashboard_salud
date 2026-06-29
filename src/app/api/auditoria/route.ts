@@ -65,9 +65,16 @@ export async function GET(request: Request) {
       }
     }
 
-    // 📊 3. QUERY UNIFICADA DE AUDITORÍA CON FILTRO AL ÚLTIMO TIMESTAMP EXACTO (Sin ::date)
+    // 📊 3. QUERY UNIFICADA DE AUDITORÍA OPTIMIZADA CON FILTRO GLOBAL AL ÚLTIMO DÍA DE EXTRACCIÓN
     const sql = `
-      WITH unificado AS (
+      WITH max_fecha AS (
+        SELECT GREATEST(
+          COALESCE((SELECT MAX(ingestion_at) FROM pacientes_sin_fpp_stage), '1970-01-01'::timestamp),
+          COALESCE((SELECT MAX(ingestion_at) FROM pacientes_sin_fnac_stage), '1970-01-01'::timestamp),
+          COALESCE((SELECT MAX(ingestion_at) FROM pacientes_sin_dni_stage), '1970-01-01'::timestamp)
+        ) as ultima_fecha
+      ),
+      unificado AS (
         SELECT 
           COALESCE(dni, data_json::json->>'dni') as dni,
           data_json::json->>'nombre' as nombre,
@@ -82,8 +89,7 @@ export async function GET(request: Request) {
           batch_id, 
           'Edad gestacional inválida (< 2 semanas) o ausente' as motivo_auditoria
         FROM pacientes_sin_fpp_stage
-        -- 👈 CORREGIDO: Buscamos el timestamp exacto e inequívoco del último lote
-        WHERE ingestion_at = (SELECT MAX(ingestion_at) FROM pacientes_sin_fpp_stage)
+        WHERE ingestion_at::date = (SELECT ultima_fecha::date FROM max_fecha)
         
         UNION ALL
         
@@ -101,8 +107,7 @@ export async function GET(request: Request) {
           batch_id, 
           'Edad calculada inconsistente (< 10 años) o ausente' as motivo_auditoria
         FROM pacientes_sin_fnac_stage
-        -- 👈 CORREGIDO: Buscamos el timestamp exacto
-        WHERE ingestion_at = (SELECT MAX(ingestion_at) FROM pacientes_sin_fnac_stage)
+        WHERE ingestion_at::date = (SELECT ultima_fecha::date FROM max_fecha)
         
         UNION ALL
         
@@ -120,8 +125,7 @@ export async function GET(request: Request) {
           batch_id, 
           'DNI inválido o no informado' as motivo_auditoria
         FROM pacientes_sin_dni_stage
-        -- 👈 CORREGIDO: Buscamos el timestamp exacto
-        WHERE ingestion_at = (SELECT MAX(ingestion_at) FROM pacientes_sin_dni_stage)
+        WHERE ingestion_at::date = (SELECT ultima_fecha::date FROM max_fecha)
           AND data_json::json->>'apellido' IS NOT NULL 
           AND data_json::json->>'apellido' != ''
       )
