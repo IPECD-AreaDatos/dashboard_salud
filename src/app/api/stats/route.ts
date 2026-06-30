@@ -74,62 +74,63 @@ export async function GET(request: Request) {
       derivacionClause = ` AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')`;
     }
 
-    // 4. Métricas Generales y de Riesgo por Edades
-    const kpiSql = `
+    // 4. Métricas para los GRÁFICOS (afectadas por el filtro de zona)
+    const chartsKpiSql = `
       SELECT
         COUNT(DISTINCT p.id) as total,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
-
-        SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_capital,
-        SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_interior,
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_capital,
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_interior,
-
         SUM(CASE WHEN p.edad_actual < 15 THEN 1 ELSE 0 END) as gen_15,
         SUM(CASE WHEN p.edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as gen_15_19,
         SUM(CASE WHEN p.edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as gen_20_34,
         SUM(CASE WHEN p.edad_actual > 34 THEN 1 ELSE 0 END) as gen_34_plus,
-       
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual < 15 THEN 1 ELSE 0 END) as rsg_15,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as rsg_15_19,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as rsg_20_34,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus,
-
         SUM(CASE WHEN (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (p.fecha_ultimo_control IS NULL OR CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) > 30 END) THEN 1 ELSE 0 END) as controles_pendientes,
         SUM(CASE WHEN p.fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
         SUM(CASE WHEN p.telefono IS NULL OR p.telefono = '' OR p.telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
-        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
-       
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN 1 ELSE 0 END) as total_controladas,
-
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_capital,
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_interior,
-       
-        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - 30) THEN 1 ELSE 0 END) as total_contactadas,
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id) THEN 1 ELSE 0 END) as total_acudieron_solas,
-
-        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_capital,
-        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_interior,
-
-        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_capital,
-        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_interior,
-
+        SUM(CASE WHEN (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (p.fecha_ultimo_control IS NULL OR CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) > 30 END) AND (NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - (CASE WHEN p.eg_actual >= 38 THEN INTERVAL '7 days' WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN INTERVAL '15 days' ELSE INTERVAL '30 days' END))) THEN 1 ELSE 0 END) as sin_contacto_reciente,
         SUM(CASE WHEN p.fecha_ultimo_control = CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_hoy,
         SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_semana,
-        SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_mes,
-
-        SUM(CASE WHEN (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (p.fecha_ultimo_control IS NULL OR CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) > 30 END) AND (NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - (CASE WHEN p.eg_actual >= 38 THEN INTERVAL '7 days' WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN INTERVAL '15 days' ELSE INTERVAL '30 days' END))) THEN 1 ELSE 0 END) as sin_contacto_reciente
-       
+        SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_mes
       FROM public.pacientes_gold p
-      WHERE p.fecha_probable_parto >= ${fechaUmbral} 
-        AND p.embarazo_en_curso = true
-        AND p.fecha_nacimiento IS NOT NULL
-        ${securityClause}
-        ${centroFilterClause}
-        ${zonaGlobalClause}
+      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.fecha_nacimiento IS NOT NULL
+        ${securityClause} ${centroFilterClause} ${zonaGlobalClause}
     `;
-    const kpiRes = await query(kpiSql, statsParams);
-    const kpis = kpiRes.rows[0];
+
+    // 4.1 Métricas para las TARJETAS (NO son afectadas por el filtro de zona)
+    const cardsKpiSql = `
+      SELECT
+        COUNT(DISTINCT p.id) as total,
+        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
+        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN 1 ELSE 0 END) as total_controladas,
+        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - 30) THEN 1 ELSE 0 END) as total_contactadas,
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id) THEN 1 ELSE 0 END) as total_acudieron_solas,
+        SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_capital,
+        SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_interior,
+        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_capital,
+        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_interior,
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_capital,
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_interior,
+        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_capital,
+        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_interior,
+        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_capital,
+        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_interior
+      FROM public.pacientes_gold p
+      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.fecha_nacimiento IS NOT NULL
+        ${securityClause} ${centroFilterClause}
+    `;
+
+    // Ejecutamos ambas consultas en paralelo
+    const [chartsKpiRes, cardsKpiRes] = await Promise.all([
+      query(chartsKpiSql, statsParams),
+      query(cardsKpiSql, statsParams)
+    ]);
+
+    const chartsKpis = chartsKpiRes.rows[0];
+    const cardsKpis = cardsKpiRes.rows[0];
 
     // 5. Top Establecimientos con más embarazadas
     const topGenSql = `
@@ -138,6 +139,7 @@ export async function GET(request: Request) {
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = (CASE WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != '' THEN p.sisa_centro_derivado ELSE p.sisa_centro_salud END)
       WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
         ${securityClause} ${derivacionClause}
+        ${zonaGlobalClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento ORDER BY value DESC
     `;
@@ -150,36 +152,44 @@ export async function GET(request: Request) {
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = (CASE WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != '' THEN p.sisa_centro_derivado ELSE p.sisa_centro_salud END)
       WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
         ${securityClause} ${derivacionClause}
+        ${zonaGlobalClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento ORDER BY value DESC
     `;
     const topRsgRes = await query(topRsgSql);
-
-    // 7. Query de CAPS unificada
+    
+    // 7. Query de CAPS unificada (Filtrado estricto por Departamento Capital)
     const capsResumenSql = `
       SELECT
         s.nombre as caps_name,
         COUNT(DISTINCT p.id) as total_embarazadas,
-       
+      
         ROUND((COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_riesgo,
         ROUND((COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_control,
-       
+      
         ROUND((COUNT(DISTINCT CASE WHEN seg_any.paciente_id IS NOT NULL OR (p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END)) THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_vinculo,
         ROUND((COUNT(DISTINCT CASE WHEN LOWER(seg_any.medio_contacto) LIKE '%turno%' OR LOWER(seg_any.observaciones) LIKE '%turno%' OR LOWER(seg_any.observaciones) LIKE '%agend%' THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_turnos_tablero,
 
         COUNT(DISTINCT CASE WHEN seg_any.paciente_id IS NOT NULL THEN p.id END) as contactadas_caps,
         COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND seg_any.paciente_id IS NULL THEN p.id END) as acudieron_solas
-       
+      
       FROM public.pacientes_gold p
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
       LEFT JOIN public.seguimientos seg_any ON seg_any.paciente_id = p.id
-      WHERE p.embarazo_en_curso = true AND p.fecha_probable_parto >= CURRENT_DATE AND p.fecha_nacimiento IS NOT NULL AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (LOWER(s.nombre) LIKE '%caps%' OR LOWER(s.nombre) LIKE '%c.a.p.s.%')
+      WHERE p.embarazo_en_curso = true 
+        AND p.fecha_probable_parto >= CURRENT_DATE 
+        AND p.fecha_nacimiento IS NOT NULL 
+        AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') 
+        AND (LOWER(s.nombre) LIKE '%caps%' OR LOWER(s.nombre) LIKE '%c.a.p.s.%')
+        AND LOWER(TRIM(s.departamento)) = 'capital' -- <-- Fuerza que solo entren CAPS de Capital
+        ${zonaGlobalClause}
         ${securityClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
-      GROUP BY s.nombre ORDER BY total_embarazadas DESC;
+      GROUP BY s.nombre 
+      ORDER BY total_embarazadas DESC;
     `;
-    const capsResumenRes = await query(capsResumenSql);
 
+    const capsResumenRes = await query(capsResumenSql);
     // 🌟 DISTRIBUCIÓN POR EDAD GESTACIONAL (Semanas EG) - VERSIÓN BLINDADA CONTRA EL ERROR 42803
     const edadGestacionalSql = `
       SELECT 
@@ -237,49 +247,49 @@ export async function GET(request: Request) {
     }));
 
     const generalData = {
-      total: parseInt(kpis.total) || 0,
-      sub15: parseInt(kpis.gen_15) || 0,
-      age15_19: parseInt(kpis.gen_15_19) || 0,
-      age20_34: parseInt(kpis.gen_20_34) || 0,
-      age34plus: parseInt(kpis.gen_34_plus) || 0,
+      total: parseInt(cardsKpis.total) || 0,
+      sub15: parseInt(chartsKpis.gen_15) || 0,
+      age15_19: parseInt(chartsKpis.gen_15_19) || 0,
+      age20_34: parseInt(chartsKpis.gen_20_34) || 0,
+      age34plus: parseInt(chartsKpis.gen_34_plus) || 0,
       desgloseZona: {
-        capital: parseInt(kpis.total_capital) || 0,
-        interior: parseInt(kpis.total_interior) || 0,
+        capital: parseInt(cardsKpis.total_capital) || 0,
+        interior: parseInt(cardsKpis.total_interior) || 0,
       }
     };
 
     const riesgoData = {
-      total: parseInt(kpis.total_riesgo) || 0,
-      sub15: parseInt(kpis.rsg_15) || 0,
-      age15_19: parseInt(kpis.rsg_15_19) || 0,
-      age20_34: parseInt(kpis.rsg_20_34) || 0,
-      age34plus: parseInt(kpis.rsg_34_plus) || 0,
+      total: parseInt(cardsKpis.total_riesgo) || 0,
+      sub15: parseInt(chartsKpis.rsg_15) || 0,
+      age15_19: parseInt(chartsKpis.rsg_15_19) || 0,
+      age20_34: parseInt(chartsKpis.rsg_20_34) || 0,
+      age34plus: parseInt(chartsKpis.rsg_34_plus) || 0,
       desgloseZona: {
-        capital: parseInt(kpis.total_riesgo_capital) || 0,
-        interior: parseInt(kpis.total_riesgo_interior) || 0,
+        capital: parseInt(cardsKpis.total_riesgo_capital) || 0,
+        interior: parseInt(cardsKpis.total_riesgo_interior) || 0,
       }
     };
 
     const gestionData = {
-      controlesPendientes: parseInt(kpis.controles_pendientes) || 0,
-      proximosPartos: parseInt(kpis.proximos_partos) || 0,
-      sinTelefono: parseInt(kpis.sin_telefono) || 0,
-      derivadas: parseInt(kpis.derivadas) || 0,
-      sinContactoReciente: parseInt(kpis.sin_contacto_reciente) || 0,
-      controladas: parseInt(kpis.total_controladas) || 0,
-      contactadas: parseInt(kpis.total_contactadas) || 0,
-      acudieronSolas: parseInt(kpis.total_acudieron_solas) || 0,
+      controlesPendientes: parseInt(chartsKpis.controles_pendientes) || 0,
+      proximosPartos: parseInt(chartsKpis.proximos_partos) || 0,
+      sinTelefono: parseInt(chartsKpis.sin_telefono) || 0,
+      derivadas: parseInt(cardsKpis.derivadas) || 0,
+      sinContactoReciente: parseInt(chartsKpis.sin_contacto_reciente) || 0,
+      controladas: parseInt(cardsKpis.total_controladas) || 0,
+      contactadas: parseInt(cardsKpis.total_contactadas) || 0,
+      acudieronSolas: parseInt(cardsKpis.total_acudieron_solas) || 0,
       desgloseZona: {
-        controladas: { capital: parseInt(kpis.total_controladas_capital) || 0, interior: parseInt(kpis.total_controladas_interior) || 0 },
-        contactadas: { capital: parseInt(kpis.total_contactadas_capital) || 0, interior: parseInt(kpis.total_contactadas_interior) || 0 },
-        derivadas: { capital: parseInt(kpis.derivadas_capital) || 0, interior: parseInt(kpis.derivadas_interior) || 0 },
+        controladas: { capital: parseInt(cardsKpis.total_controladas_capital) || 0, interior: parseInt(cardsKpis.total_controladas_interior) || 0 },
+        contactadas: { capital: parseInt(cardsKpis.total_contactadas_capital) || 0, interior: parseInt(cardsKpis.total_contactadas_interior) || 0 },
+        derivadas: { capital: parseInt(cardsKpis.derivadas_capital) || 0, interior: parseInt(cardsKpis.derivadas_interior) || 0 },
       }
     };
 
     const actividadData = {
-      hoy: parseInt(kpis.controles_hoy) || 0,
-      semana: parseInt(kpis.controles_semana) || 0,
-      mes: parseInt(kpis.controles_mes) || 0
+      hoy: parseInt(chartsKpis.controles_hoy) || 0,
+      semana: parseInt(chartsKpis.controles_semana) || 0,
+      mes: parseInt(chartsKpis.controles_mes) || 0
     };
 
     const topGeneralMapped = topGenRes.rows.map(r => ({ name: (r.name || '').trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }));

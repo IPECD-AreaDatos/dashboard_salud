@@ -44,7 +44,8 @@ export default function StatsPage() {
   const isAdminOrCoord = userRole === 'Administrador' || userRole === 'Coordinador';
 
   const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialProvincialData, setInitialProvincialData] = useState<any>(null); // Nuevo estado para datos provinciales iniciales
+  const [loading, setLoading] = useState({ initial: true, filtering: false }); // Estado de carga más detallado
   const [zonaChart, setZonaChart] = useState<'Todos' | 'Capital' | 'Interior'>('Todos');
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null);
 
@@ -74,29 +75,60 @@ export default function StatsPage() {
     return sortableItems;
   }, [data, sortConfigCaps]);
 
-  // 🌟 EFFECT CORREGIDO: Escucha 'zonaChart' y ejecuta el log de analíticas de forma segura
   useEffect(() => {
-    setLoading(true);
-    apiFetch(`/stats?establecimiento=${zonaChart}`)
+    setLoading({ initial: true, filtering: false });
+    // Carga inicial completa
+    apiFetch(`/stats?establecimiento=Todos`) // Siempre carga la data provincial completa
       .then(res => res.json())
       .then(resData => {
         setData(resData);
+        setInitialProvincialData(resData); // Guardamos la data provincial completa
         setUltimaActualizacion(resData.ultimaActualizacion || null);
-        setLoading(false);
+        setLoading({ initial: false, filtering: false });
+        registrarLog({ 
+          modulo: "Estadísticas", 
+          accion: "VISUALIZAR_ESTADISTICAS",
+          detalles: `El usuario revisó el panel estadístico.`
+        }).catch(err => console.error("Error al registrar log:", err));
       })
       .catch(err => {
         console.error("Error al cargar estadísticas:", err);
-        setLoading(false);
+        setLoading({ initial: false, filtering: false });
       });
-      
+  }, []);
+
+  // 🌟 EFFECT CORREGIDO: Escucha solo 'zonaChart' para actualizar solo los gráficos
+  // Ahora depende de 'zonaChart' y 'initialProvincialData' (que es estable)
+  useEffect(() => {
+    if (!initialProvincialData) return; // Esperar a que la data provincial inicial se cargue
+    
+    setLoading(prev => ({ ...prev, filtering: true })); // Solo activamos el loader de filtrado
+    apiFetch(`/stats?establecimiento=${zonaChart}`)
+      .then(res => res.json())
+      .then(filteredData => {
+        // Construimos el nuevo estado 'data' combinando los KPIs globales con los datos de gráficos filtrados
+        setData({
+          ...initialProvincialData, // Mantenemos los KPIs globales (general, riesgo, gestion, actividad)
+          distribucionEG: filteredData.distribucionEG,
+          topGeneral: filteredData.topGeneral,
+          topRiesgoAtraso: filteredData.topRiesgoAtraso,
+          resumenCaps: filteredData.resumenCaps, // La tabla de CAPS también se filtra por zona
+        });
+        setLoading(prev => ({ ...prev, filtering: false }));
+      })
+      .catch(err => {
+        console.error("Error al cargar estadísticas filtradas:", err);
+        setLoading(prev => ({ ...prev, filtering: false }));
+      });
+    
     registrarLog({ 
       modulo: "Estadísticas", 
-      accion: "VISUALIZAR_ESTADISTICAS",
-      detalles: `El usuario revisó el panel estadístico filtrando por la zona: ${zonaChart}.`
+      accion: "FILTRAR_ZONA_GRAFICOS",
+      detalles: `El usuario filtró los gráficos por zona: ${zonaChart}.`
     }).catch(err => console.error("Error al registrar log:", err));
 
-  }, [zonaChart]);
-
+  }, [zonaChart, initialProvincialData]); // Dependemos de 'zonaChart' y 'initialProvincialData'
+  
   const totalPadron = data?.general?.total || 0;
   const getPct = (value: number) => {
     if (!totalPadron) return "0.0%";
@@ -155,13 +187,9 @@ export default function StatsPage() {
 
   // 🌟 SE MOVIÓ ESTA FUNCIÓN AQUÍ PARA QUE ESTÉ DISPONIBLE ANTES DE SER LLAMADA
   const filterAndFormat = (arr: any[]) => {
+    // El backend ahora maneja el filtrado por 'departamento' y el top 15.
+    // Esta función solo necesita aplicar romanToArabic y el slice para el top 15 (si el backend no lo hace).
     return arr
-      .filter(item => {
-        if (zonaChart === 'Todos') return true;
-        if (zonaChart === 'Capital') return item.departamento === 'CAPITAL';
-        return item.departamento !== 'CAPITAL';
-      })
-      .sort((a, b) => b.value - a.value)
       .slice(0, 15)
       .map(item => ({
         ...item,
@@ -207,7 +235,7 @@ export default function StatsPage() {
 
   const { textoHoy, textoSemana, textoMes } = obtenerEtiquetasActividad();
 
-  if (loading || !data) {
+  if (loading.initial || !data) {
     return (
       <>
         <Navbar />
@@ -591,7 +619,9 @@ export default function StatsPage() {
         {/* 🌟 GRÁFICOS DE BARRAS AHORA VISIBLES PARA TODOS, CON LÓGICA CONDICIONAL */}
         {(isAdminOrCoord || isMaternidad || isCAPS) && (
           <div className={styles.chartsSection}>
-            {/* Los filtros de zona solo son para Admin/Coordinador */}
+            {loading.filtering && <div className={styles.filteringOverlay}><Loader2 className="animate-spin" size={32} /></div>}
+
+            {/* Los filtros de zona solo son para Admin/Coordinador y se deshabilitan mientras se filtra */}
             {isAdminOrCoord && (
               <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', justifyContent: 'center' }}>
                 <button style={getBtnStyle('Todos')} onClick={() => setZonaChart('Todos')}>Toda la Provincia</button>
