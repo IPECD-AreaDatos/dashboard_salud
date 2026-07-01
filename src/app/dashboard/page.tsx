@@ -591,7 +591,7 @@ export default function SeguimientoPage() {
 
             <div className={styles.filterGroup}>
               <div className={styles.labelWithTooltip}>
-                <label className={styles.filterLabel}>Riesgo</label>
+                <label className={styles.filterLabel}>Incluye Riesgo</label>
                 <div className={styles.tooltipContainer}>
                   <Info size={14} className={styles.infoIcon} />
                   <span className={styles.tooltipText}>
@@ -666,7 +666,7 @@ export default function SeguimientoPage() {
             </div>
 
               <div className={styles.filterGroup}>
-                <label className={styles.filterLabel}>Derivadas</label>
+                <label className={styles.filterLabel}>Incluye Derivadas</label>
                 <button
                   onClick={() => {
                     const nuevoValor = !excluirDerivadas;
