@@ -634,7 +634,7 @@ export default function SeguimientoPage() {
                   transition: 'all 0.2s ease'
                 }}
               >
-                {filterRiesgo === "Si" ? 'Sí' : 'Todas'}
+                {filterRiesgo === "Si" ? 'Sí' : 'No'}
               </button>
             </div>
 
