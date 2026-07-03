@@ -17,12 +17,32 @@ const pool = new Pool({
 });
 
 pool.query(`
-  SELECT column_name 
-  FROM information_schema.columns 
-  WHERE table_name = 'pacientes_gold'
+  SELECT 
+    fuente_principal, 
+    COUNT(*) as total,
+    COUNT(CASE WHEN cobertura_salud ILIKE '%plan nacer%' OR cobertura_salud ILIKE '%sumar%' THEN 1 END) as con_nacer_o_sumar,
+    array_agg(DISTINCT cobertura_salud) FILTER (WHERE cobertura_salud IS NOT NULL) as coberturas_ejemplo
+  FROM pacientes_gold
+  WHERE embarazo_en_curso = true
+  GROUP BY fuente_principal
 `)
 .then(res => {
-  console.log('Columns in pacientes_gold:', res.rows.map(r => r.column_name));
+  console.log('Results by fuente_principal:');
+  res.rows.forEach(r => {
+    console.log(`- Fuente: ${r.fuente_principal}, Total: ${r.total}, Con Nacer/Sumar: ${r.con_nacer_o_sumar}`);
+    console.log(`  Coberturas:`, r.coberturas_ejemplo?.slice(0, 10));
+  });
+  
+  return pool.query(`
+    SELECT DISTINCT cobertura_salud
+    FROM pacientes_gold
+    WHERE embarazo_en_curso = true AND fuente_principal IN ('v_embarazosdw', 'POF')
+    LIMIT 20
+  `);
+})
+.then(res => {
+  console.log('POF Coberturas:');
+  console.log(res.rows.map(r => r.cobertura_salud));
   process.exit(0);
 })
 .catch(err => {

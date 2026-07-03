@@ -443,6 +443,7 @@ export default function SeguimientoPage() {
       "Fecha Próximo Turno": p.fecha_proximo_turno ? new Date(p.fecha_proximo_turno).toLocaleDateString('es-AR') : 'Sin Turno',
       "Teléfono": p.telefono,
       "Domicilio Declarado": p.domicilio,
+      "Cobertura": p.cobertura || 'S/D',
       "Fuente de Sincronización": p.fuente_principal || 'S/D'
     }));
 
@@ -876,12 +877,13 @@ export default function SeguimientoPage() {
                     )}
 
                     <th className={styles.tableTh} style={{ verticalAlign: 'middle' }}>Fuente</th>
+                    <th className={styles.tableTh} style={{ verticalAlign: 'middle' }}>Cobertura</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={17} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={18} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         Cargando base de datos Gold...
                       </td>
                     </tr>
@@ -1000,12 +1002,21 @@ export default function SeguimientoPage() {
                                   : p.fuente_principal}
                             </span>
                           </td>
+                          <td className={styles.tableTd}>
+                            {p.cobertura === 'Pública Exclusiva' ? (
+                              <span className={styles.badgeCoberturaPublica}>Pública Exclusiva</span>
+                            ) : p.cobertura === 'S/D' ? (
+                              <span className={styles.coberturaSd}>-</span>
+                            ) : (
+                              <span className={styles.coberturaObraSocial} title={p.cobertura}>{p.cobertura}</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={17} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={18} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         <AlertCircle className="w-8 h-8 text-orange-400 mx-auto mb-2" />
                         No se encontraron registros para estos filtros.
                       </td>

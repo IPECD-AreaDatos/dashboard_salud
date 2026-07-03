@@ -239,12 +239,31 @@ export async function GET(request: Request) {
       GROUP BY rango_eg, orden_num
       ORDER BY orden_num ASC;
     `;
-    const egRes = await query(edadGestacionalSql);
+    const egRes = await query(edadGestacionalSql, statsParams);
     const distribucionEgMapped = egRes.rows.map(r => ({
       rango: r.rango_eg === '09 a 12' ? '9 a 12' : r.rango_eg, 
       "Embarazos Activos": parseInt(r.total_embarazos) || 0,
       "Controladas (Al día)": parseInt(r.total_controladas) || 0
     }));
+
+    const coberturaSql = `
+      SELECT
+        SUM(CASE WHEN p.fuente_principal = 'sumar' OR (p.fuente_principal IN ('pof', 'v_embarazosdw') AND (p.cobertura_salud ILIKE '%plan nacer%' OR p.cobertura_salud ILIKE '%sumar%')) THEN 1 ELSE 0 END) as sin_obra_social,
+        SUM(CASE WHEN p.fuente_principal NOT IN ('sumar') AND p.fuente_principal IN ('pof', 'v_embarazosdw') AND p.cobertura_salud NOT ILIKE '%plan nacer%' AND p.cobertura_salud NOT ILIKE '%sumar%' AND p.cobertura_salud IS NOT NULL THEN 1 ELSE 0 END) as con_obra_social,
+        SUM(CASE WHEN p.fuente_principal NOT IN ('sumar') AND (p.fuente_principal NOT IN ('pof', 'v_embarazosdw') OR p.cobertura_salud IS NULL) THEN 1 ELSE 0 END) as sin_datos
+      FROM public.pacientes_gold p
+      WHERE p.embarazo_en_curso = true AND p.fecha_probable_parto >= ${fechaUmbral} AND p.fecha_nacimiento IS NOT NULL
+        ${securityClause}
+        ${centroFilterClause}
+        ${zonaGlobalClause}
+    `;
+    const coberturaRes = await query(coberturaSql, statsParams);
+    const cobRow = coberturaRes.rows[0];
+    const coberturaStats = [
+      { name: "Pública Exclusiva", value: parseInt(cobRow.sin_obra_social) || 0 },
+      { name: "Con Obra Social", value: parseInt(cobRow.con_obra_social) || 0 },
+      { name: "Sin Registro", value: parseInt(cobRow.sin_datos) || 0 }
+    ];
 
     const generalData = {
       total: parseInt(cardsKpis.total) || 0,
@@ -317,7 +336,8 @@ export async function GET(request: Request) {
       topGeneral: topGeneralMapped,
       topRiesgoAtraso: topRiesgoMapped,
       resumenCaps: resumenCapsMapped,
-      distribucionEG: distribucionEgMapped // 🌟 NOMBRE CORREGIDO AQUÍ PARA COMBINAR CON EL FRONT
+      distribucionEG: distribucionEgMapped, // 🌟 NOMBRE CORREGIDO AQUÍ PARA COMBINAR CON EL FRONT
+      coberturaStats
     });
 
   } catch (error) {

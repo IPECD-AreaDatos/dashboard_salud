@@ -12,7 +12,11 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Label
+  Label,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
 } from "recharts";
 import { Loader2, Download } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -183,6 +187,66 @@ export default function StatsPage() {
       accion: "EXPORTAR_EXCEL",
       detalles: `Exportó reporte provincial integral incluyendo KPIs y desempeño de CAPS en formato Excel.`
     }).catch(err => console.error("Error al registrar log:", err));
+  };
+
+  const descargarPadrónMamáMbareté = async () => {
+    try {
+      setLoading(prev => ({ ...prev, filtering: true }));
+      const queryParams: any = {
+        cobertura: "sin_obra_social",
+        establecimiento: zonaChart,
+        excluirDerivadas: "false"
+      };
+      const query = new URLSearchParams(queryParams);
+      const res = await apiFetch(`/pacientes?${query}`);
+      const resData = await res.json();
+      const pacientes = resData.data || [];
+
+      if (pacientes.length === 0) {
+        alert("No se encontraron embarazadas sin obra social para exportar en esta zona.");
+        setLoading(prev => ({ ...prev, filtering: false }));
+        return;
+      }
+
+      const datosFormateados = pacientes.map((p: any) => ({
+        "DNI": p.dni,
+        "Paciente": p.nombre,
+        "Teléfono": p.telefono,
+        "Establecimiento Seguimiento": p.establecimiento,
+        "Localidad": p.localidad,
+        "Domicilio": p.domicilio,
+        "Edad Gestacional Actual": p.eg_actual ? `${p.eg_actual} semanas` : 'S/D',
+        "Fecha Probable Parto (FPP)": p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : 'S/D',
+        "Último Control Médico": p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : 'Sin Registro',
+        "Días Atraso Control": p.dias === 999 ? 'Sin controles' : p.dias,
+        "Cobertura": p.cobertura,
+        "Fuente Sincronización": p.fuente_principal
+      }));
+
+      const hoja = XLSX.utils.json_to_sheet(datosFormateados);
+      const libro = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(libro, hoja, "Padrón Mamá Mbareté");
+
+      const anchosColumnas = Object.keys(datosFormateados[0]).map(key => ({
+        wch: Math.max(key.length + 3, 16)
+      }));
+      hoja['!cols'] = anchosColumnas;
+
+      const fechaDescarga = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(libro, `Padron_Mama_Mbarete_${zonaChart}_${fechaDescarga}.xlsx`);
+
+      registrarLog({
+        modulo: "Estadísticas",
+        accion: "DESCARGAR_PADRON_MBARETE",
+        detalles: `Descargó padrón de embarazadas sin obra social para zona: ${zonaChart}. Total registros: ${pacientes.length}.`
+      }).catch(err => console.error("Error al registrar log de descarga:", err));
+
+    } catch (error) {
+      console.error("Error al descargar padrón de Mamá Mbareté:", error);
+      alert("Hubo un error al generar el reporte.");
+    } finally {
+      setLoading(prev => ({ ...prev, filtering: false }));
+    }
   };
 
   // 🌟 SE MOVIÓ ESTA FUNCIÓN AQUÍ PARA QUE ESTÉ DISPONIBLE ANTES DE SER LLAMADA
@@ -630,40 +694,83 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* 🌟 CONTENEDOR PARA EL GRÁFICO GLOBAL CON MÁRGENES */}
-            <div className={styles.fullWidthChartContainer}>
-              <div className={styles.chartCard} style={{ width: '100%', marginBottom: '1.5rem' }}>
+            {/* 🌟 GRÁFICOS PRINCIPALES EN PARALELO */}
+            <div className={styles.chartsGrid} style={{ marginBottom: '1.5rem' }}>
+              {/* Gráfico de semanas de gestación */}
+              <div className={styles.chartCard} style={{ paddingBottom: '2.5rem' }}>
                 <h3 className={styles.chartTitle}>
-                  Distribución del Padrón Clínico y Cobertura de Controles por Semanas de Embarazo (EG)
+                  Distribución por Semanas de Embarazo (EG)
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' }}>
-                  Monitoreo de captación temprana y continuidad del control prenatal según segmentación de edad gestacional.
+                  Captación y controles de control prenatal según edad gestacional.
                 </p>
-                <div className={styles.chartWrapper} style={{ height: '400px' }}> {/* Subimos a 400px para dar espacio al label inferior */}
-                  <ResponsiveContainer width="100%" height="100%" minHeight={350}>
-                    <BarChart data={data?.distribucionEG || []} margin={{ top: 20, right: 30, left: 30, bottom: 30 }}>
+                <div className={styles.chartWrapper} style={{ height: '350px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data?.distribucionEG || []} margin={{ top: 20, right: 10, left: 10, bottom: 25 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      
-                      {/* Eje X con etiqueta de semanas */}
                       <XAxis 
                         dataKey="rango" 
-                        tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }}
+                        tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }}
                       >
-                        <Label value="Semanas de Edad Gestacional (EG)" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
+                        <Label value="Semanas de Edad Gestacional (EG)" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 11 }} />
                       </XAxis>
-                      
-                      {/* Eje Y con etiqueta de cantidad de embarazadas */}
-                      <YAxis tick={{ fill: '#475569' }}>
-                        <Label value="Cantidad de Embarazadas" angle={-90} position="insideLeft" offset={-10} fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
+                      <YAxis tick={{ fill: '#475569', fontSize: 11 }}>
+                        <Label value="Embarazadas" angle={-90} position="insideLeft" offset={0} fill="#475569" style={{ fontWeight: 600, fontSize: 11 }} />
                       </YAxis>
-                      
                       <Tooltip 
                         cursor={{ fill: '#f1f5f9' }} 
                         labelFormatter={(label) => `${label} semanas`}
                       />
-                      <Bar dataKey="Embarazos Activos" fill="#608bc4" radius={[4, 4, 0, 0]} barSize={24} />
-                      <Bar dataKey="Controladas (Al día)" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={24} />
+                      <Bar dataKey="Embarazos Activos" fill="#608bc4" radius={[4, 4, 0, 0]} barSize={18} />
+                      <Bar dataKey="Controladas (Al día)" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={18} />
                     </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Gráfico de Obras Sociales (Mamá Mbareté) */}
+              <div className={styles.chartCard} style={{ paddingBottom: '2.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <h3 className={styles.chartTitle} style={{ margin: 0 }}>
+                    Distribución de Coberturas de Salud
+                  </h3>
+                  <button 
+                    onClick={descargarPadrónMamáMbareté}
+                    style={{ 
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      backgroundColor: '#10b981', color: 'white', 
+                      border: 'none', padding: '0.45rem 0.9rem', 
+                      borderRadius: '0.5rem', fontSize: '0.75rem', 
+                      fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                    }}
+                    title="Descargar padrón de embarazadas elegibles para Mamá Mbareté (Sin Obra Social)"
+                  >
+                    <Download size={13} /> Padrón Mbareté
+                  </button>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' }}>
+                  Distribución de cobertura de salud y elegibilidad del programa.
+                </p>
+                <div className={styles.chartWrapper} style={{ height: '350px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data?.coberturaStats || []}
+                        cx="50%"
+                        cy="45%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={90}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {(data?.coberturaStats || []).map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={["#608bc4", "#16a34a", "#94a3b8"][index % 3]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => [value, "Cantidad"]} />
+                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', fontWeight: 600 }} />
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>

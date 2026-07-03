@@ -26,6 +26,7 @@ export async function GET(request: Request) {
   
   const excluirDerivadas = searchParams.get("excluirDerivadas") === "true";
   const permitirFallback = searchParams.get("permitirFallback") !== "false";
+  const cobertura = searchParams.get("cobertura") || "todas";
 
   try {
     const sisa = session.user?.sisa_code;
@@ -74,6 +75,12 @@ export async function GET(request: Request) {
 
         if (excluirDerivadas) {
           whereClause += ` AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')`;
+        }
+
+        if (cobertura === "sin_obra_social") {
+          whereClause += ` AND (p.fuente_principal = 'sumar' OR (p.fuente_principal IN ('pof', 'v_embarazosdw') AND (p.cobertura_salud ILIKE '%plan nacer%' OR p.cobertura_salud ILIKE '%sumar%')))`;
+        } else if (cobertura === "con_obra_social") {
+          whereClause += ` AND (p.fuente_principal NOT IN ('sumar') AND p.fuente_principal IN ('pof', 'v_embarazosdw') AND p.cobertura_salud NOT ILIKE '%plan nacer%' AND p.cobertura_salud NOT ILIKE '%sumar%' AND p.cobertura_salud IS NOT NULL)`;
         }
 
         // --- APLICACIÓN CONDICIONAL DE FILTROS DE GESTIÓN (FALLBACK) ---
@@ -130,6 +137,7 @@ export async function GET(request: Request) {
       const sql = `
         SELECT DISTINCT ON (p.id)
           p.id, p.dni, p.nombre, p.apellido, p.telefono, p.fecha_probable_parto, p.fecha_ultimo_control, p.riesgo,
+          p.cobertura_salud,
           s.nombre as nombre_establecimiento_oficial,
           (CURRENT_DATE - p.fecha_ultimo_control) as dias_atraso,
           (SELECT MAX(sec.fecha_contacto) 
@@ -224,7 +232,10 @@ export async function GET(request: Request) {
         fecha_derivacion: p.fecha_derivacion ? new Date(p.fecha_derivacion).toLocaleDateString('es-AR') : "-",
         motivo_diagnostico_derivacion: p.motivo_diagnostico_derivacion || "-",
         medico_deriva: p.medico_deriva || "-",
-        medico_recibe: p.medico_recibe || "-"
+        medico_recibe: p.medico_recibe || "-",
+        cobertura: (p.fuente_principal === 'sumar' || (p.fuente_principal && ['pof', 'v_embarazosdw'].includes(p.fuente_principal) && p.cobertura_salud && (p.cobertura_salud.toLowerCase().includes('plan nacer') || p.cobertura_salud.toLowerCase().includes('sumar'))))
+          ? 'Pública Exclusiva'
+          : (p.cobertura_salud || 'S/D')
       };
     });
 
