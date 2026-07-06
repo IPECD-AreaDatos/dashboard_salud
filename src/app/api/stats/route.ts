@@ -96,7 +96,7 @@ export async function GET(request: Request) {
         SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_mes
       FROM public.pacientes_gold p
       WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.fecha_nacimiento IS NOT NULL
-        ${securityClause} ${centroFilterClause} ${zonaGlobalClause}
+        ${securityClause} ${centroFilterClause} ${zonaGlobalClause} ${derivacionClause}
     `;
 
     // 4.1 Métricas para las TARJETAS (NO son afectadas por el filtro de zona)
@@ -104,7 +104,6 @@ export async function GET(request: Request) {
       SELECT
         COUNT(DISTINCT p.id) as total,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
-        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas,
         SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN 1 ELSE 0 END) as total_controladas,
         SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - 30) THEN 1 ELSE 0 END) as total_contactadas,
         SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id) THEN 1 ELSE 0 END) as total_acudieron_solas,
@@ -120,14 +119,35 @@ export async function GET(request: Request) {
         SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_interior
       FROM public.pacientes_gold p
       WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.fecha_nacimiento IS NOT NULL
+        ${securityClause} ${centroFilterClause} ${derivacionClause}
+    `;
+
+    // 4.2 Query específica para contar las derivadas de un CAPS, ignorando el filtro de derivación.
+    const derivadasCapsSql = `
+      SELECT COUNT(p.id) as total_derivadas
+      FROM public.pacientes_gold p
+      WHERE p.fecha_probable_parto >= ${fechaUmbral} 
+        AND p.embarazo_en_curso = true 
+        AND p.fecha_nacimiento IS NOT NULL
+        AND p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != ''
         ${securityClause} ${centroFilterClause}
     `;
 
     // Ejecutamos ambas consultas en paralelo
-    const [chartsKpiRes, cardsKpiRes] = await Promise.all([
+    const promises = [
       query(chartsKpiSql, statsParams),
       query(cardsKpiSql, statsParams)
-    ]);
+    ];
+
+    // 4.3 Query para obtener la fecha de la última actualización real de la tabla gold
+    const ultimaActualizacionSql = `SELECT MAX(ingestion_at) as fecha FROM pacientes_gold`;
+    promises.push(query(ultimaActualizacionSql));
+
+    if (session.user?.role === 'Centro de Salud') {
+      promises.push(query(derivadasCapsSql, statsParams));
+    }
+
+    const [chartsKpiRes, cardsKpiRes, ultimaActualizacionRes, derivadasCapsRes] = await Promise.all(promises);
 
     const chartsKpis = chartsKpiRes.rows[0];
     const cardsKpis = cardsKpiRes.rows[0];
@@ -233,7 +253,7 @@ export async function GET(request: Request) {
         FROM public.pacientes_gold p
         WHERE p.embarazo_en_curso = true AND p.fecha_probable_parto >= ${fechaUmbral} AND p.fecha_nacimiento IS NOT NULL
           ${securityClause}
-          ${centroFilterClause}
+          ${centroFilterClause} ${derivacionClause}
           ${zonaGlobalClause}
       ) sub
       GROUP BY rango_eg, orden_num
@@ -254,7 +274,7 @@ export async function GET(request: Request) {
       FROM public.pacientes_gold p
       WHERE p.embarazo_en_curso = true AND p.fecha_probable_parto >= ${fechaUmbral} AND p.fecha_nacimiento IS NOT NULL
         ${securityClause}
-        ${centroFilterClause}
+        ${centroFilterClause} ${derivacionClause}
         ${zonaGlobalClause}
     `;
     const coberturaRes = await query(coberturaSql, statsParams);
@@ -293,7 +313,9 @@ export async function GET(request: Request) {
       controlesPendientes: parseInt(chartsKpis.controles_pendientes) || 0,
       proximosPartos: parseInt(chartsKpis.proximos_partos) || 0,
       sinTelefono: parseInt(chartsKpis.sin_telefono) || 0,
-      derivadas: parseInt(cardsKpis.derivadas) || 0,
+      derivadas: session.user?.role === 'Centro de Salud' 
+        ? (parseInt(derivadasCapsRes?.rows[0]?.total_derivadas) || 0) 
+        : (parseInt(cardsKpis.derivadas) || 0),
       sinContactoReciente: parseInt(chartsKpis.sin_contacto_reciente) || 0,
       controladas: parseInt(cardsKpis.total_controladas) || 0,
       contactadas: parseInt(cardsKpis.total_contactadas) || 0,
@@ -325,10 +347,8 @@ export async function GET(request: Request) {
       acudieronSolas: parseInt(r.acudieron_solas) || 0
     }));
 
-    const ultimaActualizacionISO = new Date().toISOString();
-
     return NextResponse.json({
-      ultimaActualizacion: ultimaActualizacionISO,
+      ultimaActualizacion: ultimaActualizacionRes.rows[0]?.fecha || new Date().toISOString(),
       general: generalData,
       riesgo: riesgoData,
       gestion: gestionData,

@@ -47,7 +47,8 @@ export async function GET(request: Request) {
       } else if (cuie) {
         localClause = `(uni.centro_salud_raw = '${cuie}' OR uni.centro_salud_raw IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
       }
-      filteringClauses += ` AND (${localClause} OR uni.batch_id IN (SELECT DISTINCT batch_id FROM pacientes_gold WHERE derivacion_maternidad_id = '${matId}'))`;
+      // ✅ Ahora comparamos el derivacion_maternidad_id DEL PROPIO REGISTRO, no del batch completo
+      filteringClauses += ` AND (${localClause} OR uni.derivacion_maternidad_id = '${matId}')`;
     }
 
     // 🔍 2. FILTROS MANUALES
@@ -85,6 +86,7 @@ export async function GET(request: Request) {
           (data_json::json->>'fecha_nacimiento')::date as fecha_nacimiento,
           (data_json::json->>'eg_actual')::numeric as eg_actual,
           COALESCE(data_json::json->>'sisa_centro_salud', data_json::json->>'cuie_seguimiento') as centro_salud_raw,
+          data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,  -- 👈 AGREGAR ESTA LÍNEA
           fuente,
           batch_id, 
           'Edad gestacional inválida (< 2 semanas) o ausente' as motivo_auditoria
@@ -103,6 +105,7 @@ export async function GET(request: Request) {
           (data_json::json->>'fecha_nacimiento')::date as fecha_nacimiento,
           (data_json::json->>'edad_calculada')::numeric as eg_actual,
           COALESCE(data_json::json->>'sisa_centro_salud', data_json::json->>'cuie_seguimiento') as centro_salud_raw,
+          data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,  -- 👈 AGREGAR ESTA LÍNEA
           fuente,
           batch_id, 
           'Edad calculada inconsistente (< 10 años) o ausente' as motivo_auditoria
@@ -121,6 +124,7 @@ export async function GET(request: Request) {
           (data_json::json->>'fecha_nacimiento')::date as fecha_nacimiento,
           (data_json::json->>'eg_actual')::numeric as eg_actual,
           COALESCE(data_json::json->>'sisa_centro_salud', data_json::json->>'cuie_seguimiento') as centro_salud_raw,
+          data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,  -- 👈 AGREGAR ESTA LÍNEA
           fuente,
           batch_id, 
           'DNI inválido o no informado' as motivo_auditoria

@@ -241,15 +241,6 @@ export default function SeguimientoPage() {
     fetchPacientes(undefined, false, "Todos"); // estDirecto explícito
   };
 
-  // Limpia la fecha FPP Desde y relanza la búsqueda manteniendo el FPP Hasta actual
-  const limpiarFppDesde = () => {
-    setFilterFppDesde("");
-  };
-
-  // Limpia la fecha FPP Hasta y relanza la búsqueda manteniendo el FPP Desde actual
-  const limpiarFppHasta = () => {
-    setFilterFppHasta("");
-  };
 
   const fetchFiltros = async () => {
     try {
