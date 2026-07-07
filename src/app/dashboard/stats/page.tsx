@@ -149,14 +149,16 @@ export default function StatsPage() {
       ["ESTADÍSTICAS E INDICADORES PROVINCIALES"],
       ["Fecha de generación:", new Date().toLocaleDateString('es-AR') + " " + new Date().toLocaleTimeString('es-AR')],
       [],
-      ["MÉTRICAS GENERALES"],
-      ["Total Padrón Provincial", "Total en Alto Riesgo", "Total Controladas (Al Día)", "Total Contactadas", "Total Derivadas"],
+      ["MÉTRICAS GENERALES PROVINCIALES"],
+      // 🌟 CABECERAS ACTUALIZADAS
+      ["Total Padrón Activo", "Total en Alto Riesgo", "Total Controladas (Al Día)", "Total Vínculo Activo", "Total en Alto Riesgo Controladas"],
       [
+        // 🌟 VALORES ACTUALIZADOS
         `${totalPadron} (100%)`,
         `${data?.riesgo?.total || 0} (${getPct(data?.riesgo?.total || 0)})`, 
         `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`, 
-        `${data?.gestion?.contactadas || 0} (${getPct(data?.gestion?.contactadas || 0)})`, 
-        `${data?.gestion?.derivadas || 0} (${getPct(data?.gestion?.derivadas || 0)})`
+        `${(data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0)} (${getPct((data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0))})`,
+        `${data?.gestion?.riesgoControladas || 0} (${getPct(data?.gestion?.riesgoControladas || 0)})`
       ],
       [],
       ["DESEMPEÑO Y COBERTURA POR CAPS"]
@@ -278,7 +280,7 @@ export default function StatsPage() {
           {/* 🌟 SECCIÓN DE LA DERECHA ACOMODADA PROLIJAMENTE */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
             {ultimaActualizacion && (
-              <span style={{ fontSize: '0.805rem', color: '#64748b', fontWeight: 500, backgroundColor: '#f1f5f9', padding: '3px 10px', borderRadius: '6px' }}>
+              <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: 550,  padding: '3px 10px', borderRadius: '6px' }}>
                 Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
               </span>
             )}
@@ -326,6 +328,18 @@ export default function StatsPage() {
               <small className={styles.kpiSubtext} style={{ color: '#991b1b' }}>Seguimiento prioritario</small>
             </div>
 
+            {/* 🌟 TARJETA MODIFICADA: Ahora es "Alto Riesgo Controladas" */}
+            <div className={styles.kpiCardCompact}>
+              <span className={styles.kpiLabel} style={{ color: '#c76d07' }}>Total en Alto Riesgo Controladas</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
+                <span className={styles.kpiSubValue} style={{ color: '#f18913', margin: 0 }}>
+                  {(data?.gestion?.riesgoControladas || 0).toLocaleString('es-AR')}
+                </span>
+                <span style={{ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 }}>({getPct(data?.gestion?.riesgoControladas || 0)})</span>
+              </div>
+              <small className={styles.kpiSubtext} style={{ color: '#c76d07' }}>Pacientes de riesgo con controles al día</small>
+            </div>
+
             <div className={`${styles.kpiCardCompact} ${styles.kpiCardVerde}`}>
               <span className={styles.kpiLabel}>Total Controladas</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
@@ -335,12 +349,12 @@ export default function StatsPage() {
                 <span style={{ fontSize: '0.95rem', color: '#16a34a', fontWeight: 700 }}>({getPct(data?.gestion?.controladas || 0)})</span>
               </div>
               {/* 🌟 Etiqueta refinada con el período clínico */}
-              <small className={styles.kpiSubtext}>Controles vigentes en el mes</small>
+              <small className={styles.kpiSubtext}>Controles vigentes en los últimos 30 días</small>
             </div>
 
             {/* Tarjeta de Total Contactadas mutada a Vínculo Activo */}
             <div className={styles.kpiCardCompact}>
-              <span className={styles.kpiLabel}>Total Vínculo Activo</span>
+              <span className={styles.kpiLabel} style={{ color: '#0b6aa8e0' }}>Total Vínculo Activo</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
                 <span className={styles.kpiSubValue} style={{ color: '#1276b8e0', margin: 0 }}>
                   {((data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0)).toLocaleString('es-AR')}
@@ -350,19 +364,10 @@ export default function StatsPage() {
                   ({getPct((data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0))})
                 </span>
               </div>
-              <small className={styles.kpiSubtext}>Gestión y demanda del último mes</small>
+              <small className={styles.kpiSubtext} style={{ color: '#0b6aa8e0' }}>Gestión y demanda en los últimos 30 días</small>
             </div>
-
-            <div className={styles.kpiCardCompact}>
-              <span className={styles.kpiLabel}>Total Derivadas</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
-                <span className={styles.kpiSubValue} style={{ color: '#d67a10', margin: 0 }}>
-                  {(data?.gestion?.derivadas || 0).toLocaleString('es-AR')}
-                </span>
-                <span style={{ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 }}>({getPct(data?.gestion?.derivadas || 0)})</span>
-              </div>
-              <small className={styles.kpiSubtext}>Referidas a mayor nivel</small>
-            </div>
+            
+            
             </div>
 
             {/* 🌟 NUEVA FILA DE DESGLOSE POR ZONA (MÁS COMPACTA) */}
@@ -373,9 +378,13 @@ export default function StatsPage() {
               {/* --- RIESGO --- */}
               <KpiDesgloseCard label="Riesgo Capital" pct={getPct(data?.riesgo?.desgloseZona?.capital || 0)} value={data?.riesgo?.desgloseZona?.capital || 0} valueColor="#dc2626" pctColor="#f87171" labelColor="#991b1b" />
               <KpiDesgloseCard label="Riesgo Interior" pct={getPct(data?.riesgo?.desgloseZona?.interior || 0)} value={data?.riesgo?.desgloseZona?.interior || 0} valueColor="#dc2626" pctColor="#f87171" labelColor="#991b1b" />
+              {/* --- ALTO RIESGO CONTROLADAS (reemplaza a Derivadas) --- 🌟 COLOR DE TÍTULO AÑADIDO */}
+              <KpiDesgloseCard label="Riesgo Controlado (Capital)" pct={getPct(data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0)} value={data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0} valueColor="#f18913" pctColor="#f1a23a" labelColor="#c76d07" />
+              <KpiDesgloseCard label="Riesgo Controlado (Interior)" pct={getPct(data?.gestion?.desgloseZona?.riesgoControladas?.interior || 0)} value={data?.gestion?.desgloseZona?.riesgoControladas?.interior || 0} valueColor="#f18913" pctColor="#f1a23a" labelColor="#c76d07" />
+
               {/* --- CONTROLADAS --- */}
-              <KpiDesgloseCard label="Controladas Capital" pct={getPct(data?.gestion?.desgloseZona?.controladas?.capital || 0)} value={data?.gestion?.desgloseZona?.controladas?.capital || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" />
-              <KpiDesgloseCard label="Controladas Interior" pct={getPct(data?.gestion?.desgloseZona?.controladas?.interior || 0)} value={data?.gestion?.desgloseZona?.controladas?.interior || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" />
+              <KpiDesgloseCard label="Controladas Capital" pct={getPct(data?.gestion?.desgloseZona?.controladas?.capital || 0)} value={data?.gestion?.desgloseZona?.controladas?.capital || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" labelColor="#15803d"/>
+              <KpiDesgloseCard label="Controladas Interior" pct={getPct(data?.gestion?.desgloseZona?.controladas?.interior || 0)} value={data?.gestion?.desgloseZona?.controladas?.interior || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" labelColor="#15803d"/>
               {/* --- NUEVO DESGLOSE: SEGUIMIENTO PROACTIVO VS ASISTENCIA ESPONTÁNEA --- */}
               <KpiDesgloseCard 
                 label="Seguimiento Proactivo" 
@@ -383,6 +392,7 @@ export default function StatsPage() {
                 value={data?.gestion?.contactadas || 0} 
                 valueColor="#1276b8e0" 
                 pctColor="#207ae9c7" 
+                labelColor="#1276b8e0"
               />
               <KpiDesgloseCard 
                 label="Asistencia Espontánea" 
@@ -390,10 +400,8 @@ export default function StatsPage() {
                 value={data?.gestion?.acudieronSolas || 0} 
                 valueColor="#1276b8e0" 
                 pctColor="#207ae9c7" 
+                labelColor="#1276b8e0"
               />
-              {/* --- DERIVADAS --- */}
-              <KpiDesgloseCard label="Derivadas Capital" pct={getPct(data?.gestion?.desgloseZona?.derivadas?.capital || 0)} value={data?.gestion?.desgloseZona?.derivadas?.capital || 0} valueColor="#d67a10" pctColor="#f1a23a" />
-              <KpiDesgloseCard label="Derivadas Interior" pct={getPct(data?.gestion?.desgloseZona?.derivadas?.interior || 0)} value={data?.gestion?.desgloseZona?.derivadas?.interior || 0} valueColor="#d67a10" pctColor="#f1a23a" />
             </div>
           </>
         ) : (

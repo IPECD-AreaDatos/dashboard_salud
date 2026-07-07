@@ -381,7 +381,7 @@ export default function AuditPage() {
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 {ultimaActualizacion && (
-                  <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: 550 }}>
                     Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
                   </span>
                 )}

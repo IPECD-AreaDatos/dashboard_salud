@@ -25,20 +25,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
+  padding: 1.3rem 1rem;
 }
 
 /* La tarjeta unificada central */
 .heroContent {
   text-align: center;
   width: 100%;
-  max-width: 460px; /* Tamaño ideal y compacto para un login form */
+  max-width: 430px; /* Tamaño ideal y compacto para un login form */
   display: flex;
   flex-direction: column;
   align-items: center;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(15px);
-  padding: 2.5rem 2rem;
+  padding: 2rem 1.5rem;
   border-radius: 2rem;
   border: 1px solid rgba(226, 232, 240, 0.8);
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.05);

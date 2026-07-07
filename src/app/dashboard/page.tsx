@@ -583,7 +583,7 @@ export default function SeguimientoPage() {
 
             <div className={styles.filterGroup}>
               <div className={styles.labelWithTooltip}>
-                <label className={styles.filterLabel}>Incluye Riesgo</label>
+                <label className={styles.filterLabel}>Solo Riesgo</label>
                 <div className={styles.tooltipContainer}>
                   <Info size={14} className={styles.infoIcon} />
                   <span className={styles.tooltipText}>
@@ -744,7 +744,7 @@ export default function SeguimientoPage() {
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 {ultimaActualizacion && (
-                  <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: 550 }}>
                     Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
                   </span>
                 )}
