@@ -149,12 +149,9 @@ export default function StatsPage() {
       ["ESTADÍSTICAS E INDICADORES PROVINCIALES"],
       ["Fecha de generación:", new Date().toLocaleDateString('es-AR') + " " + new Date().toLocaleTimeString('es-AR')],
       [],
-      ["MÉTRICAS GENERALES PROVINCIALES"],
-      // 🌟 CABECERAS ACTUALIZADAS
-      ["Total Padrón Activo", "Total en Alto Riesgo", "Total Controladas (Al Día)", "Total Vínculo Activo", "Total en Alto Riesgo Controladas"],
+      ["MÉTRICAS GENERALES PROVINCIALES"],      
       ["Total Padrón Activo", "Total en Alto Riesgo", "Total Controladas (Al Día)", "Total Seguimiento Adecuado", "Total en Alto Riesgo Controladas"],
       [
-        // 🌟 VALORES ACTUALIZADOS
         `${totalPadron} (100%)`,
         `${data?.riesgo?.total || 0} (${getPct(data?.riesgo?.total || 0)})`, 
         `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`, 
@@ -171,13 +168,17 @@ export default function StatsPage() {
       "Centro de Salud (Efector)": romanToArabic(caps.capsName),
       "Padrón Activo": caps.total,
       "% Riesgo": caps.pctRiesgo,
-      "% Controladas": caps.pctControl,
+      "% Controladas (Total)": caps.pctControl,
+      // 🌟 NUEVO DESGLOSE EN EL REPORTE EXCEL
+      "Controladas (Gestión)": caps.controladasGestion,
+      "Controladas (Espontáneas)": caps.controladasEspontaneas,
       "% Seguimiento Adecuado": caps.pctSeguimientoAdecuado, 
       "% Turnos Asignados x Tablero": caps.pctTurnosTablero
     }));
 
     XLSX.utils.sheet_add_json(hoja, datosFormateados, { origin: "A10" });
-    hoja['!cols'] = [ { wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 28 } ];
+    // Ajustamos los anchos para las nuevas columnas
+    hoja['!cols'] = [ { wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 22 }, { wch: 25 }, { wch: 22 }, { wch: 28 } ];
 
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, hoja, "Reporte Provincial");
