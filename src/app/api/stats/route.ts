@@ -187,39 +187,46 @@ export async function GET(request: Request) {
     // 7. Query de CAPS unificada (Filtrado estricto por Departamento Capital)
     const capsResumenSql = `
       SELECT
-        s.nombre as caps_name, -- Corregido: se saca el alias de la subconsulta
+        -- 🌟 Usamos COALESCE para tomar el nombre de la tabla de efectores, o el de pacientes si no existe
+        COALESCE(s.nombre, p.nombre_establecimiento) as caps_name,
         COUNT(DISTINCT p.id) as total_embarazadas,
       
+        COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN p.id END) as abs_riesgo,
         ROUND((COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_riesgo,
+        COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN p.id END) as abs_control,
         ROUND((COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_control,
         -- 🌟 NUEVO CONCEPTO: % Seguimiento Adecuado (reemplaza a % Vínculo Activo)
+        COUNT(DISTINCT CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN p.id END) as abs_seguimiento_adecuado,
         ROUND((COUNT(DISTINCT CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_seguimiento_adecuado,
-        ROUND((COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno > CURRENT_DATE THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_turnos_tablero,
-        COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno > CURRENT_DATE THEN p.id END) as turnos_asignados_caps,
+        -- 🌟 CORRECCIÓN: El porcentaje se calcula dividiendo el conteo de turnos por el total de embarazadas.
+        COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN p.id END) as turnos_asignados_caps,
+        ROUND((COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_turnos_tablero,
         
         -- 🌟 NUEVO DESGLOSE: Controladas por gestión vs. espontáneas
         COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND EXISTS (SELECT 1 FROM seguimientos s_gest WHERE s_gest.paciente_id = p.id AND s_gest.fecha_contacto < p.fecha_ultimo_control AND s_gest.fecha_contacto >= p.fecha_ultimo_control - INTERVAL '45 days') THEN p.id END) as controladas_gestion,
         COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND NOT EXISTS (SELECT 1 FROM seguimientos s_esp WHERE s_esp.paciente_id = p.id AND s_esp.fecha_contacto < p.fecha_ultimo_control AND s_esp.fecha_contacto >= p.fecha_ultimo_control - INTERVAL '45 days') THEN p.id END) as controladas_espontaneas
       
       FROM public.pacientes_gold p
-      INNER JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
+      -- 🌟 CORRECCIÓN: Usamos LEFT JOIN para no perder pacientes si su efector no está en la tabla sisa
+      LEFT JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
       -- 🌟 CORRECCIÓN: Usamos una subconsulta para obtener el último seguimiento con turno a futuro
       LEFT JOIN (
         SELECT DISTINCT ON (paciente_id) paciente_id, proxima_cita as fecha_proximo_turno
         FROM public.seguimientos
-        WHERE proxima_cita > CURRENT_DATE
+        WHERE proxima_cita >= CURRENT_DATE
         ORDER BY paciente_id, fecha_contacto DESC
       ) seg_turnos ON seg_turnos.paciente_id = p.id
       WHERE p.embarazo_en_curso = true 
         AND p.fecha_probable_parto >= CURRENT_DATE 
         AND p.fecha_nacimiento IS NOT NULL 
         AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') 
-        AND (LOWER(s.nombre) LIKE '%caps%' OR LOWER(s.nombre) LIKE '%c.a.p.s.%')
-        AND LOWER(TRIM(s.departamento)) = 'capital' -- <-- Fuerza que solo entren CAPS de Capital
+        -- 🌟 CORRECCIÓN: El filtro se aplica sobre el nombre del efector (de cualquiera de las dos tablas)
+        AND (LOWER(COALESCE(s.nombre, p.nombre_establecimiento)) LIKE '%caps%' OR LOWER(COALESCE(s.nombre, p.nombre_establecimiento)) LIKE '%c.a.p.s.%')
+        AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital' -- <-- Fuerza que solo entren CAPS de Capital, con fallback a CAPITAL si no hay dato
         ${zonaGlobalClause}
         ${securityClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
-      GROUP BY s.nombre 
+      GROUP BY caps_name
       ORDER BY total_embarazadas DESC;
     `;
 
@@ -356,8 +363,11 @@ export async function GET(request: Request) {
     const resumenCapsMapped = capsResumenRes.rows.map(r => ({
       capsName: (r.caps_name || '').trim(),
       total: parseInt(r.total_embarazadas) || 0,
+      absRiesgo: parseInt(r.abs_riesgo) || 0,
       pctRiesgo: parseFloat(r.pct_riesgo) || 0,
+      absControl: parseInt(r.abs_control) || 0,
       pctControl: parseFloat(r.pct_control) || 0,
+      absSeguimientoAdecuado: parseInt(r.abs_seguimiento_adecuado) || 0,
       pctSeguimientoAdecuado: parseFloat(r.pct_seguimiento_adecuado) || 0,
       pctTurnosTablero: parseFloat(r.pct_turnos_tablero) || 0,
       turnosAsignadosCaps: parseInt(r.turnos_asignados_caps) || 0,

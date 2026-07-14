@@ -582,10 +582,11 @@ export default function StatsPage() {
                 sortedCaps.map((caps: any, i: number) => {
                   
                   const totalCaps = caps.total || 0;
-                  const absRiesgo = Math.round((totalCaps * (caps.pctRiesgo ?? 0)) / 100);
-                  const absControladas = Math.round((totalCaps * (caps.pctControl ?? 0)) / 100);
-                  const absSeguimientoAdecuado = Math.round((totalCaps * (caps.pctSeguimientoAdecuado ?? 0)) / 100);
-                  const absTurnos = Math.round((totalCaps * (caps.turnosAsignadosCaps ?? 0)) / 100);
+                  // 🌟 CORRECCIÓN GENERAL: Usamos los valores absolutos que ya vienen del backend, no los recalculamos.
+                  const absRiesgo = caps.absRiesgo;
+                  const absControladas = caps.absControl;
+                  const absSeguimientoAdecuado = caps.absSeguimientoAdecuado;
+                  const absTurnos = caps.turnosAsignadosCaps;
 
                   return (
                     <tr key={i}>
@@ -623,7 +624,7 @@ export default function StatsPage() {
 
                       <td 
                         style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absTurnos} de ${totalCaps} pacientes obtuvieron un turno médico efectivo coordinado a través de este tablero.`}
+                        title={`${absTurnos} de ${totalCaps} pacientes tienen un turno próximo agendado (desde hoy en adelante).`}
                       >
                         <span className={styles.badgeCeleste}>
                           {caps.pctTurnosTablero}%
