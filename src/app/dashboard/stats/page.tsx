@@ -152,12 +152,13 @@ export default function StatsPage() {
       ["MÉTRICAS GENERALES PROVINCIALES"],
       // 🌟 CABECERAS ACTUALIZADAS
       ["Total Padrón Activo", "Total en Alto Riesgo", "Total Controladas (Al Día)", "Total Vínculo Activo", "Total en Alto Riesgo Controladas"],
+      ["Total Padrón Activo", "Total en Alto Riesgo", "Total Controladas (Al Día)", "Total Seguimiento Adecuado", "Total en Alto Riesgo Controladas"],
       [
         // 🌟 VALORES ACTUALIZADOS
         `${totalPadron} (100%)`,
         `${data?.riesgo?.total || 0} (${getPct(data?.riesgo?.total || 0)})`, 
         `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`, 
-        `${(data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0)} (${getPct((data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0))})`,
+        `${data?.gestion?.seguimientoAdecuado || 0} (${getPct(data?.gestion?.seguimientoAdecuado || 0)})`,
         `${data?.gestion?.riesgoControladas || 0} (${getPct(data?.gestion?.riesgoControladas || 0)})`
       ],
       [],
@@ -171,7 +172,7 @@ export default function StatsPage() {
       "Padrón Activo": caps.total,
       "% Riesgo": caps.pctRiesgo,
       "% Controladas": caps.pctControl,
-      "% Vínculo Activo": caps.pctVinculo, 
+      "% Seguimiento Adecuado": caps.pctSeguimientoAdecuado, 
       "% Turnos Asignados x Tablero": caps.pctTurnosTablero
     }));
 
@@ -330,7 +331,7 @@ export default function StatsPage() {
 
             {/* 🌟 TARJETA MODIFICADA: Ahora es "Alto Riesgo Controladas" */}
             <div className={styles.kpiCardCompact}>
-              <span className={styles.kpiLabel} style={{ color: '#c76d07' }}>Total en Alto Riesgo Controladas</span>
+              <span className={styles.kpiLabel} style={{ color: '#c76d07' }}>Total en Riesgo Controladas</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
                 <span className={styles.kpiSubValue} style={{ color: '#f18913', margin: 0 }}>
                   {(data?.gestion?.riesgoControladas || 0).toLocaleString('es-AR')}
@@ -352,19 +353,18 @@ export default function StatsPage() {
               <small className={styles.kpiSubtext}>Controles vigentes en los últimos 30 días</small>
             </div>
 
-            {/* Tarjeta de Total Contactadas mutada a Vínculo Activo */}
+            {/* 🌟 NUEVO CONCEPTO: Tarjeta de Seguimiento Adecuado */}
             <div className={styles.kpiCardCompact}>
-              <span className={styles.kpiLabel} style={{ color: '#0b6aa8e0' }}>Total Vínculo Activo</span>
+              <span className={styles.kpiLabel} style={{ color: '#0b6aa8e0' }}>Total Seguimiento Adecuado</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
                 <span className={styles.kpiSubValue} style={{ color: '#1276b8e0', margin: 0 }}>
-                  {((data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0)).toLocaleString('es-AR')}
+                  {(data?.gestion?.seguimientoAdecuado || 0).toLocaleString('es-AR')}
                 </span>
-                {/* 🌟 Muestra el porcentaje consolidado de vínculo activo real sobre el padrón */}
                 <span style={{ fontSize: '0.95rem', color: '#207ae9c7', fontWeight: 700 }}>
-                  ({getPct((data?.gestion?.contactadas || 0) + (data?.gestion?.acudieronSolas || 0))})
+                  ({getPct(data?.gestion?.seguimientoAdecuado || 0)})
                 </span>
               </div>
-              <small className={styles.kpiSubtext} style={{ color: '#0b6aa8e0' }}>Gestión y demanda en los últimos 30 días</small>
+              <small className={styles.kpiSubtext} style={{ color: '#0b6aa8e0' }}>Seguimiento adecuado durante el embarazo</small>
             </div>
             
             
@@ -379,25 +379,25 @@ export default function StatsPage() {
               <KpiDesgloseCard label="Riesgo Capital" pct={getPct(data?.riesgo?.desgloseZona?.capital || 0)} value={data?.riesgo?.desgloseZona?.capital || 0} valueColor="#dc2626" pctColor="#f87171" labelColor="#991b1b" />
               <KpiDesgloseCard label="Riesgo Interior" pct={getPct(data?.riesgo?.desgloseZona?.interior || 0)} value={data?.riesgo?.desgloseZona?.interior || 0} valueColor="#dc2626" pctColor="#f87171" labelColor="#991b1b" />
               {/* --- ALTO RIESGO CONTROLADAS (reemplaza a Derivadas) --- 🌟 COLOR DE TÍTULO AÑADIDO */}
-              <KpiDesgloseCard label="Riesgo Controlado (Capital)" pct={getPct(data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0)} value={data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0} valueColor="#f18913" pctColor="#f1a23a" labelColor="#c76d07" />
-              <KpiDesgloseCard label="Riesgo Controlado (Interior)" pct={getPct(data?.gestion?.desgloseZona?.riesgoControladas?.interior || 0)} value={data?.gestion?.desgloseZona?.riesgoControladas?.interior || 0} valueColor="#f18913" pctColor="#f1a23a" labelColor="#c76d07" />
+              <KpiDesgloseCard label="Riesgo Controlado Capital" pct={getPct(data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0)} value={data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0} valueColor="#f18913" pctColor="#f1a23a" labelColor="#c76d07" />
+              <KpiDesgloseCard label="Riesgo Controlado Interior" pct={getPct(data?.gestion?.desgloseZona?.riesgoControladas?.interior || 0)} value={data?.gestion?.desgloseZona?.riesgoControladas?.interior || 0} valueColor="#f18913" pctColor="#f1a23a" labelColor="#c76d07" />
 
               {/* --- CONTROLADAS --- */}
               <KpiDesgloseCard label="Controladas Capital" pct={getPct(data?.gestion?.desgloseZona?.controladas?.capital || 0)} value={data?.gestion?.desgloseZona?.controladas?.capital || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" labelColor="#15803d"/>
               <KpiDesgloseCard label="Controladas Interior" pct={getPct(data?.gestion?.desgloseZona?.controladas?.interior || 0)} value={data?.gestion?.desgloseZona?.controladas?.interior || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" labelColor="#15803d"/>
-              {/* --- NUEVO DESGLOSE: SEGUIMIENTO PROACTIVO VS ASISTENCIA ESPONTÁNEA --- */}
+              {/* --- NUEVO DESGLOSE: SEGUIMIENTO ADECUADO --- */}
               <KpiDesgloseCard 
-                label="Seguimiento Proactivo" 
-                pct={getPct(data?.gestion?.contactadas || 0)} 
-                value={data?.gestion?.contactadas || 0} 
+                label="Seguimiento Adecuado Capital" 
+                pct={getPct(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)} 
+                value={data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0} 
                 valueColor="#1276b8e0" 
                 pctColor="#207ae9c7" 
                 labelColor="#1276b8e0"
               />
               <KpiDesgloseCard 
-                label="Asistencia Espontánea" 
-                pct={getPct(data?.gestion?.acudieronSolas || 0)} 
-                value={data?.gestion?.acudieronSolas || 0} 
+                label="Seguimiento Adecuado Interior" 
+                pct={getPct(data?.gestion?.desgloseZona?.seguimientoAdecuado?.interior || 0)} 
+                value={data?.gestion?.desgloseZona?.seguimientoAdecuado?.interior || 0} 
                 valueColor="#1276b8e0" 
                 pctColor="#207ae9c7" 
                 labelColor="#1276b8e0"
@@ -558,11 +558,11 @@ export default function StatsPage() {
                         </span>
                       </div>
                     </th>
-                    <th onClick={() => handleSortCaps('pctVinculo')} className={styles.sortableHeader} title="Mide pacientes vinculadas por llamada o asistencia espontánea">
+                    <th onClick={() => handleSortCaps('pctSeguimientoAdecuado')} className={styles.sortableHeader} title="Mide el seguimiento adecuado a lo largo de todo el embarazo (captación temprana y controles mínimos).">
                       <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
-                        <span>% Vínculo Activo</span>
+                        <span>% Seguimiento Adecuado</span>
                         <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'pctVinculo' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
+                          {sortConfigCaps.key === 'pctSeguimientoAdecuado' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       </div>
                     </th>
@@ -583,8 +583,8 @@ export default function StatsPage() {
                   const totalCaps = caps.total || 0;
                   const absRiesgo = Math.round((totalCaps * (caps.pctRiesgo ?? 0)) / 100);
                   const absControladas = Math.round((totalCaps * (caps.pctControl ?? 0)) / 100);
-                  const absVinculadas = Math.round((totalCaps * (caps.pctVinculo ?? 0)) / 100);
-                  const absTurnos = Math.round((totalCaps * (caps.pctTurnosTablero ?? 0)) / 100);
+                  const absSeguimientoAdecuado = Math.round((totalCaps * (caps.pctSeguimientoAdecuado ?? 0)) / 100);
+                  const absTurnos = Math.round((totalCaps * (caps.turnosAsignadosCaps ?? 0)) / 100);
 
                   return (
                     <tr key={i}>
@@ -603,20 +603,20 @@ export default function StatsPage() {
                       {/* % Controladas con Tooltip explicatorio de períodos */}
                       <td 
                         style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absControladas} de ${totalCaps} pacientes se encuentran con controles al día:\n• < 32 semanas: control en los últimos 30 días.\n• 32 a 37 semanas: control en los últimos 15 días.\n• ≥ 38 semanas: control en los últimos 7 días.`}
+                        title={`${absControladas} de ${totalCaps} pacientes con controles al día:\n\n• ${caps.controladasGestion || 0} por Gestión Proactiva (contacto/turno previo).\n• ${caps.controladasEspontaneas || 0} por Asistencia Espontánea (sin contacto previo).`}
                       >
                         <span className={caps.pctControl > 75 ? styles.badgeVerde : styles.badgeRojo}>
                           {caps.pctControl}%
                         </span>
                       </td>
                       
-                      {/* % Vínculo Activo con Tooltip Desglosado */}
+                      {/* % Seguimiento Adecuado con Tooltip */}
                       <td 
                         style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absVinculadas} de ${totalCaps} pacientes mantienen un vínculo activo:\n• ${caps.contactadasCaps || 0} por seguimiento proactivo (llamadas efectivas).\n• ${caps.acudieronSolas || 0} por asistencia espontánea (demanda propia).`}
+                        title={`${absSeguimientoAdecuado} de ${totalCaps} pacientes tienen un seguimiento adecuado, cumpliendo con la captación temprana y la cantidad de controles esperados para su edad gestacional.`}
                       >
                         <span className={styles.badgeAmarillo}>
-                          {caps.pctVinculo}%
+                          {caps.pctSeguimientoAdecuado}%
                         </span>
                       </td>
 

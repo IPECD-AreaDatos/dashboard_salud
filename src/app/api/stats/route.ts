@@ -104,9 +104,10 @@ export async function GET(request: Request) {
       SELECT
         COUNT(DISTINCT p.id) as total,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN 1 ELSE 0 END) as total_controladas,
-        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - 30) THEN 1 ELSE 0 END) as total_contactadas,
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id) THEN 1 ELSE 0 END) as total_acudieron_solas,
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN 1 ELSE 0 END) as total_controladas,        
+        -- 🌟 NUEVO CONCEPTO: Seguimiento Adecuado (reemplaza a Vínculo Activo)
+        SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN 1 ELSE 0 END) as total_seguimiento_adecuado,
+
         SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_capital,
         SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_interior,        
         -- 🌟 NUEVOS CAMPOS: Calculamos las de riesgo que SÍ están controladas
@@ -117,10 +118,10 @@ export async function GET(request: Request) {
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_interior,
         SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_capital,
         SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_interior,
-        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_capital,
-        SUM(CASE WHEN EXISTS (SELECT 1 FROM seguimientos seg WHERE seg.paciente_id = p.id AND seg.contacto_logrado = true AND seg.fecha_contacto >= CURRENT_DATE - 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_contactadas_interior,
-        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_capital,
-        SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as derivadas_interior,
+        -- 🌟 NUEVO CONCEPTO: Desglose de Seguimiento Adecuado
+        SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_seguimiento_adecuado_capital,
+        SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_seguimiento_adecuado_interior,
+
         SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas
       FROM public.pacientes_gold p
       WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.fecha_nacimiento IS NOT NULL
@@ -186,21 +187,29 @@ export async function GET(request: Request) {
     // 7. Query de CAPS unificada (Filtrado estricto por Departamento Capital)
     const capsResumenSql = `
       SELECT
-        s.nombre as caps_name,
+        s.nombre as caps_name, -- Corregido: se saca el alias de la subconsulta
         COUNT(DISTINCT p.id) as total_embarazadas,
       
         ROUND((COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_riesgo,
         ROUND((COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_control,
-      
-        ROUND((COUNT(DISTINCT CASE WHEN seg_any.paciente_id IS NOT NULL OR (p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END)) THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_vinculo,
-        ROUND((COUNT(DISTINCT CASE WHEN LOWER(seg_any.medio_contacto) LIKE '%turno%' OR LOWER(seg_any.observaciones) LIKE '%turno%' OR LOWER(seg_any.observaciones) LIKE '%agend%' THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_turnos_tablero,
-
-        COUNT(DISTINCT CASE WHEN seg_any.paciente_id IS NOT NULL THEN p.id END) as contactadas_caps,
-        COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND seg_any.paciente_id IS NULL THEN p.id END) as acudieron_solas
+        -- 🌟 NUEVO CONCEPTO: % Seguimiento Adecuado (reemplaza a % Vínculo Activo)
+        ROUND((COUNT(DISTINCT CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_seguimiento_adecuado,
+        ROUND((COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno > CURRENT_DATE THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_turnos_tablero,
+        COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno > CURRENT_DATE THEN p.id END) as turnos_asignados_caps,
+        
+        -- 🌟 NUEVO DESGLOSE: Controladas por gestión vs. espontáneas
+        COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND EXISTS (SELECT 1 FROM seguimientos s_gest WHERE s_gest.paciente_id = p.id AND s_gest.fecha_contacto < p.fecha_ultimo_control AND s_gest.fecha_contacto >= p.fecha_ultimo_control - INTERVAL '45 days') THEN p.id END) as controladas_gestion,
+        COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND NOT EXISTS (SELECT 1 FROM seguimientos s_esp WHERE s_esp.paciente_id = p.id AND s_esp.fecha_contacto < p.fecha_ultimo_control AND s_esp.fecha_contacto >= p.fecha_ultimo_control - INTERVAL '45 days') THEN p.id END) as controladas_espontaneas
       
       FROM public.pacientes_gold p
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
-      LEFT JOIN public.seguimientos seg_any ON seg_any.paciente_id = p.id
+      -- 🌟 CORRECCIÓN: Usamos una subconsulta para obtener el último seguimiento con turno a futuro
+      LEFT JOIN (
+        SELECT DISTINCT ON (paciente_id) paciente_id, proxima_cita as fecha_proximo_turno
+        FROM public.seguimientos
+        WHERE proxima_cita > CURRENT_DATE
+        ORDER BY paciente_id, fecha_contacto DESC
+      ) seg_turnos ON seg_turnos.paciente_id = p.id
       WHERE p.embarazo_en_curso = true 
         AND p.fecha_probable_parto >= CURRENT_DATE 
         AND p.fecha_nacimiento IS NOT NULL 
@@ -321,10 +330,9 @@ export async function GET(request: Request) {
       derivadas: session.user?.role === 'Centro de Salud' 
         ? (parseInt(derivadasCapsRes?.rows[0]?.total_derivadas) || 0) 
         : (parseInt(cardsKpis.derivadas) || 0),
-      sinContactoReciente: parseInt(chartsKpis.sin_contacto_reciente) || 0,
-      controladas: parseInt(cardsKpis.total_controladas) || 0,
-      contactadas: parseInt(cardsKpis.total_contactadas) || 0,
-      acudieronSolas: parseInt(cardsKpis.total_acudieron_solas) || 0,      
+      sinContactoReciente: parseInt(chartsKpis.sin_contacto_reciente) || 0, // Se mantiene para la vista de CAPS
+      controladas: parseInt(cardsKpis.total_controladas) || 0, // Se mantiene para la vista de CAPS
+      seguimientoAdecuado: parseInt(cardsKpis.total_seguimiento_adecuado) || 0,
       // 🌟 NUEVOS DATOS PARA LAS TARJETAS
       riesgoControladas: parseInt(cardsKpis.total_riesgo_controladas) || 0,
       desgloseZona: {
@@ -332,7 +340,7 @@ export async function GET(request: Request) {
         contactadas: { capital: parseInt(cardsKpis.total_contactadas_capital) || 0, interior: parseInt(cardsKpis.total_contactadas_interior) || 0 },
         derivadas: { capital: parseInt(cardsKpis.derivadas_capital) || 0, interior: parseInt(cardsKpis.derivadas_interior) || 0 },
         // 🌟 NUEVO DESGLOSE
-        riesgoControladas: { capital: parseInt(cardsKpis.total_riesgo_controladas_capital) || 0, interior: parseInt(cardsKpis.total_riesgo_controladas_interior) || 0 },
+        riesgoControladas: { capital: parseInt(cardsKpis.total_riesgo_controladas_capital) || 0, interior: parseInt(cardsKpis.total_riesgo_controladas_interior) || 0 },        seguimientoAdecuado: { capital: parseInt(cardsKpis.total_seguimiento_adecuado_capital) || 0, interior: parseInt(cardsKpis.total_seguimiento_adecuado_interior) || 0 },
       }
     };
 
@@ -350,10 +358,11 @@ export async function GET(request: Request) {
       total: parseInt(r.total_embarazadas) || 0,
       pctRiesgo: parseFloat(r.pct_riesgo) || 0,
       pctControl: parseFloat(r.pct_control) || 0,
-      pctVinculo: parseFloat(r.pct_vinculo) || 0,
+      pctSeguimientoAdecuado: parseFloat(r.pct_seguimiento_adecuado) || 0,
       pctTurnosTablero: parseFloat(r.pct_turnos_tablero) || 0,
-      contactadasCaps: parseInt(r.contactadas_caps) || 0,
-      acudieronSolas: parseInt(r.acudieron_solas) || 0
+      turnosAsignadosCaps: parseInt(r.turnos_asignados_caps) || 0,
+      controladasGestion: parseInt(r.controladas_gestion) || 0,
+      controladasEspontaneas: parseInt(r.controladas_espontaneas) || 0
     }));
 
     return NextResponse.json({
