@@ -18,7 +18,7 @@ import {
   Cell,
   Legend
 } from "recharts";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, Info } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import * as XLSX from 'xlsx';
 
@@ -38,6 +38,24 @@ const romanToArabic = (text: string) => {
   });
   return newText;
 };
+
+// 🌟 NUEVO: Componente para las tarjetas con Tooltip (MOVIDO AQUÍ)
+const KpiCardConTooltip = ({ label, value, tooltip, color }: { label: string, value: number, tooltip: string, color: string }) => (
+  <div className={styles.kpiCardCompact}>
+    <div className={styles.labelWithTooltip}>
+      <span className={styles.kpiLabel}>{label}</span>
+      <div className={styles.tooltipContainer}>
+        <Info size={13} className={styles.infoIcon} />
+        <span className={styles.tooltipText}>
+          {tooltip}
+        </span>
+      </div>
+    </div>
+    <span className={styles.kpiSubValue} style={{ color: color }}>
+      {value}
+    </span>
+  </div>
+);
 
 export default function StatsPage() {
   const { data: session } = useSession();
@@ -132,6 +150,13 @@ export default function StatsPage() {
     }).catch(err => console.error("Error al registrar log:", err));
 
   }, [zonaChart, initialProvincialData]); // Dependemos de 'zonaChart' y 'initialProvincialData'
+
+  // 🌟 Cálculo para la tarjeta de Efectividad de Contacto
+  const contactosConTurno = data?.gestion?.desgloseZona?.contactosConTurnoCaps || 0;
+  const contactosTotales = data?.gestion?.desgloseZona?.contactosTotalesCaps || 0;
+  const efectividadContactoPct = contactosTotales > 0 
+    ? ((contactosConTurno / contactosTotales) * 100).toFixed(0) 
+    : 0;
   
   const totalPadron = data?.general?.total || 0;
   const getPct = (value: number) => {
@@ -462,27 +487,77 @@ export default function StatsPage() {
         {isCAPS && (
           <>
             <h2 className={styles.sectionTitle}>Gestión Prioritaria del Centro</h2>
+            {/* 🌟 PRIMERA FILA: Alertas Críticas e Inmediatas */}
             <div className={styles.kpiGridAdmin}>
+              <KpiCardConTooltip
+                label="Partos en 30 días"
+                value={data?.gestion?.proximosPartos}
+                tooltip="Total de embarazadas en la recta final (semana 36+ o FPP en los próximos 30 días)."
+                color="#769FD3"
+              />
+              <KpiCardConTooltip
+                label="Riesgo sin Control"
+                value={data?.gestion?.desgloseZona?.riesgoSinControl || 0}
+                tooltip="Cantidad de embarazadas con riesgo alto/moderado que llevan más de 30 días sin control."
+                color="#c76d07"
+              />
+              <KpiCardConTooltip
+                label="Controles Atrasados"
+                value={data?.gestion?.controlesPendientes}
+                tooltip="Pacientes que superaron el intervalo de control recomendado para su edad gestacional."
+                color="#ef4444"
+              />
+              <KpiCardConTooltip
+                label="Requieren Contacto"
+                value={data?.gestion?.sinContactoReciente}
+                tooltip="Pacientes con turnos perdidos o alertas a las que el sistema identificó para que el equipo realice una llamada o envío de mensaje."
+                color="#ef4444"
+              />
+              <KpiCardConTooltip
+                label="Sin Teléfono"
+                value={data?.gestion?.sinTelefono}
+                tooltip="Embarazadas sin un número de contacto válido."
+                color="#4b5563"
+              />
+            </div>
+
+            {/* 🌟 SEGUNDA FILA: Gestión, Logros y Calidad */}
+            <div className={styles.kpiGridAdmin} style={{ marginTop: '1rem' }}>
+              <KpiCardConTooltip
+                label="Seguimiento Adecuado"
+                value={data?.gestion?.desgloseZona?.seguimientoAdecuadoCaps || 0}
+                tooltip="Total de embarazadas con sus controles periódicos al día según las pautas clínicas de su semana de gestación."
+                color="#1276b8e0"
+              />
+              <KpiCardConTooltip
+                label="Turnos Asignados x Tablero"
+                value={data?.gestion?.desgloseZona?.turnosAsignadosCaps || 0}
+                tooltip="Pacientes contactadas y agendadas con un turno directamente a través de las acciones del tablero."
+                color="#1276b8e0"
+              />
+              <KpiCardConTooltip
+                label="Derivadas"
+                value={data?.gestion?.derivadas}
+                tooltip="Pacientes derivadas a un nivel de mayor complejidad (hospitales, maternidades) por complicaciones o estudios específicos."
+                color="#769FD3"
+              />
+              <KpiCardConTooltip
+                label="Captación Precoz (< 12 sem)"
+                value={data?.gestion?.desgloseZona?.captacionPrecozCaps || 0}
+                tooltip="Total de embarazadas que iniciaron su primer control médico dentro del primer trimestre."
+                color="#15803d"
+              />
               <div className={styles.kpiCardCompact}>
-                <span className={styles.kpiLabel}>Controles Atrasados</span>
-                <span className={styles.kpiSubValue} style={{ color: '#ef4444' }}>{data?.gestion?.controlesPendientes}</span>
+                <div className={styles.labelWithTooltip}>
+                  <span className={styles.kpiLabel}>Efectividad de Contacto</span>
+                  <div className={styles.tooltipContainer}>
+                    <Info size={13} className={styles.infoIcon} />
+                    <span className={styles.tooltipText}>Porcentaje de contactos efectivos (llamadas, mensajes) que resultaron en un turno agendado en los últimos 30 días.</span>
+                  </div>
+                </div>
+                <span className={styles.kpiSubValue} style={{ color: '#15803d' }}>{efectividadContactoPct}%</span>
+                <small className={styles.kpiSubtext} style={{marginTop: '4px'}}>{`(${contactosConTurno} de ${contactosTotales} contactos)`}</small>
               </div>
-              <div className={styles.kpiCardCompact}>
-                <span className={styles.kpiLabel}>REQUIEREN CONTACTO</span>
-                <span className={styles.kpiSubValue} style={{ color: '#ef4444' }}>{data?.gestion?.sinContactoReciente}</span>
-              </div>
-              <div className={styles.kpiCardCompact}>
-                <span className={styles.kpiLabel}>Partos en 30 días</span>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3' }}>{data?.gestion?.proximosPartos}</span>
-              </div>
-              <div className={styles.kpiCardCompact}>
-                <span className={styles.kpiLabel}>Sin Teléfono</span>
-                <span className={styles.kpiSubValue} style={{ color: '#4b5563' }}>{data?.gestion?.sinTelefono}</span>
-              </div>
-              <div className={styles.kpiCardCompact}>
-                <span className={styles.kpiLabel}>Derivadas</span>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3' }}>{data?.gestion?.derivadas}</span>
-              </div>              
             </div>
 
             <h2 className={styles.sectionTitle}>Cobertura de Controles Médicos</h2>

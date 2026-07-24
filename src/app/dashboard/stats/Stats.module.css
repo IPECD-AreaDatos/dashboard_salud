@@ -345,3 +345,52 @@
         grid-template-columns: 1fr 1fr;
     }
 }
+
+/* 🌟 ESTILOS PARA TOOLTIPS CON ÍCONO DE INFORMACIÓN */
+.labelWithTooltip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tooltipContainer {
+  position: relative;
+  display: flex; /* Usamos flex para alinear el ícono */
+  align-items: center;
+}
+
+.infoIcon {
+  color: #94a3b8;
+  cursor: help;
+  transition: color 0.2s;
+}
+
+.tooltipContainer:hover .infoIcon {
+  color: #587ba8;
+}
+
+.tooltipText {
+  visibility: hidden;
+  width: 240px;
+  background-color: #334155;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px 12px;
+  position: absolute;
+  z-index: 10;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.4;
+  pointer-events: none; /* Evita que el tooltip interfiera con el hover */
+}
+
+.tooltipContainer:hover .tooltipText {
+  visibility: visible;
+  opacity: 1;
+}

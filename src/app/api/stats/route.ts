@@ -94,7 +94,32 @@ export async function GET(request: Request) {
         SUM(CASE WHEN p.fecha_ultimo_control = CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_hoy,
         SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_semana,
         SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_mes
-      FROM public.pacientes_gold p
+      ,
+        -- 🌟 NUEVOS CAMPOS PARA LAS CARDS DE CAPS
+        SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN 1 ELSE 0 END) as seguimiento_adecuado_caps,
+        COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN p.id END) as turnos_asignados_caps
+      ,
+        -- 🌟 NUEVO KPI: Pacientes de riesgo con controles atrasados
+        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NULL OR CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) > 30 END) THEN 1 ELSE 0 END) as riesgo_sin_control,
+
+        -- 🌟 NUEVOS KPIs PARA GESTIÓN DE CALIDAD
+        SUM(CASE WHEN p.controles_1er_trim > 0 THEN 1 ELSE 0 END) as captacion_precoz_caps,
+        COUNT(DISTINCT CASE WHEN s_efectividad.proxima_cita IS NOT NULL THEN s_efectividad.id END) as contactos_con_turno_caps,
+        COUNT(DISTINCT s_efectividad.id) as contactos_totales_caps
+FROM public.pacientes_gold p
+      -- 🌟 CORRECCIÓN: Agregamos el LEFT JOIN que faltaba para la tabla seg_turnos
+      LEFT JOIN (
+        SELECT DISTINCT ON (paciente_id) paciente_id, proxima_cita as fecha_proximo_turno
+        FROM public.seguimientos
+        WHERE proxima_cita >= CURRENT_DATE
+        ORDER BY paciente_id, fecha_contacto DESC
+      ) seg_turnos ON seg_turnos.paciente_id = p.id
+      -- 🌟 NUEVO JOIN para calcular la efectividad de los contactos
+      LEFT JOIN public.seguimientos s_efectividad 
+        ON s_efectividad.paciente_id = p.id 
+        AND s_efectividad.contacto_logrado = true 
+        AND s_efectividad.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days'
+
       WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.fecha_nacimiento IS NOT NULL
         ${securityClause} ${centroFilterClause} ${zonaGlobalClause} ${derivacionClause}
     `;
@@ -343,6 +368,14 @@ export async function GET(request: Request) {
       // 🌟 NUEVOS DATOS PARA LAS TARJETAS
       riesgoControladas: parseInt(cardsKpis.total_riesgo_controladas) || 0,
       desgloseZona: {
+        // 🌟 NUEVOS CAMPOS PARA LAS CARDS DE CAPS
+        seguimientoAdecuadoCaps: parseInt(chartsKpis.seguimiento_adecuado_caps) || 0,
+        riesgoSinControl: parseInt(chartsKpis.riesgo_sin_control) || 0,
+        turnosAsignadosCaps: parseInt(chartsKpis.turnos_asignados_caps) || 0,
+        captacionPrecozCaps: parseInt(chartsKpis.captacion_precoz_caps) || 0,
+        contactosConTurnoCaps: parseInt(chartsKpis.contactos_con_turno_caps) || 0,
+        contactosTotalesCaps: parseInt(chartsKpis.contactos_totales_caps) || 0,
+
         controladas: { capital: parseInt(cardsKpis.total_controladas_capital) || 0, interior: parseInt(cardsKpis.total_controladas_interior) || 0 },
         contactadas: { capital: parseInt(cardsKpis.total_contactadas_capital) || 0, interior: parseInt(cardsKpis.total_contactadas_interior) || 0 },
         derivadas: { capital: parseInt(cardsKpis.derivadas_capital) || 0, interior: parseInt(cardsKpis.derivadas_interior) || 0 },
