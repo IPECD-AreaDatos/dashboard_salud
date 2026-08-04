@@ -211,48 +211,88 @@ FROM public.pacientes_gold p
     
     // 7. Query de CAPS unificada (Filtrado estricto por Departamento Capital)
     const capsResumenSql = `
+      WITH caps_normalized AS (
+        SELECT
+          p.id,
+          COALESCE(s.codigo_sisa, p.sisa_centro_salud) AS raw_code,
+          TRIM(COALESCE(s.nombre, p.nombre_establecimiento)) AS raw_name,
+          translate(LOWER(TRIM(COALESCE(s.nombre, p.nombre_establecimiento))), 'áéíóúüñ', 'aeiouun') AS raw_name_lower,
+          p.riesgo,
+          p.fecha_ultimo_control,
+          p.eg_actual,
+          p.controles_1er_trim,
+          p.cantidad_controles
+        FROM public.pacientes_gold p
+        LEFT JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
+        WHERE p.embarazo_en_curso = true
+          AND p.fecha_probable_parto >= CURRENT_DATE
+          AND p.fecha_nacimiento IS NOT NULL
+          AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '')
+          AND (LOWER(COALESCE(s.nombre, p.nombre_establecimiento)) LIKE '%caps%' OR LOWER(COALESCE(s.nombre, p.nombre_establecimiento)) LIKE '%c.a.p.s.%')
+          AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital'
+          ${zonaGlobalClause}
+          ${securityClause}
+          ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
+      ), caps_normalized_step AS (
+        SELECT
+          *,
+          REGEXP_REPLACE(
+            REGEXP_REPLACE(
+              REGEXP_REPLACE(
+                REGEXP_REPLACE(
+                  REGEXP_REPLACE(
+                    REGEXP_REPLACE(
+                      REGEXP_REPLACE(
+                        REGEXP_REPLACE(raw_name_lower, '\\b(c[\\.? ]*a[\\.? ]*p[\\.? ]*s[\\.? ]*|caps)\\b', 'caps', 'g'),
+                        '\\b(viii)\\b', '8', 'g'
+                      ),
+                      '\\b(vii)\\b', '7', 'g'
+                    ),
+                    '\\b(vi)\\b', '6', 'g'
+                  ),
+                  '\\b(v)\\b', '5', 'g'
+                ),
+                '\\b(iv)\\b', '4', 'g'
+              ),
+              '\\b(iii)\\b', '3', 'g'
+            ),
+            '\\b(ii)\\b', '2', 'g'
+          ) AS normalized_name_step1
+        FROM caps_normalized
+      ), caps_normalized_step2 AS (
+        SELECT
+          *,
+          TRIM(
+            REGEXP_REPLACE(
+              REGEXP_REPLACE(
+                REGEXP_REPLACE(normalized_name_step1, '\\bsta\\b', 'santa', 'g'),
+                '\\bb[º°]?\\b', '', 'g'
+              ),
+              '[^a-z0-9 ]+', ' ', 'g'
+            )
+          ) AS normalized_name
+        FROM caps_normalized_step
+      )
       SELECT
-        -- 🌟 Usamos COALESCE para tomar el nombre de la tabla de efectores, o el de pacientes si no existe
-        COALESCE(s.nombre, p.nombre_establecimiento) as caps_name,
-        COUNT(DISTINCT p.id) as total_embarazadas,
-      
-        COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN p.id END) as abs_riesgo,
-        ROUND((COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_riesgo,
-        COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN p.id END) as abs_control,
-        ROUND((COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_control,
-        -- 🌟 NUEVO CONCEPTO: % Seguimiento Adecuado (reemplaza a % Vínculo Activo)
-        COUNT(DISTINCT CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN p.id END) as abs_seguimiento_adecuado,
-        ROUND((COUNT(DISTINCT CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_seguimiento_adecuado,
-        -- 🌟 CORRECCIÓN: El porcentaje se calcula dividiendo el conteo de turnos por el total de embarazadas.
-        COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN p.id END) as turnos_asignados_caps,
-        ROUND((COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN p.id END) * 100.0) / NULLIF(COUNT(DISTINCT p.id), 0), 1) as pct_turnos_tablero,
-        
-        -- 🌟 NUEVO DESGLOSE: Controladas por gestión vs. espontáneas
-        COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND EXISTS (SELECT 1 FROM seguimientos s_gest WHERE s_gest.paciente_id = p.id AND s_gest.fecha_contacto < p.fecha_ultimo_control AND s_gest.fecha_contacto >= p.fecha_ultimo_control - INTERVAL '45 days') THEN p.id END) as controladas_gestion,
-        COUNT(DISTINCT CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND NOT EXISTS (SELECT 1 FROM seguimientos s_esp WHERE s_esp.paciente_id = p.id AND s_esp.fecha_contacto < p.fecha_ultimo_control AND s_esp.fecha_contacto >= p.fecha_ultimo_control - INTERVAL '45 days') THEN p.id END) as controladas_espontaneas
-      
-      FROM public.pacientes_gold p
-      -- 🌟 CORRECCIÓN: Usamos LEFT JOIN para no perder pacientes si su efector no está en la tabla sisa
-      LEFT JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
-      -- 🌟 CORRECCIÓN: Usamos una subconsulta para obtener el último seguimiento con turno a futuro
+        COALESCE(NULLIF(MIN(raw_code), ''), NULL) as caps_code,
+        MIN(raw_name) as caps_name,
+        normalized_name,
+        COUNT(DISTINCT id) as total,
+        COUNT(DISTINCT CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') THEN id END) as abs_riesgo,
+        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CASE WHEN eg_actual >= 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 7 WHEN eg_actual >= 32 AND eg_actual < 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - fecha_ultimo_control) <= 30 END) THEN id END) as abs_control,
+        COUNT(DISTINCT CASE WHEN (controles_1er_trim > 0 AND cantidad_controles > ((eg_actual * 7)/30) - (CASE WHEN eg_actual < 14 THEN 1 WHEN eg_actual < 28 THEN 2 ELSE 3 END)) THEN id END) as abs_seguimiento_adecuado,
+        COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN id END) as turnos_asignados_caps,
+        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CASE WHEN eg_actual >= 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 7 WHEN eg_actual >= 32 AND eg_actual < 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - fecha_ultimo_control) <= 30 END) AND EXISTS (SELECT 1 FROM seguimientos s_gest WHERE s_gest.paciente_id = id AND s_gest.fecha_contacto < fecha_ultimo_control AND s_gest.fecha_contacto >= fecha_ultimo_control - INTERVAL '45 days') THEN id END) as controladas_gestion,
+        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CASE WHEN eg_actual >= 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 7 WHEN eg_actual >= 32 AND eg_actual < 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - fecha_ultimo_control) <= 30 END) AND NOT EXISTS (SELECT 1 FROM seguimientos s_esp WHERE s_esp.paciente_id = id AND s_esp.fecha_contacto < fecha_ultimo_control AND s_esp.fecha_contacto >= fecha_ultimo_control - INTERVAL '45 days') THEN id END) as controladas_espontaneas
+      FROM caps_normalized_step2 p
       LEFT JOIN (
         SELECT DISTINCT ON (paciente_id) paciente_id, proxima_cita as fecha_proximo_turno
         FROM public.seguimientos
         WHERE proxima_cita >= CURRENT_DATE
         ORDER BY paciente_id, fecha_contacto DESC
       ) seg_turnos ON seg_turnos.paciente_id = p.id
-      WHERE p.embarazo_en_curso = true 
-        AND p.fecha_probable_parto >= CURRENT_DATE 
-        AND p.fecha_nacimiento IS NOT NULL 
-        AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') 
-        -- 🌟 CORRECCIÓN: El filtro se aplica sobre el nombre del efector (de cualquiera de las dos tablas)
-        AND (LOWER(COALESCE(s.nombre, p.nombre_establecimiento)) LIKE '%caps%' OR LOWER(COALESCE(s.nombre, p.nombre_establecimiento)) LIKE '%c.a.p.s.%')
-        AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital' -- <-- Fuerza que solo entren CAPS de Capital, con fallback a CAPITAL si no hay dato
-        ${zonaGlobalClause}
-        ${securityClause}
-        ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
-      GROUP BY caps_name
-      ORDER BY total_embarazadas DESC;
+      GROUP BY normalized_name
+      ORDER BY total DESC;
     `;
 
     const capsResumenRes = await query(capsResumenSql);
@@ -393,16 +433,14 @@ FROM public.pacientes_gold p
     const topGeneralMapped = topGenRes.rows.map(r => ({ name: (r.name || '').trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }));
     const topRiesgoMapped = topRsgRes.rows.map(r => ({ name: (r.name || '').trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }));
 
-    const resumenCapsMapped = capsResumenRes.rows.map(r => ({
-      capsName: (r.caps_name || '').trim(),
-      total: parseInt(r.total_embarazadas) || 0,
+    // La API ahora devuelve los datos sin agrupar por nombre normalizado. El frontend se encargará de eso.
+    const resumenCapsMapped = capsResumenRes.rows.map((r: any) => ({
+      capsCode: r.caps_code,
+      capsName: r.caps_name,
+      total: parseInt(r.total) || 0,
       absRiesgo: parseInt(r.abs_riesgo) || 0,
-      pctRiesgo: parseFloat(r.pct_riesgo) || 0,
       absControl: parseInt(r.abs_control) || 0,
-      pctControl: parseFloat(r.pct_control) || 0,
       absSeguimientoAdecuado: parseInt(r.abs_seguimiento_adecuado) || 0,
-      pctSeguimientoAdecuado: parseFloat(r.pct_seguimiento_adecuado) || 0,
-      pctTurnosTablero: parseFloat(r.pct_turnos_tablero) || 0,
       turnosAsignadosCaps: parseInt(r.turnos_asignados_caps) || 0,
       controladasGestion: parseInt(r.controladas_gestion) || 0,
       controladasEspontaneas: parseInt(r.controladas_espontaneas) || 0

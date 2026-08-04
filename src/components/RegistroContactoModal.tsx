@@ -269,6 +269,11 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
                       <span className={h.contacto_logrado ? styles.tagSuccess : styles.tagError}>
                         {h.contacto_logrado ? 'Logrado' : 'Fallido'}
                       </span>
+                      {h.medio_contacto && (
+                        <span style={{ marginLeft: '0.75rem', color: '#475569', fontSize: '0.82rem' }}>
+                          Fuente: {h.medio_contacto.replace(/_/g, ' ')}
+                        </span>
+                      )}
                     </div>
                     <div className={styles.hBody}>
                       <p>{h.observaciones}</p>

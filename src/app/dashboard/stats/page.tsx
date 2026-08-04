@@ -81,14 +81,79 @@ export default function StatsPage() {
     setSortConfigCaps({ key, direction });
   };
 
+  const normalizeCapsName = (name: string) => {
+    if (!name) return '';
+    return name
+      .toUpperCase() // 1. A MAYÚSCULAS para unificar
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // 2. Quitar acentos
+      .replace(/C\.?A\.?P\.?S\.?/g, 'CAPS') // 3. Unificar C.A.P.S.
+      // 4. Reemplazar números romanos (ajustado para ser más preciso)
+      .replace(/\bVIII\b/g, '8')
+      .replace(/\bVII\b/g, '7')
+      .replace(/\bVI\b/g, '6')
+      .replace(/\bIV\b/g, '4')
+      .replace(/\bV\b/g, '5')
+      .replace(/\bIII\b/g, '3')
+      .replace(/\bII\b/g, '2')
+      .replace(/\bI\b/g, '1')
+      // 5. Eliminar palabras y abreviaturas comunes que generan ruido
+      .replace(/\b(BARRIO|B°|Bº|DR|DOCTOR|EX|PRESIDENTE|UNIDOS DEL PALMAR|N°|Nº|NO\.)\b/g, '')
+      // 6. Corregir errores de tipeo y abreviaturas específicas
+      .replace(/\bSTA\b/g, 'SANTA')
+      .replace(/TAGLIALEGNE/g, 'TAGLIALENE') // Corregir error de tipeo
+      .replace(/"/g, '') // 7. Eliminar comillas
+      .replace(/[^A-Z0-9]/g, ' ') // 8. Eliminar todos los caracteres no alfanuméricos restantes
+      .replace(/\s+/g, ' ') // 9. Colapsar múltiples espacios a uno solo
+      .trim(); // 10. Limpiar espacios al inicio y final
+  };
+
   const sortedCaps = useMemo(() => {
     if (!data?.resumenCaps) return [];
-    const sortableItems = [...data.resumenCaps];
+
+    const groupedCaps = data.resumenCaps.reduce((acc: any, caps: any) => {
+      const normalizedName = normalizeCapsName(caps.capsName || '');
+      const key = normalizedName || (caps.capsCode ? caps.capsCode.trim() : '');
+      if (!key) return acc;
+
+      if (!acc[key]) {
+        acc[key] = { ...caps };
+      } else {
+        acc[key] = {
+          capsCode: acc[key].capsCode || caps.capsCode,
+          capsName: acc[key].capsName,
+          total: (acc[key].total || 0) + (caps.total || 0),
+          absRiesgo: (acc[key].absRiesgo || 0) + (caps.absRiesgo || 0),
+          absControl: (acc[key].absControl || 0) + (caps.absControl || 0),
+          absSeguimientoAdecuado: (acc[key].absSeguimientoAdecuado || 0) + (caps.absSeguimientoAdecuado || 0),
+          turnosAsignadosCaps: (acc[key].turnosAsignadosCaps || 0) + (caps.turnosAsignadosCaps || 0),
+          controladasGestion: (acc[key].controladasGestion || 0) + (caps.controladasGestion || 0),
+          controladasEspontaneas: (acc[key].controladasEspontaneas || 0) + (caps.controladasEspontaneas || 0),
+          pctRiesgo: 0,
+          pctControl: 0,
+          pctSeguimientoAdecuado: 0,
+          pctTurnosTablero: 0,
+        };
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    const dedupedCaps = Object.values(groupedCaps).map((caps: any) => {
+      const total = caps.total || 0;
+      return {
+        ...caps,
+        pctRiesgo: total ? parseFloat(((caps.absRiesgo * 100.0) / total).toFixed(1)) : 0,
+        pctControl: total ? parseFloat(((caps.absControl * 100.0) / total).toFixed(1)) : 0,
+        pctSeguimientoAdecuado: total ? parseFloat(((caps.absSeguimientoAdecuado * 100.0) / total).toFixed(1)) : 0,
+        pctTurnosTablero: total ? parseFloat(((caps.turnosAsignadosCaps * 100.0) / total).toFixed(1)) : 0,
+      };
+    });
+
+    const sortableItems = [...dedupedCaps];
     if (sortConfigCaps.key !== null) {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfigCaps.key!];
         const bValue = b[sortConfigCaps.key!];
-        
+
         if (aValue < bValue) return sortConfigCaps.direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return sortConfigCaps.direction === 'asc' ? 1 : -1;
         return 0;
