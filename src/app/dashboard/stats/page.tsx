@@ -194,12 +194,14 @@ export default function StatsPage() {
       .then(res => res.json())
       .then(filteredData => {
         // Construimos el nuevo estado 'data' combinando los KPIs globales con los datos de gráficos filtrados
+        // Incluimos `coberturaStats` para que el Pie chart también se actualice al filtrar por zona
         setData({
           ...initialProvincialData, // Mantenemos los KPIs globales (general, riesgo, gestion, actividad)
           distribucionEG: filteredData.distribucionEG,
           topGeneral: filteredData.topGeneral,
           topRiesgoAtraso: filteredData.topRiesgoAtraso,
           resumenCaps: filteredData.resumenCaps, // La tabla de CAPS también se filtra por zona
+          coberturaStats: filteredData.coberturaStats || initialProvincialData.coberturaStats,
         });
         setLoading(prev => ({ ...prev, filtering: false }));
       })
