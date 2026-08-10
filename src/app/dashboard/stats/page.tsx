@@ -61,9 +61,9 @@ export default function StatsPage() {
   const { data: session } = useSession();
   const isMaternidad = session?.user?.role === 'Maternidad';
   const isCAPS = session?.user?.role === 'Centro de Salud';
-  
   const userRole = session?.user?.role;
   const isAdminOrCoord = userRole === 'Administrador' || userRole === 'Coordinador';
+  const isSupervisora = userRole === 'Supervisora';
 
   const [data, setData] = useState<any>(null);
   const [initialProvincialData, setInitialProvincialData] = useState<any>(null); // Nuevo estado para datos provinciales iniciales
@@ -334,6 +334,22 @@ export default function StatsPage() {
   };
 
   const { textoHoy, textoSemana, textoMes } = obtenerEtiquetasActividad();
+
+  if (isSupervisora) {
+    return (
+      <>
+        <Navbar />
+        <div className={styles.container} style={{ padding: '2rem', minHeight: '72vh' }}>
+          <div style={{ background: '#fff', borderRadius: '1rem', padding: '2rem', boxShadow: '0 12px 24px rgba(15,23,42,0.08)', maxWidth: '720px', margin: '2rem auto' }}>
+            <h1 style={{ marginBottom: '1rem', color: '#0f172a' }}>Acceso denegado</h1>
+            <p style={{ color: '#475569', lineHeight: '1.7' }}>
+              El rol <strong>Supervisora</strong> sólo puede acceder a la sección de Seguimiento. No tiene permiso para ver Estadísticas.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (loading.initial || !data) {
     return (

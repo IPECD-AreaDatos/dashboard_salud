@@ -11,6 +11,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  if (session.user?.role === 'Supervisora') {
+    return NextResponse.json({ error: "No autorizado para consultar estadísticas" }, { status: 403 });
+  }
+
   // Capturamos el establecimiento seleccionado del selector global o botones del front
   const { searchParams } = new URL(request.url);
   const establecimiento = searchParams.get("establecimiento");

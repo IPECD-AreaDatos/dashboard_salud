@@ -13,19 +13,24 @@ import logoSaludImg from "../../public/Logo_Salud_Publica_colorH.png";
 export default function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const isSupervisora = session?.user?.role === 'Supervisora';
 
   const menuItems = [
     { name: 'Seguimiento', href: '/dashboard', icon: Activity },
-    { name: 'Estadísticas', href: '/dashboard/stats', icon: BarChart3 },
   ];
 
+  if (!isSupervisora) {
+    menuItems.push({ name: 'Estadísticas', href: '/dashboard/stats', icon: BarChart3 });
+  }
+
   if (
-    session?.user?.role === 'Administrador' || 
+    !isSupervisora &&
+    (session?.user?.role === 'Administrador' || 
     session?.user?.role === 'Coordinador' || 
     session?.user?.role === 'Centro de Salud' || 
     session?.user?.role === 'Maternidad' || 
     session?.user?.role?.toLowerCase() === 'lectura' ||
-    session?.user?.name === 'admin'
+    session?.user?.name === 'admin')
   ) {
     menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });
   }

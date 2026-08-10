@@ -28,6 +28,7 @@ interface PacienteAuditoria {
 
 export default function AuditPage() {
   const { data: session } = useSession();
+  const isSupervisora = session?.user?.role === 'Supervisora';
   
   const [pacientes, setPacientes] = useState<PacienteAuditoria[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,6 +118,22 @@ export default function AuditPage() {
       registrarLog({ modulo: "Auditoría", accion: "VISUALIZAR_LISTADO" });
     }
   }, [session]);
+
+  if (isSupervisora) {
+    return (
+      <>
+        <Navbar />
+        <div className={styles.container} style={{ padding: '2rem', minHeight: '72vh' }}>
+          <div style={{ background: '#fff', borderRadius: '1rem', padding: '2rem', boxShadow: '0 12px 24px rgba(15,23,42,0.08)', maxWidth: '720px', margin: '2rem auto' }}>
+            <h1 style={{ marginBottom: '1rem', color: '#0f172a' }}>Acceso denegado</h1>
+            <p style={{ color: '#475569', lineHeight: '1.7' }}>
+              El rol <strong>Supervisora</strong> sólo puede acceder a la sección de Seguimiento. No tiene permiso para ver Auditoría.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   // 👈 NUEVA FUNCIÓN: Descarga a Excel estructurado y con metadatos
   const handleDescargarExcel = () => {

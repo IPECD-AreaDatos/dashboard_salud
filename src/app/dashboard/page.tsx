@@ -27,6 +27,7 @@ interface Paciente {
   dias_sin_contacto: number;
   fuente_principal: string;
   eg_actual: number | null;
+  cobertura: string;
   establecimiento: string;
   nombre_centro_derivado?: string | null;
   derivacion_maternidad_id?: string | null;
@@ -108,8 +109,10 @@ export default function SeguimientoPage() {
   const { data: session } = useSession();
   const userRole = session?.user?.role;
   const isRestrictedRole = userRole === 'Centro de Salud' || userRole === 'Maternidad';
+  const isSupervisora = userRole === 'Supervisora';
 
-  const verColumnasAmpliadas = userRole === 'Administrador' || userRole === 'Coordinador' || userRole?.toLowerCase() === 'lectura' || userRole === 'Maternidad';
+  const verColumnasAmpliadas = !isSupervisora && (userRole === 'Administrador' || userRole === 'Coordinador' || userRole?.toLowerCase() === 'lectura' || userRole === 'Maternidad');
+  const tableColumnCount = verColumnasAmpliadas ? 18 : 9;
 
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<{ value: string, label: string, sisa?: string }[]>([]);
@@ -874,7 +877,7 @@ export default function SeguimientoPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={18} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         Cargando base de datos Gold...
                       </td>
                     </tr>
@@ -1007,7 +1010,7 @@ export default function SeguimientoPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={18} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         <AlertCircle className="w-8 h-8 text-orange-400 mx-auto mb-2" />
                         No se encontraron registros para estos filtros.
                       </td>

@@ -13,9 +13,14 @@ export async function GET(request: Request) {
      session.user?.role !== 'Coordinador' && 
      session.user?.role !== 'Centro de Salud' && 
      session.user?.role !== 'Maternidad' && 
+     session.user?.role !== 'Supervisora' && 
      session.user?.role?.toLowerCase() !== 'lectura' &&
      session.user?.name !== 'admin')
   ) {
+    return NextResponse.json({ error: "No autorizado para consultar auditoría" }, { status: 403 });
+  }
+
+  if (session.user?.role === 'Supervisora') {
     return NextResponse.json({ error: "No autorizado para consultar auditoría" }, { status: 403 });
   }
 
