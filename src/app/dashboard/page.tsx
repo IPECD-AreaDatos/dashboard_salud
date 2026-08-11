@@ -55,24 +55,10 @@ const calcularDiasSinContacto = (fechaContacto: string) => {
 
 
 
-const getSemaforoClass = (dias: number, eg: number | null) => {
+const getSemaforoClass = (dias: number) => {
   if (dias === 999) return styles.semaforoGris;
   
-  // EG >= 38 semanas: control cada 7 días
-  if (eg !== null && eg >= 38) {
-    if (dias > 15) return styles.semaforoRojo;
-    if (dias > 7)  return styles.semaforoAmarillo;
-    return styles.semaforoVerde;
-  }
-  
-  // EG 32-37 semanas: control cada 15 días
-  if (eg !== null && eg >= 32) {
-    if (dias > 30) return styles.semaforoRojo;
-    if (dias > 15) return styles.semaforoAmarillo;
-    return styles.semaforoVerde;
-  }
-  
-  // EG < 32 semanas (o sin dato): control mensual
+  // Nueva regla: 1 control/contacto cada 30 días para todas las EG
   if (dias > 60) return styles.semaforoRojo;
   if (dias > 30) return styles.semaforoAmarillo;
   return styles.semaforoVerde;
@@ -314,8 +300,8 @@ export default function SeguimientoPage() {
       // 👈 FALLBACK INTELIGENTE: Si al cargar la página por primera vez pedimos "Atrasadas" y no hay ninguna, cambiamos automáticamente a "Todas"
       if (esCargaInicial && atrasadosABuscar === "Si" && !data.fallbackActivo) {
         const atrasadasReales = pacientesObtenidos.filter((p: Paciente) => {
-          const clase = getSemaforoClass(p.dias, p.eg_actual);
-          return clase === styles.semaforoRojo || clase === styles.semaforoAmarillo || clase === styles.semaforoGris;
+          const clase = getSemaforoClass(p.dias);
+          return clase === styles.semaforoRojo || clase === styles.semaforoAmarillo;
         });
 
         if (atrasadasReales.length === 0) {
@@ -349,15 +335,15 @@ export default function SeguimientoPage() {
   const pacientesFiltrados = pacientes.filter(p => {
     // 👈 FILTRADO CLIENT-SIDE: Aseguramos la precisión de "Controles Atrasados" pase lo que pase con la API
     if (aplicadoAtrasados === "Si") {
-      const clase = getSemaforoClass(p.dias, p.eg_actual);
-      return clase === styles.semaforoRojo || clase === styles.semaforoAmarillo || clase === styles.semaforoGris;
+      const clase = getSemaforoClass(p.dias);
+      return clase === styles.semaforoRojo || clase === styles.semaforoAmarillo; // semaforoGris no es "atrasado"
     } else if (aplicadoAtrasados === "No") {
-      const clase = getSemaforoClass(p.dias, p.eg_actual);
+      const clase = getSemaforoClass(p.dias);
       return clase === styles.semaforoVerde;
     }
     return true; // "Todas"
   });
-
+  
   const sortedPacientes = [...pacientesFiltrados].sort((a, b) => {
     if (!sortConfig.key) return 0;
 
@@ -920,7 +906,7 @@ export default function SeguimientoPage() {
                                 {p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : "-"}
                               </span>
                               <div>
-                                <span className={getSemaforoClass(p.dias, p.eg_actual)}>
+                                <span className={getSemaforoClass(p.dias)}>
                                   {p.dias === 999 ? "S/D" : `${p.dias} días`}
                                 </span>
                               </div>
@@ -934,8 +920,8 @@ export default function SeguimientoPage() {
                                   ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR')
                                   : "-"}
                               </span>
-                              <div>
-                                <span className={getSemaforoClass(diasSC, p.eg_actual)}>
+                              <div className={styles.semaforoWrapper}>
+                                <span className={getSemaforoClass(diasSC)}>
                                   {diasSC === 999 
                                     ? "S/D" 
                                     : diasSC <= 0 
