@@ -91,10 +91,10 @@ export async function GET(request: Request) {
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as rsg_15_19,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as rsg_20_34,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus,
-        SUM(CASE WHEN (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (p.fecha_ultimo_control IS NULL OR CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) > 30 END) THEN 1 ELSE 0 END) as controles_pendientes,
+        SUM(CASE WHEN (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 30) THEN 1 ELSE 0 END) as controles_pendientes,
         SUM(CASE WHEN p.fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
         SUM(CASE WHEN p.telefono IS NULL OR p.telefono = '' OR p.telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
-        SUM(CASE WHEN (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (p.fecha_ultimo_control IS NULL OR CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) > 30 END) AND (NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - (CASE WHEN p.eg_actual >= 38 THEN INTERVAL '7 days' WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN INTERVAL '15 days' ELSE INTERVAL '30 days' END))) THEN 1 ELSE 0 END) as sin_contacto_reciente,
+        SUM(CASE WHEN (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 30) AND (NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days')) THEN 1 ELSE 0 END) as sin_contacto_reciente,
         SUM(CASE WHEN p.fecha_ultimo_control = CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_hoy,
         SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_semana,
         SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_mes
@@ -104,7 +104,7 @@ export async function GET(request: Request) {
         COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN p.id END) as turnos_asignados_caps
       ,
         -- 🌟 NUEVO KPI: Pacientes de riesgo con controles atrasados
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NULL OR CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) > 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) > 30 END) THEN 1 ELSE 0 END) as riesgo_sin_control,
+        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 30) THEN 1 ELSE 0 END) as riesgo_sin_control,
 
         -- 🌟 NUEVOS KPIs PARA GESTIÓN DE CALIDAD
         SUM(CASE WHEN p.controles_1er_trim > 0 THEN 1 ELSE 0 END) as captacion_precoz_caps,
@@ -133,20 +133,20 @@ FROM public.pacientes_gold p
       SELECT
         COUNT(DISTINCT p.id) as total,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) THEN 1 ELSE 0 END) as total_controladas,        
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 30 THEN 1 ELSE 0 END) as total_controladas,
         -- 🌟 NUEVO CONCEPTO: Seguimiento Adecuado (reemplaza a Vínculo Activo)
         SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN 1 ELSE 0 END) as total_seguimiento_adecuado,
 
         SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_capital,
         SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_interior,        
         -- 🌟 NUEVOS CAMPOS: Calculamos las de riesgo que SÍ están controladas
-        COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END)) THEN p.id END) as total_riesgo_controladas,
-        COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END)) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN p.id END) as total_riesgo_controladas_capital,
-        COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END)) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN p.id END) as total_riesgo_controladas_interior,
+        COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 30) THEN p.id END) as total_riesgo_controladas,
+        COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN p.id END) as total_riesgo_controladas_capital,
+        COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 30) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN p.id END) as total_riesgo_controladas_interior,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_capital,        
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_interior,
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_capital,
-        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CASE WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 END) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_interior,
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 30 AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_capital,
+        SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 30 AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_interior,
         -- 🌟 NUEVO CONCEPTO: Desglose de Seguimiento Adecuado
         SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_seguimiento_adecuado_capital,
         SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_seguimiento_adecuado_interior,
@@ -283,11 +283,11 @@ FROM public.pacientes_gold p
         normalized_name,
         COUNT(DISTINCT id) as total,
         COUNT(DISTINCT CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') THEN id END) as abs_riesgo,
-        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CASE WHEN eg_actual >= 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 7 WHEN eg_actual >= 32 AND eg_actual < 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - fecha_ultimo_control) <= 30 END) THEN id END) as abs_control,
+        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 30 THEN id END) as abs_control,
         COUNT(DISTINCT CASE WHEN (controles_1er_trim > 0 AND cantidad_controles > ((eg_actual * 7)/30) - (CASE WHEN eg_actual < 14 THEN 1 WHEN eg_actual < 28 THEN 2 ELSE 3 END)) THEN id END) as abs_seguimiento_adecuado,
         COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN id END) as turnos_asignados_caps,
-        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CASE WHEN eg_actual >= 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 7 WHEN eg_actual >= 32 AND eg_actual < 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - fecha_ultimo_control) <= 30 END) AND EXISTS (SELECT 1 FROM seguimientos s_gest WHERE s_gest.paciente_id = id AND s_gest.fecha_contacto < fecha_ultimo_control AND s_gest.fecha_contacto >= fecha_ultimo_control - INTERVAL '45 days') THEN id END) as controladas_gestion,
-        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CASE WHEN eg_actual >= 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 7 WHEN eg_actual >= 32 AND eg_actual < 38 THEN (CURRENT_DATE - fecha_ultimo_control) <= 15 ELSE (CURRENT_DATE - fecha_ultimo_control) <= 30 END) AND NOT EXISTS (SELECT 1 FROM seguimientos s_esp WHERE s_esp.paciente_id = id AND s_esp.fecha_contacto < fecha_ultimo_control AND s_esp.fecha_contacto >= fecha_ultimo_control - INTERVAL '45 days') THEN id END) as controladas_espontaneas
+        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 30 AND EXISTS (SELECT 1 FROM seguimientos s_gest WHERE s_gest.paciente_id = id AND s_gest.fecha_contacto < fecha_ultimo_control AND s_gest.fecha_contacto >= fecha_ultimo_control - INTERVAL '45 days') THEN id END) as controladas_gestion,
+        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 30 AND NOT EXISTS (SELECT 1 FROM seguimientos s_esp WHERE s_esp.paciente_id = id AND s_esp.fecha_contacto < fecha_ultimo_control AND s_esp.fecha_contacto >= fecha_ultimo_control - INTERVAL '45 days') THEN id END) as controladas_espontaneas
       FROM caps_normalized_step2 p
       LEFT JOIN (
         SELECT DISTINCT ON (paciente_id) paciente_id, proxima_cita as fecha_proximo_turno
@@ -333,13 +333,7 @@ FROM public.pacientes_gold p
             WHEN p.eg_actual BETWEEN 33 AND 36 THEN 9
             ELSE 10
           END as orden_num,
-          CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (
-            CASE 
-              WHEN p.eg_actual >= 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 7 
-              WHEN p.eg_actual >= 32 AND p.eg_actual < 38 THEN (CURRENT_DATE - p.fecha_ultimo_control) <= 15 
-              ELSE (CURRENT_DATE - p.fecha_ultimo_control) <= 30 
-            END
-          ) THEN p.id ELSE NULL END as id_controlada
+          CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 30 THEN p.id ELSE NULL END as id_controlada
         FROM public.pacientes_gold p
         WHERE p.embarazo_en_curso = true AND p.fecha_probable_parto >= ${fechaUmbral} AND p.fecha_nacimiento IS NOT NULL
           ${securityClause}

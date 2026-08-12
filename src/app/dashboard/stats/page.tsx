@@ -581,19 +581,19 @@ export default function StatsPage() {
               <KpiCardConTooltip
                 label="Riesgo sin Control"
                 value={data?.gestion?.desgloseZona?.riesgoSinControl || 0}
-                tooltip="Cantidad de embarazadas con riesgo alto/moderado que llevan más de 30 días sin control."
+                tooltip="Cantidad de embarazadas con riesgo alto/moderado que llevan más de 30 días sin control médico."
                 color="#c76d07"
               />
               <KpiCardConTooltip
                 label="Controles Atrasados"
                 value={data?.gestion?.controlesPendientes}
-                tooltip="Pacientes que superaron el intervalo de control recomendado para su edad gestacional."
+                tooltip="Pacientes que superaron los 30 días desde su último control médico."
                 color="#ef4444"
               />
               <KpiCardConTooltip
                 label="Requieren Contacto"
                 value={data?.gestion?.sinContactoReciente}
-                tooltip="Pacientes con turnos perdidos o alertas a las que el sistema identificó para que el equipo realice una llamada o envío de mensaje."
+                tooltip="Pacientes que superaron los 30 días desde su último contacto registrado o con turnos perdidos."
                 color="#ef4444"
               />
               <KpiCardConTooltip
@@ -609,7 +609,7 @@ export default function StatsPage() {
               <KpiCardConTooltip
                 label="Seguimiento Adecuado"
                 value={data?.gestion?.desgloseZona?.seguimientoAdecuadoCaps || 0}
-                tooltip="Total de embarazadas con sus controles periódicos al día según las pautas clínicas de su semana de gestación."
+                tooltip="Total de embarazadas con sus controles médicos y contactos al día (últimos 30 días)."
                 color="#1276b8e0"
               />
               <KpiCardConTooltip
@@ -704,11 +704,8 @@ export default function StatsPage() {
                     </th>
                     <th 
                       onClick={() => handleSortCaps('pctControl')} 
-                      className={styles.sortableHeader} 
-                      title={`Se actualiza todos los días (Pacientes con controles al día)
-                    • < 32 semanas: control en los últimos 30 días.
-                    • 32 a 37 semanas: control en los últimos 15 días.
-                    • ≥ 38 semanas: control en los últimos 7 días.`}
+                      className={styles.sortableHeader}
+                      title="Porcentaje de embarazadas con controles médicos al día (últimos 30 días)."
                     >
                       <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
                         <span>% Controladas</span>
@@ -717,7 +714,7 @@ export default function StatsPage() {
                         </span>
                       </div>
                     </th>
-                    <th onClick={() => handleSortCaps('pctSeguimientoAdecuado')} className={styles.sortableHeader} title="Mide el seguimiento adecuado a lo largo de todo el embarazo (captación temprana y controles mínimos).">
+                    <th onClick={() => handleSortCaps('pctSeguimientoAdecuado')} className={styles.sortableHeader} title="Mide el seguimiento adecuado a lo largo de todo el embarazo (controles y contactos al día).">
                       <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
                         <span>% Seguimiento Adecuado</span>
                         <span className={styles.sortIcon}>
@@ -763,7 +760,7 @@ export default function StatsPage() {
                       {/* % Controladas con Tooltip explicatorio de períodos */}
                       <td 
                         style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absControladas} de ${totalCaps} pacientes con controles al día:\n\n• ${caps.controladasGestion || 0} por Gestión Proactiva (contacto/turno previo).\n• ${caps.controladasEspontaneas || 0} por Asistencia Espontánea (sin contacto previo).`}
+                        title={`${absControladas} de ${totalCaps} pacientes con controles médicos al día (últimos 30 días).\n\n• ${caps.controladasGestion || 0} por Gestión Proactiva (contacto/turno previo).\n• ${caps.controladasEspontaneas || 0} por Asistencia Espontánea (sin contacto previo).`}
                       >
                         <span className={caps.pctControl > 75 ? styles.badgeVerde : styles.badgeRojo}>
                           {caps.pctControl}%
@@ -772,8 +769,8 @@ export default function StatsPage() {
                       
                       {/* % Seguimiento Adecuado con Tooltip */}
                       <td 
-                        style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absSeguimientoAdecuado} de ${totalCaps} pacientes tienen un seguimiento adecuado, cumpliendo con la captación temprana y la cantidad de controles esperados para su edad gestacional.`}
+                        style={{ textAlign: 'center', cursor: 'help' }} 
+                        title={`${absSeguimientoAdecuado} de ${totalCaps} pacientes tienen un seguimiento adecuado, cumpliendo con la captación temprana y manteniendo controles y contactos al día.`}
                       >
                         <span className={styles.badgeAmarillo}>
                           {caps.pctSeguimientoAdecuado}%
