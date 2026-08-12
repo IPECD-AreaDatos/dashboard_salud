@@ -94,19 +94,12 @@ export async function GET(request: Request) {
           
           if (controlesAtrasadosParam === "true") {
             // Pacientes atrasadas (Semáforo Rojo, Amarillo, Gris)
-            whereClause += ` AND (
-              p.fecha_ultimo_control IS NULL OR 
-              (p.eg_actual >= 38 AND (CURRENT_DATE - p.fecha_ultimo_control) > 7) OR
-              (p.eg_actual >= 32 AND p.eg_actual < 38 AND (CURRENT_DATE - p.fecha_ultimo_control) > 15) OR
-              ((p.eg_actual < 32 OR p.eg_actual IS NULL) AND (CURRENT_DATE - p.fecha_ultimo_control) > 30)
-            )`;
+            // Nueva regla: Atrasada si el último control o el último contacto fue hace más de 30 días.
+            whereClause += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 30)`;
           } else if (controlesAtrasadosParam === "false") {
             // Pacientes al día (Semáforo Verde)
-            whereClause += ` AND p.fecha_ultimo_control IS NOT NULL AND NOT (
-              (p.eg_actual >= 38 AND (CURRENT_DATE - p.fecha_ultimo_control) > 7) OR
-              (p.eg_actual >= 32 AND p.eg_actual < 38 AND (CURRENT_DATE - p.fecha_ultimo_control) > 15) OR
-              ((p.eg_actual < 32 OR p.eg_actual IS NULL) AND (CURRENT_DATE - p.fecha_ultimo_control) > 30)
-            )`;
+            // Nueva regla: Al día si el último control fue en los últimos 30 días.
+            whereClause += ` AND p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 30`;
           }
         }
 
