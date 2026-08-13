@@ -31,9 +31,13 @@ export async function GET(request: Request) {
     let securityClause = "";
     if (session.user?.role === 'Centro de Salud') {
       if (sisa) {
-        securityClause = ` AND sisa_centro_salud = '${sisa}'`;
+        securityClause = ` AND (p.sisa_centro_salud = '${sisa}' OR p.sisa_centro_derivado = '${sisa}')`;
       } else if (cuie) {
-        securityClause = ` AND (sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+        securityClause = ` AND (
+          p.sisa_centro_salud = '${cuie}' 
+          OR p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}')
+          OR p.cuie_seguimiento = '${cuie}'
+        )`;
       }
     }
     else if (session.user?.role === 'Maternidad') {
@@ -42,9 +46,9 @@ export async function GET(request: Request) {
       if (sisa) {
         localClause = `sisa_centro_salud = '${sisa}'`;
       } else if (cuie) {
-        localClause = `(sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+        localClause = `(p.sisa_centro_salud = '${cuie}' OR p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
       }
-      securityClause = ` AND (${localClause} OR derivacion_maternidad_id = '${matId}')`;
+      securityClause = ` AND (${localClause} OR p.derivacion_maternidad_id = '${matId}')`;
     }
 
     // 2. Cláusula Dinámica de Selección de Centro para Coordinador/Admin
@@ -54,12 +58,12 @@ export async function GET(request: Request) {
     if (establecimiento && establecimiento !== "Todos" && establecimiento !== "Capital" && establecimiento !== "Interior" && establecimiento !== "undefined") {
       statsParams.push(establecimiento);
       if (/^\d+$/.test(establecimiento.trim()) && establecimiento.trim().length >= 10) {
-        centroFilterClause = ` AND (sisa_centro_salud = $1 OR sisa_centro_derivado = $1)`;
+        centroFilterClause = ` AND (p.sisa_centro_salud = $1 OR p.sisa_centro_derivado = $1)`;
       } else {
         centroFilterClause = ` AND (
-          sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $1)
-          OR sisa_centro_derivado IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $1)
-          OR cuie_seguimiento = $1
+          p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $1)
+          OR p.sisa_centro_derivado IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $1)
+          OR p.cuie_seguimiento = $1
         )`;
       }
     }
@@ -75,57 +79,43 @@ export async function GET(request: Request) {
     // 3. Cláusula de derivación según rol
     let derivacionClause = "";
     if (session.user?.role === 'Centro de Salud') {
-      derivacionClause = ` AND (nombre_centro_derivado IS NULL OR nombre_centro_derivado = '')`;
+      derivacionClause = ` AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '')`;
     }
 
     // 4. Métricas para los GRÁFICOS (afectadas por el filtro de zona)
     const chartsKpiSql = `
-      SELECT
-        COUNT(DISTINCT p.id) as total,
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
-        SUM(CASE WHEN p.edad_actual < 15 THEN 1 ELSE 0 END) as gen_15,
-        SUM(CASE WHEN p.edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as gen_15_19,
-        SUM(CASE WHEN p.edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as gen_20_34,
-        SUM(CASE WHEN p.edad_actual > 34 THEN 1 ELSE 0 END) as gen_34_plus,
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual < 15 THEN 1 ELSE 0 END) as rsg_15,
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual BETWEEN 15 AND 19 THEN 1 ELSE 0 END) as rsg_15_19,
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual BETWEEN 20 AND 34 THEN 1 ELSE 0 END) as rsg_20_34,
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND p.edad_actual > 34 THEN 1 ELSE 0 END) as rsg_34_plus,
-        SUM(CASE WHEN (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 30) THEN 1 ELSE 0 END) as controles_pendientes,
-        SUM(CASE WHEN p.fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') THEN 1 ELSE 0 END) as proximos_partos,
-        SUM(CASE WHEN p.telefono IS NULL OR p.telefono = '' OR p.telefono = '-' THEN 1 ELSE 0 END) as sin_telefono,
-        SUM(CASE WHEN (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 30) AND (NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = p.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days')) THEN 1 ELSE 0 END) as sin_contacto_reciente,
-        SUM(CASE WHEN p.fecha_ultimo_control = CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_hoy,
-        SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_semana,
-        SUM(CASE WHEN p.fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1 THEN 1 ELSE 0 END) as controles_mes
-      ,
-        -- 🌟 NUEVOS CAMPOS PARA LAS CARDS DE CAPS
-        SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN 1 ELSE 0 END) as seguimiento_adecuado_caps,
-        COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN p.id END) as turnos_asignados_caps
-      ,
-        -- 🌟 NUEVO KPI: Pacientes de riesgo con controles atrasados
-        SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 30) THEN 1 ELSE 0 END) as riesgo_sin_control,
-
-        -- 🌟 NUEVOS KPIs PARA GESTIÓN DE CALIDAD
-        SUM(CASE WHEN p.controles_1er_trim > 0 THEN 1 ELSE 0 END) as captacion_precoz_caps,
-        COUNT(DISTINCT CASE WHEN s_efectividad.proxima_cita IS NOT NULL THEN s_efectividad.id END) as contactos_con_turno_caps,
-        COUNT(DISTINCT s_efectividad.id) as contactos_totales_caps
-FROM public.pacientes_gold p
-      -- 🌟 CORRECCIÓN: Agregamos el LEFT JOIN que faltaba para la tabla seg_turnos
-      LEFT JOIN (
-        SELECT DISTINCT ON (paciente_id) paciente_id, proxima_cita as fecha_proximo_turno
-        FROM public.seguimientos
-        WHERE proxima_cita >= CURRENT_DATE
-        ORDER BY paciente_id, fecha_contacto DESC
-      ) seg_turnos ON seg_turnos.paciente_id = p.id
-      -- 🌟 NUEVO JOIN para calcular la efectividad de los contactos
-      LEFT JOIN public.seguimientos s_efectividad 
-        ON s_efectividad.paciente_id = p.id 
-        AND s_efectividad.contacto_logrado = true 
-        AND s_efectividad.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days'
-
-      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.fecha_nacimiento IS NOT NULL
-        ${securityClause} ${centroFilterClause} ${zonaGlobalClause} ${derivacionClause}
+      WITH pacientes_filtradas AS (
+        SELECT DISTINCT p.*
+        FROM public.pacientes_gold p
+        WHERE p.fecha_probable_parto >= ${fechaUmbral} 
+          AND p.embarazo_en_curso = true 
+          AND p.fecha_nacimiento IS NOT NULL
+          ${securityClause} ${centroFilterClause} ${zonaGlobalClause} ${derivacionClause}
+      )
+      SELECT 
+        (SELECT COUNT(*) FROM pacientes_filtradas) as total,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE LOWER(riesgo) IN ('si', 's', 'alto', 'moderado')) as total_riesgo,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE edad_actual < 15) as gen_15,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE edad_actual BETWEEN 15 AND 19) as gen_15_19,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE edad_actual BETWEEN 20 AND 34) as gen_20_34,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE edad_actual > 34) as gen_34_plus,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual < 15) as rsg_15,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual BETWEEN 15 AND 19) as rsg_15_19,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual BETWEEN 20 AND 34) as rsg_20_34,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND edad_actual > 34) as rsg_34_plus,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE (fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 30)) as controles_pendientes,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days')) as proximos_partos,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE telefono IS NULL OR telefono = '' OR telefono = '-') as sin_telefono,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE (fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 30) AND (NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = pacientes_filtradas.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days'))) as sin_contacto_reciente,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE fecha_ultimo_control = CURRENT_DATE - 1) as controles_hoy,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE fecha_ultimo_control BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1) as controles_semana,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1) as controles_mes,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE (controles_1er_trim > 0 AND cantidad_controles > ((eg_actual * 7)/30) - (CASE WHEN eg_actual < 14 THEN 1 WHEN eg_actual < 28 THEN 2 ELSE 3 END))) as seguimiento_adecuado_caps,
+        (SELECT COUNT(DISTINCT p.id) FROM pacientes_filtradas p JOIN public.seguimientos s ON p.id = s.paciente_id WHERE s.proxima_cita >= CURRENT_DATE) as turnos_asignados_caps,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND (fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 30)) as riesgo_sin_control,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE controles_1er_trim > 0) as captacion_precoz_caps,
+        (SELECT COUNT(DISTINCT s.id) FROM pacientes_filtradas p JOIN public.seguimientos s ON p.id = s.paciente_id WHERE s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days' AND s.proxima_cita IS NOT NULL) as contactos_con_turno_caps,
+        (SELECT COUNT(DISTINCT s.id) FROM pacientes_filtradas p JOIN public.seguimientos s ON p.id = s.paciente_id WHERE s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days') as contactos_totales_caps
     `;
 
     // 4.1 Métricas para las TARJETAS (NO son afectadas por el filtro de zona)
@@ -192,8 +182,7 @@ FROM public.pacientes_gold p
       SELECT s.nombre as name, s.departamento, COUNT(DISTINCT p.id) as value
       FROM public.pacientes_gold p
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = (CASE WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != '' THEN p.sisa_centro_derivado ELSE p.sisa_centro_salud END)
-      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND (p.fecha_ultimo_control >= ${fechaMinimaControl} OR p.fecha_ultimo_control IS NULL)
-        ${securityClause} ${derivacionClause}
+      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true        ${securityClause} ${derivacionClause}
         ${zonaGlobalClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento ORDER BY value DESC

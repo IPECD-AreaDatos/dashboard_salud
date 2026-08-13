@@ -31,31 +31,38 @@ export async function GET(request: Request) {
   try {
     const sisa = session.user?.sisa_code;
     const cuie = session.user?.cuie_code;
+    const userRole = session.user?.role;
 
-    // 1. Lógica de Seguridad de Tony (RBAC)
+    // 🌟 1. Lógica de Seguridad RBAC Blindada
+    // Para 'Coordinador', 'Admin' o 'Supervisora' la cláusula queda VACÍA para ver toda la provincia
     let securityClause = ``;
-    if (session.user?.role === 'Centro de Salud') {
+    
+    if (userRole === 'Centro de Salud') {
       if (sisa) {
-        securityClause = ` AND sisa_centro_salud = '${sisa}'`;
+        securityClause = ` AND (p.sisa_centro_salud = '${sisa}' OR p.sisa_centro_derivado = '${sisa}')`;
       } else if (cuie) {
-        securityClause = ` AND (sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+        securityClause = ` AND (
+          p.sisa_centro_salud = '${cuie}' 
+          OR p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}')
+          OR p.cuie_seguimiento = '${cuie}'
+        )`;
       }
     }
-    else if (session.user?.role === 'Maternidad') {
+    else if (userRole === 'Maternidad') {
       const matId = session.user?.maternidad_id;
       let localClause = "";
       if (sisa) {
-        localClause = `sisa_centro_salud = '${sisa}'`;
+        localClause = `p.sisa_centro_salud = '${sisa}'`;
       } else if (cuie) {
-        localClause = `(sisa_centro_salud = '${cuie}' OR sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+        localClause = `(p.sisa_centro_salud = '${cuie}' OR p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
       }
-      securityClause = ` AND (${localClause} OR derivacion_maternidad_id = '${matId}')`;
+      securityClause = ` AND (${localClause} OR p.derivacion_maternidad_id = '${matId}')`;
     }
 
     // 2. Obtener el total para el contador del Dashboard
     const countQuery = `
       SELECT COUNT(*) 
-      FROM pacientes_gold 
+      FROM pacientes_gold p
       WHERE fecha_probable_parto >= CURRENT_DATE 
         AND embarazo_en_curso = true ${securityClause}
     `;
@@ -95,7 +102,7 @@ export async function GET(request: Request) {
           if (controlesAtrasadosParam === "true") {
             // Pacientes atrasadas (Semáforo Rojo, Amarillo, Gris)
             // Nueva regla: Atrasada si el último control o el último contacto fue hace más de 30 días.
-            whereClause += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 30)`;
+            whereClause += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 30) `;
           } else if (controlesAtrasadosParam === "false") {
             // Pacientes al día (Semáforo Verde)
             // Nueva regla: Al día si el último control fue en los últimos 30 días.
@@ -117,12 +124,17 @@ export async function GET(request: Request) {
           whereClause += ` AND dni LIKE $${params.length}`;
         }
 
-        if (establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
+        // 🌟 3. Filtro por establecimiento para Coordinador / Admin ampliado (SISA y Derivaciones)
+        if (establecimiento && establecimiento !== "Todos" && establecimiento !== "Capital" && establecimiento !== "Interior" && establecimiento !== "undefined") {
           params.push(establecimiento);
           if (/^\d+$/.test(establecimiento.trim()) && establecimiento.trim().length >= 10) {
-            whereClause += ` AND p.sisa_centro_salud = $${params.length}`;
+            whereClause += ` AND (p.sisa_centro_salud = $${params.length} OR p.sisa_centro_derivado = $${params.length})`;
           } else {
-            whereClause += ` AND (p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $${params.length}) OR p.cuie_seguimiento = $${params.length})`;
+            whereClause += ` AND (
+              p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $${params.length}) 
+              OR p.sisa_centro_derivado IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $${params.length}) 
+              OR p.cuie_seguimiento = $${params.length}
+            )`;
           }
         }
       }
