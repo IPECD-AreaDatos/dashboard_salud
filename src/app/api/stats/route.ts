@@ -31,7 +31,8 @@ export async function GET(request: Request) {
     let securityClause = "";
     if (session.user?.role === 'Centro de Salud') {
       if (sisa) {
-        securityClause = ` AND (p.sisa_centro_salud = '${sisa}' OR p.sisa_centro_derivado = '${sisa}')`;
+        // 🌟 CORREGIDO: Lógica de seguridad idéntica a la de la grilla de seguimiento
+        securityClause = ` AND (p.sisa_centro_salud = '${sisa}')`;
       } else if (cuie) {
         securityClause = ` AND (
           p.sisa_centro_salud = '${cuie}' 

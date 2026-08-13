@@ -168,7 +168,7 @@ export async function GET(request: Request) {
         FROM pacientes_gold p
         LEFT JOIN efectores_sisa s ON (p.sisa_centro_salud = s.codigo_sisa OR p.cuie_seguimiento = s.cuie)
         ${whereClause}
-        ORDER BY p.id, (CURRENT_DATE - p.fecha_ultimo_control) DESC NULLS FIRST      
+        ORDER BY p.id, (CURRENT_DATE - p.fecha_ultimo_control) DESC NULLS FIRST
       `;
 
       return await query(sql, params);

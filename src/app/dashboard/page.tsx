@@ -333,15 +333,17 @@ export default function SeguimientoPage() {
   };
 
   const pacientesFiltrados = pacientes.filter(p => {
-    // 👈 FILTRADO CLIENT-SIDE: Aseguramos la precisión de "Controles Atrasados" pase lo que pase con la API
     if (aplicadoAtrasados === "Si") {
       const clase = getSemaforoClass(p.dias);
-      return clase === styles.semaforoRojo || clase === styles.semaforoAmarillo; // semaforoGris no es "atrasado"
+      // Gris (dias===999 = sin fecha de control) ES atrasada, la más crítica
+      return clase === styles.semaforoRojo || 
+            clase === styles.semaforoAmarillo || 
+            clase === styles.semaforoGris;
     } else if (aplicadoAtrasados === "No") {
       const clase = getSemaforoClass(p.dias);
       return clase === styles.semaforoVerde;
     }
-    return true; // "Todas"
+    return true;
   });
   
   const sortedPacientes = [...pacientesFiltrados].sort((a, b) => {
