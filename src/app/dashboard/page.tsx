@@ -339,10 +339,7 @@ export default function SeguimientoPage() {
       return clase === styles.semaforoRojo || 
             clase === styles.semaforoAmarillo || 
             clase === styles.semaforoGris;
-    } else if (aplicadoAtrasados === "No") {
-      const clase = getSemaforoClass(p.dias);
-      return clase === styles.semaforoVerde;
-    }
+    } 
     return true;
   });
   
