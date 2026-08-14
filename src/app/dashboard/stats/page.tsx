@@ -39,6 +39,31 @@ const romanToArabic = (text: string) => {
   return newText;
 };
 
+const formatCapsDisplayName = (rawName: string): string => {
+  if (!rawName) return '';
+
+  let name = rawName.toUpperCase();
+  name = romanToArabic(name);
+
+  const capsMatch = name.match(/C\.?A\.?P\.?S\.?\s*N?º?°?\s*(\d+)/i);
+  const capsNum = capsMatch ? capsMatch[1] : null;
+
+  let cleanName = name
+    .replace(/C\.?A\.?P\.?S\.?\s*N?º?°?\s*\d*/gi, '')
+    .replace(/\b(BARRIO|B°|Bº|B\.|BO\.|DR\.|DOCTOR|EX|N°|Nº|NO\.)\b/gi, '')
+    .replace(/["'“”]/g, '')
+    .replace(/^[\s\-–—:]+/, '')
+    .replace(/TAGLIALEGNE/gi, 'TAGLIALENE')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (capsNum) {
+    return cleanName ? `CAPS ${capsNum} - ${cleanName}` : `CAPS ${capsNum}`;
+  }
+
+  return cleanName || rawName.trim();
+};
+
 // 🌟 NUEVO: Componente para las tarjetas con Tooltip (MOVIDO AQUÍ)
 const KpiCardConTooltip = ({ label, value, tooltip, color }: { label: string, value: number, tooltip: string, color: string }) => (
   <div className={styles.kpiCardCompact}>
@@ -257,7 +282,7 @@ export default function StatsPage() {
     const hoja = XLSX.utils.aoa_to_sheet(encabezado);
 
     const datosFormateados = sortedCaps.map((caps: any) => ({
-      "Centro de Salud (Efector)": romanToArabic(caps.capsName),
+      "Centro de Salud (Efector)": formatCapsDisplayName(caps.capsName),
       "Padrón Activo": caps.total,
       "% Riesgo": caps.pctRiesgo,
       "% Controladas (Total)": caps.pctControl,
@@ -745,7 +770,7 @@ export default function StatsPage() {
 
                   return (
                     <tr key={i}>
-                      <td style={{ fontWeight: 550, color: '#334155' }}>{romanToArabic(caps.capsName)}</td>
+                      <td style={{ fontWeight: 550, color: '#334155' }}>{formatCapsDisplayName(caps.capsName)}</td>
                       <td style={{ textAlign: 'center', fontWeight: 600 }}>{totalCaps}</td>
                       
                       <td 
