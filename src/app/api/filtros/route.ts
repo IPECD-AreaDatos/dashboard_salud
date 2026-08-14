@@ -9,6 +9,7 @@ export async function GET() {
         s.cuie,
         s.codigo_sisa,
         s.nombre as nombre_oficial,
+        COALESCE(NULLIF(TRIM(s.localidad), ''), s.departamento, '') AS localidad,
         COUNT(CASE 
           WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') 
                AND p.fecha_probable_parto >= CURRENT_DATE 
@@ -20,21 +21,36 @@ export async function GET() {
       INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
       WHERE s.nombre IS NOT NULL
         AND s.nombre != ''
-      GROUP BY s.cuie, s.codigo_sisa, s.nombre
+      GROUP BY s.cuie, s.codigo_sisa, s.nombre, s.localidad, s.departamento
       ORDER BY total_riesgo DESC, s.nombre ASC
     `;
     const result = await query(sql);
 
-    // Mapeamos para el componente Select del Frontend
-    const establecimientos = result.rows.map(r => ({
-      value: r.codigo_sisa, // 👈 CORREGIDO: Mandamos el SISA como valor principal para los filtros
-      cuie: r.cuie,         // Mantenemos el CUIE como metadata de apoyo
-      label: `${r.nombre_oficial} (${r.total_riesgo} riesgo)`
-    }));
+    // Mapeamos enviando las propiedades separadas y un label completo para búsquedas
+    const establecimientos = result.rows.map((r: any) => {
+      const loc = r.localidad ? r.localidad.trim() : '';
+      const locLabel = loc ? ` - ${loc}` : '';
+      const cantRiesgo = parseInt(r.total_riesgo) || 0;
 
-    // Agregamos la opción "Todos" al principio
+      return {
+        value: r.codigo_sisa,
+        cuie: r.cuie,
+        nombre: r.nombre_oficial,
+        localidad: loc,
+        totalRiesgo: cantRiesgo,
+        // Label plano de fallback (útil para el input o búsquedas)
+        label: `${(r.nombre_oficial || '').trim()}${locLabel} (${cantRiesgo} riesgo)`
+      };
+    });
+
     return NextResponse.json([
-      { value: "Todos", label: "Todos los establecimientos" },
+      { 
+        value: "Todos", 
+        label: "Todos los establecimientos",
+        nombre: "Todos los establecimientos",
+        localidad: "",
+        totalRiesgo: 0
+      },
       ...establecimientos
     ]);
 

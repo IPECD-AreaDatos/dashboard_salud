@@ -530,10 +530,19 @@ export default function SeguimientoPage() {
                     className={styles.selectInput}
                     placeholder="Buscar establecimiento..."
                     style={filterEst !== "Todos" ? { paddingRight: '2.2rem' } : undefined}
-                    value={isOpen ? searchTerm : romanToArabic(establecimientos.find(e => e.value === filterEst)?.label || "Todos")}
+                    value={
+                      isOpen 
+                        ? searchTerm 
+                        : (() => {
+                            const est = establecimientos.find((e: any) => e.value === filterEst);
+                            if (!est || est.value === "Todos") return "Todos los establecimientos";
+                            const loc = est.localidad ? ` (${est.localidad})` : '';
+                            return romanToArabic(`${est.nombre || est.label}${loc}`);
+                          })()
+                    }
                     onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Delay para permitir el click en la opción
+                    onBlur={() => setTimeout(() => setIsOpen(false), 250)}
                   />
                   {filterEst !== "Todos" && !isOpen && (
                     <button
@@ -548,22 +557,60 @@ export default function SeguimientoPage() {
 
                 {isOpen && (
                   <div className={styles.customDropdown}>
+                    {filteredEsts.map((est: any) => {
+                      if (est.value === "Todos") {
+                        return (
+                          <div
+                            key="Todos"
+                            className={styles.dropdownOption}
+                            style={{ padding: '8px 12px', fontWeight: 500 }}
+                            onClick={() => {
+                              setFilterEst("Todos");
+                              setSearchTerm("");
+                              setIsOpen(false);
+                              fetchPacientes(undefined, false, "Todos");
+                            }}
+                          >
+                            Todos los establecimientos
+                          </div>
+                        );
+                      }
 
-                    {filteredEsts.map((est) => (
-                      <div
-                        key={est.value} // Esto quita el error de "unique key prop"
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          const selectedValue = est.value || "Todos"; // Nos aseguramos de que nunca sea undefined
-                          setFilterEst(selectedValue);
-                          setSearchTerm(romanToArabic(est.label));
-                          setIsOpen(false);
-                          fetchPacientes(undefined, false, selectedValue);
-                        }}
-                      >
-                        {est.label}
-                      </div>
-                    ))}
+                      return (
+                        <div
+                          key={est.value}
+                          className={styles.dropdownOption}
+                          style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            gap: '8px',
+                            padding: '8px 12px'
+                          }}
+                          onClick={() => {
+                            const selectedValue = est.value || "Todos";
+                            setFilterEst(selectedValue);
+                            setSearchTerm(romanToArabic(est.nombre || est.label));
+                            setIsOpen(false);
+                            fetchPacientes(undefined, false, selectedValue);
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '5px' }}>
+                            <span style={{ fontWeight: 550, color: '#1e293b' }}>
+                              {romanToArabic(est.nombre || est.label.replace(/\s*\(\d+\s*riesgo\)/i, ''))}
+                            </span>
+                            {est.localidad && (
+                              <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 400 }}>
+                                • {est.localidad}
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            ({est.totalRiesgo ?? 0} riesgo)
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
