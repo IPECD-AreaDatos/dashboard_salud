@@ -203,7 +203,7 @@ export async function GET(request: Request) {
     `;
     const topRsgRes = await query(topRsgSql);
     
-    // 7. Query de CAPS unificada (Filtrado estricto por Departamento Capital)
+    // 7. Query de CAPS unificada (Filtrado estricto por Departamento Capital con porcentajes y gestión proactiva)
     const capsResumenSql = `
       WITH caps_normalized AS (
         SELECT
@@ -276,8 +276,41 @@ export async function GET(request: Request) {
         COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 30 THEN id END) as abs_control,
         COUNT(DISTINCT CASE WHEN (controles_1er_trim > 0 AND cantidad_controles > ((eg_actual * 7)/30) - (CASE WHEN eg_actual < 14 THEN 1 WHEN eg_actual < 28 THEN 2 ELSE 3 END)) THEN id END) as abs_seguimiento_adecuado,
         COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN id END) as turnos_asignados_caps,
-        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 30 AND EXISTS (SELECT 1 FROM seguimientos s_gest WHERE s_gest.paciente_id = id AND s_gest.fecha_contacto < fecha_ultimo_control AND s_gest.fecha_contacto >= fecha_ultimo_control - INTERVAL '45 days') THEN id END) as controladas_gestion,
-        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 30 AND NOT EXISTS (SELECT 1 FROM seguimientos s_esp WHERE s_esp.paciente_id = id AND s_esp.fecha_contacto < fecha_ultimo_control AND s_esp.fecha_contacto >= fecha_ultimo_control - INTERVAL '45 days') THEN id END) as controladas_espontaneas
+        
+        -- Controladas que tuvieron contacto/gestión lograda en los últimos 45 días
+        COUNT(DISTINCT CASE 
+          WHEN fecha_ultimo_control IS NOT NULL 
+           AND (CURRENT_DATE - fecha_ultimo_control) <= 30 
+           AND EXISTS (
+             SELECT 1 
+             FROM public.seguimientos s_gest 
+             WHERE s_gest.paciente_id = p.id 
+               AND (s_gest.contacto_logrado = true OR s_gest.contacto_logrado IS NULL)
+               AND s_gest.fecha_contacto >= CURRENT_DATE - INTERVAL '45 days'
+           ) 
+          THEN id 
+        END) as controladas_gestion,
+
+        -- Controladas por demanda espontánea (sin registro de contacto)
+        COUNT(DISTINCT CASE 
+          WHEN fecha_ultimo_control IS NOT NULL 
+           AND (CURRENT_DATE - fecha_ultimo_control) <= 30 
+           AND NOT EXISTS (
+             SELECT 1 
+             FROM public.seguimientos s_esp 
+             WHERE s_esp.paciente_id = p.id 
+               AND (s_esp.contacto_logrado = true OR s_esp.contacto_logrado IS NULL)
+               AND s_esp.fecha_contacto >= CURRENT_DATE - INTERVAL '45 days'
+           ) 
+          THEN id 
+        END) as controladas_espontaneas,
+
+        -- Porcentajes directos desde SQL
+        ROUND((COUNT(DISTINCT CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') THEN id END) * 100.0) / NULLIF(COUNT(DISTINCT id), 0), 1) as pct_riesgo,
+        ROUND((COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 30 THEN id END) * 100.0) / NULLIF(COUNT(DISTINCT id), 0), 1) as pct_control,
+        ROUND((COUNT(DISTINCT CASE WHEN (controles_1er_trim > 0 AND cantidad_controles > ((eg_actual * 7)/30) - (CASE WHEN eg_actual < 14 THEN 1 WHEN eg_actual < 28 THEN 2 ELSE 3 END)) THEN id END) * 100.0) / NULLIF(COUNT(DISTINCT id), 0), 1) as pct_seguimiento_adecuado,
+        ROUND((COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN id END) * 100.0) / NULLIF(COUNT(DISTINCT id), 0), 1) as pct_turnos_tablero
+
       FROM caps_normalized_step2 p
       LEFT JOIN (
         SELECT DISTINCT ON (paciente_id) paciente_id, proxima_cita as fecha_proximo_turno
@@ -431,7 +464,11 @@ export async function GET(request: Request) {
       absSeguimientoAdecuado: parseInt(r.abs_seguimiento_adecuado) || 0,
       turnosAsignadosCaps: parseInt(r.turnos_asignados_caps) || 0,
       controladasGestion: parseInt(r.controladas_gestion) || 0,
-      controladasEspontaneas: parseInt(r.controladas_espontaneas) || 0
+      controladasEspontaneas: parseInt(r.controladas_espontaneas) || 0,
+      pctRiesgo: parseFloat(r.pct_riesgo) || 0,
+      pctControl: parseFloat(r.pct_control) || 0,
+      pctSeguimientoAdecuado: parseFloat(r.pct_seguimiento_adecuado) || 0,
+      pctTurnosTablero: parseFloat(r.pct_turnos_tablero) || 0
     }));
 
     return NextResponse.json({
