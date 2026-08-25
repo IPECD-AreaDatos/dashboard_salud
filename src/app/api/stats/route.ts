@@ -322,6 +322,105 @@ export async function GET(request: Request) {
       ORDER BY total DESC;
     `;
 
+    //-----
+    // Capturamos el período de días (7, 15, 30)
+    const diasComparativa = parseInt(searchParams.get("periodoDias") || "30", 10);
+
+    // 9. Query Evolutiva precisa sobre indicadores_establecimientos
+    const comparativaCapsSql = `
+      WITH fecha_actual_cte AS (
+        SELECT MAX(fecha_corte) as fecha_t1
+        FROM public.indicadores_establecimientos
+        WHERE es_snapshot_final_dia = true
+      ),
+      fecha_anterior_cte AS (
+        SELECT COALESCE(
+          (
+            SELECT fecha_corte
+            FROM public.indicadores_establecimientos, fecha_actual_cte
+            WHERE es_snapshot_final_dia = true
+              AND fecha_corte <= (fecha_t1 - (${diasComparativa} * INTERVAL '1 day'))
+            ORDER BY fecha_corte DESC
+            LIMIT 1
+          ),
+          (
+            SELECT MIN(fecha_corte)
+            FROM public.indicadores_establecimientos
+            WHERE es_snapshot_final_dia = true
+          )
+        ) as fecha_t0
+      ),
+      datos_t1 AS (
+        SELECT 
+          sisa_centro_salud,
+          embarazos_en_curso as padron_act,
+          controladas as controladas_act,
+          seguimiento_adecuado as seg_adecuado_act,
+          contactos_ultimos_30_dias as contactos_act,
+          controladas_x_contacto_ult_30_dias as controladas_contacto_act,
+          proximos_turnos_tablero as turnos_act
+        FROM public.indicadores_establecimientos
+        WHERE fecha_corte = (SELECT fecha_t1 FROM fecha_actual_cte)
+          AND es_snapshot_final_dia = true
+      ),
+      datos_t0 AS (
+        SELECT 
+          sisa_centro_salud,
+          embarazos_en_curso as padron_ant,
+          controladas as controladas_ant
+        FROM public.indicadores_establecimientos
+        WHERE fecha_corte = (SELECT fecha_t0 FROM fecha_anterior_cte)
+          AND es_snapshot_final_dia = true
+      )
+      SELECT 
+        COALESCE(s.nombre, da.sisa_centro_salud) as caps_name,
+        (SELECT fecha_t1 FROM fecha_actual_cte) as fecha_t1,
+        (SELECT fecha_t0 FROM fecha_anterior_cte) as fecha_t0,
+        COALESCE(da.padron_act, 0) as padron_act,
+        COALESCE(dant.padron_ant, 0) as padron_ant,
+        COALESCE(da.controladas_act, 0) as controladas_act,
+        COALESCE(dant.controladas_ant, 0) as controladas_ant,
+        COALESCE(da.contactos_act, 0) as contactos_act,
+        COALESCE(da.controladas_contacto_act, 0) as controladas_contacto_act,
+        COALESCE(da.seg_adecuado_act, 0) as seg_adecuado_act,
+        COALESCE(da.turnos_act, 0) as turnos_act
+      FROM datos_t1 da
+      LEFT JOIN datos_t0 dant ON da.sisa_centro_salud = dant.sisa_centro_salud
+      LEFT JOIN public.efectores_sisa s ON s.codigo_sisa = da.sisa_centro_salud
+      WHERE LOWER(COALESCE(s.nombre, '')) LIKE '%caps%' OR LOWER(COALESCE(s.nombre, '')) LIKE '%c.a.p.s.%'
+      ORDER BY da.padron_act DESC;
+    `;
+
+    const comparativaRes = await query(comparativaCapsSql);
+    const comparativaCaps = comparativaRes.rows.map(r => {
+      const padronAct = parseInt(r.padron_act) || 0;
+      const padronAnt = parseInt(r.padron_ant) || 0;
+      const ctrlAct = parseInt(r.controladas_act) || 0;
+      const ctrlAnt = parseInt(r.controladas_ant) || 0;
+      const ctrlContacto = parseInt(r.controladas_contacto_act) || 0;
+
+      const cobAct = padronAct > 0 ? (ctrlAct * 100.0) / padronAct : 0;
+      const cobAnt = padronAnt > 0 ? (ctrlAnt * 100.0) / padronAnt : 0;
+      const varCob = cobAct - cobAnt;
+      const pctGestion = ctrlAct > 0 ? (ctrlContacto * 100.0) / ctrlAct : 0;
+
+      return {
+        capsName: r.caps_name,
+        fechaT1: r.fecha_t1,
+        fechaT0: r.fecha_t0,
+        padronAnt,
+        padronAct,
+        ctrlAnt,
+        ctrlAct,
+        cobAnt: parseFloat(cobAnt.toFixed(1)),
+        cobAct: parseFloat(cobAct.toFixed(1)),
+        variacionCob: parseFloat(varCob.toFixed(1)),
+        pctGestion: parseFloat(pctGestion.toFixed(1)),
+        turnosAsignados: parseInt(r.turnos_act) || 0
+      };
+    });
+    //-----
+
     const capsResumenRes = await query(capsResumenSql);
     // 🌟 DISTRIBUCIÓN POR EDAD GESTACIONAL (Semanas EG) - VERSIÓN BLINDADA CONTRA EL ERROR 42803
     const edadGestacionalSql = `
@@ -480,6 +579,7 @@ export async function GET(request: Request) {
       topGeneral: topGeneralMapped,
       topRiesgoAtraso: topRiesgoMapped,
       resumenCaps: resumenCapsMapped,
+      comparativaCaps,
       distribucionEG: distribucionEgMapped, // 🌟 NOMBRE CORREGIDO AQUÍ PARA COMBINAR CON EL FRONT
       coberturaStats
     });

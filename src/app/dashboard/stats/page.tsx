@@ -132,6 +132,18 @@ export default function StatsPage() {
       .trim(); // 10. Limpiar espacios al inicio y final
   };
 
+  const [periodoComparativa, setPeriodoComparativa] = useState<7 | 15 | 30>(30);
+
+  // Agrupamos la comparativa normalizando los nombres para evitar duplicados
+  const comparativaProcesada = useMemo(() => {
+    if (!data?.comparativaCaps) return [];
+    
+    return data.comparativaCaps.map((c: any) => ({
+      ...c,
+      displayName: formatCapsDisplayName(c.capsName)
+    }));
+  }, [data?.comparativaCaps]);
+
   const sortedCaps = useMemo(() => {
     if (!data?.resumenCaps) return [];
 
@@ -187,61 +199,56 @@ export default function StatsPage() {
     return sortableItems;
   }, [data, sortConfigCaps]);
 
+  // 1️⃣ Carga inicial (trae todo por defecto con período de 30 días)
   useEffect(() => {
     setLoading({ initial: true, filtering: false });
-    // Carga inicial completa
-    apiFetch(`/stats?establecimiento=Todos`) // Siempre carga la data provincial completa
+
+    apiFetch(`/stats?establecimiento=Todos&periodoDias=30`)
       .then(res => res.json())
       .then(resData => {
         setData(resData);
-        setInitialProvincialData(resData); // Guardamos la data provincial completa
+        setInitialProvincialData(resData);
         setUltimaActualizacion(resData.ultimaActualizacion || null);
         setLoading({ initial: false, filtering: false });
+
         registrarLog({ 
           modulo: "Estadísticas", 
           accion: "VISUALIZAR_ESTADISTICAS",
-          detalles: `El usuario revisó el panel estadístico.`
+          detalles: "El usuario ingresó a revisar el panel de control de gestión y reportes estadísticos."
         }).catch(err => console.error("Error al registrar log:", err));
       })
       .catch(err => {
-        console.error("Error al cargar estadísticas:", err);
+        console.error("Error al cargar estadísticas iniciales:", err);
         setLoading({ initial: false, filtering: false });
       });
   }, []);
 
-  // 🌟 EFFECT CORREGIDO: Escucha solo 'zonaChart' para actualizar solo los gráficos
-  // Ahora depende de 'zonaChart' y 'initialProvincialData' (que es estable)
+  // 2️⃣ Carga dinámica (se dispara al cambiar de zona O al cambiar de 7, 15 o 30 días)
   useEffect(() => {
-    if (!initialProvincialData) return; // Esperar a que la data provincial inicial se cargue
-    
-    setLoading(prev => ({ ...prev, filtering: true })); // Solo activamos el loader de filtrado
-    apiFetch(`/stats?establecimiento=${zonaChart}`)
+    if (!initialProvincialData) return; // Espera a que termine la carga inicial
+
+    setLoading(prev => ({ ...prev, filtering: true }));
+
+    // 🌟 Enviamos tanto la zona como el período de días seleccionado
+    apiFetch(`/stats?establecimiento=${zonaChart}&periodoDias=${periodoComparativa}`)
       .then(res => res.json())
       .then(filteredData => {
-        // Construimos el nuevo estado 'data' combinando los KPIs globales con los datos de gráficos filtrados
-        // Incluimos `coberturaStats` para que el Pie chart también se actualice al filtrar por zona
-        setData({
-          ...initialProvincialData, // Mantenemos los KPIs globales (general, riesgo, gestion, actividad)
+        setData((prev: any) => ({
+          ...prev,
           distribucionEG: filteredData.distribucionEG,
           topGeneral: filteredData.topGeneral,
           topRiesgoAtraso: filteredData.topRiesgoAtraso,
-          resumenCaps: filteredData.resumenCaps, // La tabla de CAPS también se filtra por zona
+          resumenCaps: filteredData.resumenCaps,
           coberturaStats: filteredData.coberturaStats || initialProvincialData.coberturaStats,
-        });
+          comparativaCaps: filteredData.comparativaCaps // <-- Se actualiza con el nuevo período
+        }));
         setLoading(prev => ({ ...prev, filtering: false }));
       })
       .catch(err => {
-        console.error("Error al cargar estadísticas filtradas:", err);
+        console.error(err);
         setLoading(prev => ({ ...prev, filtering: false }));
       });
-    
-    registrarLog({ 
-      modulo: "Estadísticas", 
-      accion: "FILTRAR_ZONA_GRAFICOS",
-      detalles: `El usuario filtró los gráficos por zona: ${zonaChart}.`
-    }).catch(err => console.error("Error al registrar log:", err));
-
-  }, [zonaChart, initialProvincialData]); // Dependemos de 'zonaChart' y 'initialProvincialData'
+  }, [zonaChart, periodoComparativa, initialProvincialData]);
 
   // 🌟 Cálculo para la tarjeta de Efectividad de Contacto
   const contactosConTurno = data?.gestion?.desgloseZona?.contactosConTurnoCaps || 0;
@@ -262,11 +269,16 @@ export default function StatsPage() {
       return;
     }
 
-    const encabezado = [
+    const fechaHoraDescarga = new Date().toLocaleDateString('es-AR') + " " + new Date().toLocaleTimeString('es-AR');
+
+    // ==========================================
+    // 📄 HOJA 1: DESEMPEÑO Y COBERTURA ACTUAL
+    // ==========================================
+    const encabezadoHoja1 = [
       ["ESTADÍSTICAS E INDICADORES PROVINCIALES"],
-      ["Fecha de generación:", new Date().toLocaleDateString('es-AR') + " " + new Date().toLocaleTimeString('es-AR')],
+      ["Fecha de generación:", fechaHoraDescarga],
       [],
-      ["MÉTRICAS GENERALES PROVINCIALES"],      
+      ["MÉTRICAS GENERALES PROVINCIALES"],
       ["Total Padrón Activo", "Total en Alto Riesgo", "Total Controladas (Al Día)", "Total Seguimiento Adecuado", "Total en Alto Riesgo Controladas"],
       [
         `${totalPadron} (100%)`,
@@ -276,37 +288,95 @@ export default function StatsPage() {
         `${data?.gestion?.riesgoControladas || 0} (${getPct(data?.gestion?.riesgoControladas || 0)})`
       ],
       [],
-      ["DESEMPEÑO Y COBERTURA POR CAPS"]
+      ["DESEMPEÑO Y COBERTURA POR CAPS (FOTO ACTUAL)"]
     ];
 
-    const hoja = XLSX.utils.aoa_to_sheet(encabezado);
+    const hoja1 = XLSX.utils.aoa_to_sheet(encabezadoHoja1);
 
-    const datosFormateados = sortedCaps.map((caps: any) => ({
+    const datosFormateadosHoja1 = sortedCaps.map((caps: any) => ({
       "Centro de Salud (Efector)": formatCapsDisplayName(caps.capsName),
       "Padrón Activo": caps.total,
-      "% Riesgo": caps.pctRiesgo,
-      "% Controladas (Total)": caps.pctControl,
-      // 🌟 NUEVO DESGLOSE EN EL REPORTE EXCEL
-      "Controladas (Gestión)": caps.controladasGestion,
-      "Controladas (Espontáneas)": caps.controladasEspontaneas,
-      "% Seguimiento Adecuado": caps.pctSeguimientoAdecuado, 
-      "% Turnos Asignados x Tablero": caps.pctTurnosTablero
+      "% Riesgo": `${caps.pctRiesgo}%`,
+      "% Controladas (Total)": `${caps.pctControl}%`,
+      "Controladas (Gestión)": caps.controladasGestion || 0,
+      "Controladas (Espontáneas)": caps.controladasEspontaneas || 0,
+      "% Seguimiento Adecuado": `${caps.pctSeguimientoAdecuado}%`, 
+      "% Turnos Asignados x Tablero": `${caps.pctTurnosTablero}%`
     }));
 
-    XLSX.utils.sheet_add_json(hoja, datosFormateados, { origin: "A10" });
-    // Ajustamos los anchos para las nuevas columnas
-    hoja['!cols'] = [ { wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 22 }, { wch: 25 }, { wch: 22 }, { wch: 28 } ];
+    XLSX.utils.sheet_add_json(hoja1, datosFormateadosHoja1, { origin: "A10" });
+    hoja1['!cols'] = [
+      { wch: 38 }, // Centro de Salud
+      { wch: 15 }, // Padrón Activo
+      { wch: 12 }, // % Riesgo
+      { wch: 22 }, // % Controladas (Total)
+      { wch: 22 }, // Controladas (Gestión)
+      { wch: 24 }, // Controladas (Espontáneas)
+      { wch: 24 }, // % Seguimiento Adecuado
+      { wch: 28 }  // % Turnos Asignados
+    ];
 
+    // ==========================================
+    // 📄 HOJA 2: COMPARATIVA Y EVOLUCIÓN HISTÓRICA
+    // ==========================================
+    const fechaCorteActual = data?.comparativaCaps?.[0]?.fechaT1 
+      ? new Date(data.comparativaCaps[0].fechaT1).toLocaleDateString('es-AR')
+      : new Date().toLocaleDateString('es-AR');
+
+    const fechaCorteAnterior = data?.comparativaCaps?.[0]?.fechaT0
+      ? new Date(data.comparativaCaps[0].fechaT0).toLocaleDateString('es-AR')
+      : `Hace ${periodoComparativa} días`;
+
+    const encabezadoHoja2 = [
+      ["REPORTE COMPARATIVO Y EVOLUCIÓN DE COBERTURA POR CAPS"],
+      [`Período analizado: Últimos ${periodoComparativa} días`],
+      [`Corte Anterior (${fechaCorteAnterior}) → Corte Actual (${fechaCorteActual})`],
+      [`Fecha de generación: ${fechaHoraDescarga}`],
+      [],
+      ["Centro de Salud (Efector)", `Padrón (${fechaCorteAnterior})`, `Padrón (${fechaCorteActual})`, `Controladas (${fechaCorteAnterior})`, `Controladas (${fechaCorteActual})`, `Cobertura (${fechaCorteAnterior})`, `Cobertura (${fechaCorteActual})`, "Variación Cobertura", "% Gestión Proactiva", "Próximos Turnos Tablero"]
+    ];
+
+    const datosCompList = (data?.comparativaCaps || []).map((c: any) => [
+      formatCapsDisplayName(c.capsName),
+      c.padronAnt ?? 0,
+      c.padronAct ?? 0,
+      c.ctrlAnt ?? 0,
+      c.ctrlAct ?? 0,
+      `${c.cobAnt ?? 0}%`,
+      `${c.cobAct ?? 0}%`,
+      `${(c.variacionCob ?? 0) >= 0 ? '+' : ''}${c.variacionCob ?? 0} p.p.`,
+      `${c.pctGestion ?? 0}%`,
+      c.turnosAsignados ?? 0
+    ]);
+
+    const hoja2 = XLSX.utils.aoa_to_sheet([...encabezadoHoja2, ...datosCompList]);
+    hoja2['!cols'] = [
+      { wch: 38 }, // Centro de Salud
+      { wch: 20 }, // Padrón Ant
+      { wch: 20 }, // Padrón Act
+      { wch: 24 }, // Controladas Ant
+      { wch: 24 }, // Controladas Act
+      { wch: 22 }, // Cob Ant
+      { wch: 22 }, // Cob Act
+      { wch: 20 }, // Variación p.p.
+      { wch: 22 }, // % Gestión
+      { wch: 24 }  // Turnos
+    ];
+
+    // ==========================================
+    // 📦 CREACIÓN DEL LIBRO Y DESCARGA
+    // ==========================================
     const libro = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(libro, hoja, "Reporte Provincial");
+    XLSX.utils.book_append_sheet(libro, hoja1, "Desempeño Actual");
+    XLSX.utils.book_append_sheet(libro, hoja2, `Evolución (${periodoComparativa} días)`);
 
-    const fechaDescarga = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(libro, `Reporte_Estadistico_Provincial_${fechaDescarga}.xlsx`);
+    const fechaDescargaISO = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(libro, `Reporte_Estadistico_Integral_CAPS_${fechaDescargaISO}.xlsx`);
 
     registrarLog({
       modulo: "Estadísticas",
       accion: "EXPORTAR_EXCEL",
-      detalles: `Exportó reporte provincial integral incluyendo KPIs y desempeño de CAPS en formato Excel.`
+      detalles: `Exportó reporte provincial integral en 2 hojas (Desempeño actual y evolución últimos ${periodoComparativa} días).`
     }).catch(err => console.error("Error al registrar log:", err));
   };
 
@@ -825,6 +895,133 @@ export default function StatsPage() {
             </div>
           </div>
         )}
+
+
+        {/* 🌟 NUEVO REPORTE COMPARATIVO Y EVOLUTIVO POR PERÍODOS */}
+        {isAdminOrCoord && (
+          <div className={styles.tableContainerCaps} style={{ marginTop: '2.5rem', marginBottom: '2.5rem' }}>
+            <div className={styles.tableHeaderArea} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2>Evolución y Comparativa de Cobertura por CAPS</h2>
+                <p>
+                  Comparación del padrón, controles y porcentaje de cobertura entre el corte actual y el período seleccionado.
+                </p>
+              </div>
+
+             {/* 1. Selector de botones en el JSX:*/}  
+              <div style={{ display: 'flex', gap: '6px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPeriodoComparativa(7)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    backgroundColor: periodoComparativa === 7 ? '#769FD3' : 'transparent',
+                    color: periodoComparativa === 7 ? '#fff' : '#64748b'
+                  }}
+                >
+                  Últimos 7 días
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPeriodoComparativa(15)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    backgroundColor: periodoComparativa === 15 ? '#769FD3' : 'transparent',
+                    color: periodoComparativa === 15 ? '#fff' : '#64748b'
+                  }}
+                >
+                  Últimos 15 días
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPeriodoComparativa(30)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    backgroundColor: periodoComparativa === 30 ? '#769FD3' : 'transparent',
+                    color: periodoComparativa === 30 ? '#fff' : '#64748b'
+                  }}
+                >
+                  Últimos 30 días
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.responsiveTableWrapper}>
+              <table className={styles.capsTable}>
+                <thead>
+                  <tr>
+                    <th>Centro de Salud (Efector)</th>
+                    <th style={{ textAlign: 'center' }}>Padrón Evolutivo</th>
+                    <th style={{ textAlign: 'center' }}>Controladas</th>
+                    <th style={{ textAlign: 'center' }}>Cob. Anterior</th>
+                    <th style={{ textAlign: 'center' }}>Cob. Actual</th>
+                    <th style={{ textAlign: 'center' }}>Variación</th>
+                    <th style={{ textAlign: 'center' }}>% Gestión</th>
+                    <th style={{ textAlign: 'center' }}>Próximos Turnos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparativaProcesada.length > 0 ? (
+                    comparativaProcesada.map((row: any, idx: number) => {
+                      const isPositive = row.variacionCob >= 0;
+                      return (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 550, color: '#334155' }}>{row.displayName}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span style={{ color: '#64748b' }}>{row.padronAnt}</span> → <span style={{ fontWeight: 600 }}>{row.padronAct}</span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span style={{ color: '#64748b' }}>{row.ctrlAnt}</span> → <span style={{ fontWeight: 600 }}>{row.ctrlAct}</span>
+                          </td>
+                          <td style={{ textAlign: 'center', color: '#64748b' }}>{row.cobAnt}%</td>
+                          <td style={{ textAlign: 'center', fontWeight: 600 }}>{row.cobAct}%</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontSize: '0.825rem',
+                              fontWeight: 700,
+                              backgroundColor: isPositive ? '#dcfce7' : '#fee2e2',
+                              color: isPositive ? '#15803d' : '#b91c1c'
+                            }}>
+                              {isPositive ? `+${row.variacionCob}` : row.variacionCob} p.p.
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 600, color: '#1e40af' }}>{row.pctGestion}%</td>
+                          <td style={{ textAlign: 'center', fontWeight: 600 }}>{row.turnosAsignados}</td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                        No hay registros históricos suficientes para el período seleccionado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+
+
 
         {/* 🌟 GRÁFICOS DE BARRAS AHORA VISIBLES PARA TODOS, CON LÓGICA CONDICIONAL */}
         {(isAdminOrCoord || isMaternidad || isCAPS) && (
