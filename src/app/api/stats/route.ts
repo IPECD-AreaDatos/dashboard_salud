@@ -326,7 +326,7 @@ export async function GET(request: Request) {
     // Capturamos el período de días (7, 15, 30)
     const diasComparativa = parseInt(searchParams.get("periodoDias") || "30", 10);
 
-    // 9. Query Evolutiva precisa sobre indicadores_establecimientos
+    // 9. Query Evolutiva precisa filtrada por Departamento CAPITAL y normalizada
     const comparativaCapsSql = `
       WITH fecha_actual_cte AS (
         SELECT MAX(fecha_corte) as fecha_t1
@@ -349,6 +349,58 @@ export async function GET(request: Request) {
             WHERE es_snapshot_final_dia = true
           )
         ) as fecha_t0
+      ),
+      caps_capital AS (
+        SELECT 
+          s.codigo_sisa,
+          TRIM(s.nombre) as raw_name,
+          translate(LOWER(TRIM(s.nombre)), 'áéíóúüñ', 'aeiouun') as raw_name_lower
+        FROM public.efectores_sisa s
+        WHERE (LOWER(s.nombre) LIKE '%caps%' OR LOWER(s.nombre) LIKE '%c.a.p.s.%')
+          AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital'
+      ),
+      caps_normalized_step AS (
+        SELECT 
+          codigo_sisa,
+          raw_name,
+          REGEXP_REPLACE(
+            REGEXP_REPLACE(
+              REGEXP_REPLACE(
+                REGEXP_REPLACE(
+                  REGEXP_REPLACE(
+                    REGEXP_REPLACE(
+                      REGEXP_REPLACE(
+                        REGEXP_REPLACE(raw_name_lower, '\\b(c[\\.? ]*a[\\.? ]*p[\\.? ]*s[\\.? ]*|caps)\\b', 'caps', 'g'),
+                        '\\b(viii)\\b', '8', 'g'
+                      ),
+                      '\\b(vii)\\b', '7', 'g'
+                    ),
+                    '\\b(vi)\\b', '6', 'g'
+                  ),
+                  '\\b(v)\\b', '5', 'g'
+                ),
+                '\\b(iv)\\b', '4', 'g'
+              ),
+              '\\b(iii)\\b', '3', 'g'
+            ),
+            '\\b(ii)\\b', '2', 'g'
+          ) AS normalized_name_step1
+        FROM caps_capital
+      ),
+      caps_normalized_step2 AS (
+        SELECT 
+          codigo_sisa,
+          raw_name,
+          TRIM(
+            REGEXP_REPLACE(
+              REGEXP_REPLACE(
+                REGEXP_REPLACE(normalized_name_step1, '\\bsta\\b', 'santa', 'g'),
+                '\\bb[º°]?\\b', '', 'g'
+              ),
+              '[^a-z0-9 ]+', ' ', 'g'
+            )
+          ) AS normalized_name
+        FROM caps_normalized_step
       ),
       datos_t1 AS (
         SELECT 
@@ -373,22 +425,23 @@ export async function GET(request: Request) {
           AND es_snapshot_final_dia = true
       )
       SELECT 
-        COALESCE(s.nombre, da.sisa_centro_salud) as caps_name,
+        MIN(c.raw_name) as caps_name,
+        c.normalized_name,
         (SELECT fecha_t1 FROM fecha_actual_cte) as fecha_t1,
         (SELECT fecha_t0 FROM fecha_anterior_cte) as fecha_t0,
-        COALESCE(da.padron_act, 0) as padron_act,
-        COALESCE(dant.padron_ant, 0) as padron_ant,
-        COALESCE(da.controladas_act, 0) as controladas_act,
-        COALESCE(dant.controladas_ant, 0) as controladas_ant,
-        COALESCE(da.contactos_act, 0) as contactos_act,
-        COALESCE(da.controladas_contacto_act, 0) as controladas_contacto_act,
-        COALESCE(da.seg_adecuado_act, 0) as seg_adecuado_act,
-        COALESCE(da.turnos_act, 0) as turnos_act
-      FROM datos_t1 da
-      LEFT JOIN datos_t0 dant ON da.sisa_centro_salud = dant.sisa_centro_salud
-      LEFT JOIN public.efectores_sisa s ON s.codigo_sisa = da.sisa_centro_salud
-      WHERE LOWER(COALESCE(s.nombre, '')) LIKE '%caps%' OR LOWER(COALESCE(s.nombre, '')) LIKE '%c.a.p.s.%'
-      ORDER BY da.padron_act DESC;
+        SUM(COALESCE(da.padron_act, 0)) as padron_act,
+        SUM(COALESCE(dant.padron_ant, 0)) as padron_ant,
+        SUM(COALESCE(da.controladas_act, 0)) as controladas_act,
+        SUM(COALESCE(dant.controladas_ant, 0)) as controladas_ant,
+        SUM(COALESCE(da.contactos_act, 0)) as contactos_act,
+        SUM(COALESCE(da.controladas_contacto_act, 0)) as controladas_contacto_act,
+        SUM(COALESCE(da.seg_adecuado_act, 0)) as seg_adecuado_act,
+        SUM(COALESCE(da.turnos_act, 0)) as turnos_act
+      FROM caps_normalized_step2 c
+      LEFT JOIN datos_t1 da ON c.codigo_sisa = da.sisa_centro_salud
+      LEFT JOIN datos_t0 dant ON c.codigo_sisa = dant.sisa_centro_salud
+      GROUP BY c.normalized_name
+      ORDER BY padron_act DESC;
     `;
 
     const comparativaRes = await query(comparativaCapsSql);
