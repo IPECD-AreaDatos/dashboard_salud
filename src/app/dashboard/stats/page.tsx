@@ -39,6 +39,12 @@ const romanToArabic = (text: string) => {
   return newText;
 };
 
+const getSemaforoBadgeClass = (porcentaje: number) => {
+  if (porcentaje >= 70) return styles.badgeVerde;
+  if (porcentaje >= 50) return styles.badgeAmarillo;
+  return styles.badgeRojo;
+};
+
 const formatCapsDisplayName = (rawName: string): string => {
   if (!rawName) return '';
 
@@ -96,12 +102,15 @@ export default function StatsPage() {
   const [zonaChart, setZonaChart] = useState<'Todos' | 'Capital' | 'Interior'>('Todos');
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null);
 
-  const [sortConfigCaps, setSortConfigCaps] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [sortConfigCaps, setSortConfigCaps] = useState<{ 
+      key: 'displayName' | 'padronAct' | 'cobAct' | 'variacionCob' | 'pctSeguimientoAdecuado' | 'pctGestion' | 'turnosAsignadosCaps'; 
+      direction: 'asc' | 'desc' 
+    }>({ key: 'padronAct', direction: 'desc' });
 
-  const handleSortCaps = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfigCaps.key === key && sortConfigCaps.direction === 'asc') {
-      direction = 'desc';
+  const handleSortCaps = (key: any) => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (sortConfigCaps.key === key && sortConfigCaps.direction === 'desc') {
+      direction = 'asc';
     }
     setSortConfigCaps({ key, direction });
   };
@@ -147,57 +156,28 @@ export default function StatsPage() {
   const sortedCaps = useMemo(() => {
     if (!data?.resumenCaps) return [];
 
-    const groupedCaps = data.resumenCaps.reduce((acc: any, caps: any) => {
-      const normalizedName = normalizeCapsName(caps.capsName || '');
-      const key = normalizedName || (caps.capsCode ? caps.capsCode.trim() : '');
-      if (!key) return acc;
+    // 🌟 Mapeamos y garantizamos la propiedad displayName para la tabla y el Excel
+    const items = data.resumenCaps.map((c: any) => ({
+      ...c,
+      displayName: formatCapsDisplayName(c.capsName || '')
+    }));
 
-      if (!acc[key]) {
-        acc[key] = { ...caps };
-      } else {
-        acc[key] = {
-          capsCode: acc[key].capsCode || caps.capsCode,
-          capsName: acc[key].capsName,
-          total: (acc[key].total || 0) + (caps.total || 0),
-          absRiesgo: (acc[key].absRiesgo || 0) + (caps.absRiesgo || 0),
-          absControl: (acc[key].absControl || 0) + (caps.absControl || 0),
-          absSeguimientoAdecuado: (acc[key].absSeguimientoAdecuado || 0) + (caps.absSeguimientoAdecuado || 0),
-          turnosAsignadosCaps: (acc[key].turnosAsignadosCaps || 0) + (caps.turnosAsignadosCaps || 0),
-          controladasGestion: (acc[key].controladasGestion || 0) + (caps.controladasGestion || 0),
-          controladasEspontaneas: (acc[key].controladasEspontaneas || 0) + (caps.controladasEspontaneas || 0),
-          pctRiesgo: 0,
-          pctControl: 0,
-          pctSeguimientoAdecuado: 0,
-          pctTurnosTablero: 0,
-        };
-      }
-      return acc;
-    }, {} as Record<string, any>);
-
-    const dedupedCaps = Object.values(groupedCaps).map((caps: any) => {
-      const total = caps.total || 0;
-      return {
-        ...caps,
-        pctRiesgo: total ? parseFloat(((caps.absRiesgo * 100.0) / total).toFixed(1)) : 0,
-        pctControl: total ? parseFloat(((caps.absControl * 100.0) / total).toFixed(1)) : 0,
-        pctSeguimientoAdecuado: total ? parseFloat(((caps.absSeguimientoAdecuado * 100.0) / total).toFixed(1)) : 0,
-        pctTurnosTablero: total ? parseFloat(((caps.turnosAsignadosCaps * 100.0) / total).toFixed(1)) : 0,
-      };
-    });
-
-    const sortableItems = [...dedupedCaps];
     if (sortConfigCaps.key !== null) {
-      sortableItems.sort((a, b) => {
-        const aValue = a[sortConfigCaps.key!];
-        const bValue = b[sortConfigCaps.key!];
-
-        if (aValue < bValue) return sortConfigCaps.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfigCaps.direction === 'asc' ? 1 : -1;
-        return 0;
+      items.sort((a: any, b: any) => {
+        const aVal = a[sortConfigCaps.key];
+        const bVal = b[sortConfigCaps.key];
+        if (typeof aVal === 'string') {
+          return sortConfigCaps.direction === 'asc' 
+            ? aVal.localeCompare(bVal) 
+            : bVal.localeCompare(aVal);
+        }
+        return sortConfigCaps.direction === 'asc' 
+          ? (Number(aVal) || 0) - (Number(bVal) || 0) 
+          : (Number(bVal) || 0) - (Number(aVal) || 0);
       });
     }
-    return sortableItems;
-  }, [data, sortConfigCaps]);
+    return items;
+  }, [data?.resumenCaps, sortConfigCaps]);
 
   // 1️⃣ Carga inicial (trae todo por defecto con período de 30 días)
   useEffect(() => {
@@ -263,6 +243,13 @@ export default function StatsPage() {
     return ((value / totalPadron) * 100).toFixed(1) + "%";
   };
 
+  // 🌟 FUNCIÓN PARA CALCULAR SOBRE EL PADRÓN DE CAPITAL (1.171)
+  const totalPadronCapital = data?.general?.desgloseZona?.capital || 0;
+  const getPctCapital = (value: number) => {
+    if (!totalPadronCapital) return "0.0%";
+    return ((value / totalPadronCapital) * 100).toFixed(1) + "%";
+  };
+
   const exportarAExcel = () => {
     if (!sortedCaps || sortedCaps.length === 0) {
       alert("No hay datos en la tabla para exportar.");
@@ -270,113 +257,72 @@ export default function StatsPage() {
     }
 
     const fechaHoraDescarga = new Date().toLocaleDateString('es-AR') + " " + new Date().toLocaleTimeString('es-AR');
+    const fechaT0 = sortedCaps[0]?.fechaT0 ? new Date(sortedCaps[0].fechaT0).toLocaleDateString('es-AR') : `Hace ${periodoComparativa} días`;
+    const fechaT1 = sortedCaps[0]?.fechaT1 ? new Date(sortedCaps[0].fechaT1).toLocaleDateString('es-AR') : 'Actual';
 
-    // ==========================================
-    // 📄 HOJA 1: DESEMPEÑO Y COBERTURA ACTUAL
-    // ==========================================
-    const encabezadoHoja1 = [
-      ["ESTADÍSTICAS E INDICADORES PROVINCIALES"],
-      ["Fecha de generación:", fechaHoraDescarga],
+    const encabezado = [
+      ["REPORTE INTEGRAL DE GESTIÓN Y COBERTURA POR CAPS (CAPITAL)"],
+      [`Período analizado: Últimos ${periodoComparativa} días (${fechaT0} → ${fechaT1})`],
+      [`Fecha de descarga: ${fechaHoraDescarga}`],
       [],
       ["MÉTRICAS GENERALES PROVINCIALES"],
-      ["Total Padrón Activo", "Total en Alto Riesgo", "Total Controladas (Al Día)", "Total Seguimiento Adecuado", "Total en Alto Riesgo Controladas"],
+      ["Padrón Provincial Activo", "Total en Alto Riesgo", "Total en Riesgo Controladas", "Total Controladas (Al Día)", "Total Seguimiento Adecuado"],
       [
         `${totalPadron} (100%)`,
         `${data?.riesgo?.total || 0} (${getPct(data?.riesgo?.total || 0)})`, 
+        `${data?.gestion?.riesgoControladas || 0} (${getPct(data?.gestion?.riesgoControladas || 0)})`,
         `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`, 
-        `${data?.gestion?.seguimientoAdecuado || 0} (${getPct(data?.gestion?.seguimientoAdecuado || 0)})`,
-        `${data?.gestion?.riesgoControladas || 0} (${getPct(data?.gestion?.riesgoControladas || 0)})`
+        `${data?.gestion?.seguimientoAdecuado || 0} (${getPct(data?.gestion?.seguimientoAdecuado || 0)})`
       ],
       [],
-      ["DESEMPEÑO Y COBERTURA POR CAPS (FOTO ACTUAL)"]
+      ["MÉTRICAS DEPARTAMENTO CAPITAL"],
+      ["Padrón Capital", "Riesgo Capital", "Riesgo Controlado Capital", "Controladas Capital", "Seguimiento Adecuado Capital"],
+      [
+        `${data?.general?.desgloseZona?.capital || 0} (${getPct(data?.general?.desgloseZona?.capital || 0)})`,
+        `${data?.riesgo?.desgloseZona?.capital || 0} (${getPct(data?.riesgo?.desgloseZona?.capital || 0)})`,
+        `${data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0} (${getPct(data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0)})`,
+        `${data?.gestion?.desgloseZona?.controladas?.capital || 0} (${getPct(data?.gestion?.desgloseZona?.controladas?.capital || 0)})`,
+        `${data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0} (${getPct(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)})`
+      ],
+      [],
+      ["DESEMPEÑO Y EVOLUCIÓN POR CENTRO DE SALUD"]
     ];
 
-    const hoja1 = XLSX.utils.aoa_to_sheet(encabezadoHoja1);
+    const hoja = XLSX.utils.aoa_to_sheet(encabezado);
 
-    const datosFormateadosHoja1 = sortedCaps.map((caps: any) => ({
-      "Centro de Salud (Efector)": formatCapsDisplayName(caps.capsName),
-      "Padrón Activo": caps.total,
-      "% Riesgo": `${caps.pctRiesgo}%`,
-      "% Controladas (Total)": `${caps.pctControl}%`,
-      "Controladas (Gestión)": caps.controladasGestion || 0,
-      "Controladas (Espontáneas)": caps.controladasEspontaneas || 0,
-      "% Seguimiento Adecuado": `${caps.pctSeguimientoAdecuado}%`, 
-      "% Turnos Asignados x Tablero": `${caps.pctTurnosTablero}%`
+    const datosFormateados = sortedCaps.map((c: any) => ({
+      "Centro de Salud": c.displayName,
+      [`Padrón (${fechaT0})`]: c.padronAnt,
+      [`Padrón (${fechaT1})`]: c.padronAct,
+      [`Controladas (${fechaT0})`]: c.ctrlAnt,
+      [`Controladas (${fechaT1})`]: c.ctrlAct,
+      [`Cobertura (${fechaT0})`]: `${c.cobAnt}%`,
+      [`Cobertura (${fechaT1})`]: `${c.cobAct}%`,
+      "Variación Cobertura": `${c.variacionCob >= 0 ? '+' : ''}${c.variacionCob} p.p.`,
+      "% Seguimiento Adecuado": `${c.pctSeguimientoAdecuado}%`,
+      "% Gestión Proactiva": `${c.pctGestion}%`,
+      "Controladas x Gestión": c.controladasGestion,
+      "Controladas Espontáneas": c.controladasEspontaneas,
+      "Próximos Turnos": c.turnosAsignadosCaps
     }));
 
-    XLSX.utils.sheet_add_json(hoja1, datosFormateadosHoja1, { origin: "A10" });
-    hoja1['!cols'] = [
-      { wch: 38 }, // Centro de Salud
-      { wch: 15 }, // Padrón Activo
-      { wch: 12 }, // % Riesgo
-      { wch: 22 }, // % Controladas (Total)
-      { wch: 22 }, // Controladas (Gestión)
-      { wch: 24 }, // Controladas (Espontáneas)
-      { wch: 24 }, // % Seguimiento Adecuado
-      { wch: 28 }  // % Turnos Asignados
+    XLSX.utils.sheet_add_json(hoja, datosFormateados, { origin: "A14" });
+    hoja['!cols'] = [
+      { wch: 38 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 },
+      { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 24 }, { wch: 22 },
+      { wch: 22 }, { wch: 24 }, { wch: 16 }
     ];
 
-    // ==========================================
-    // 📄 HOJA 2: COMPARATIVA Y EVOLUCIÓN HISTÓRICA
-    // ==========================================
-    const fechaCorteActual = data?.comparativaCaps?.[0]?.fechaT1 
-      ? new Date(data.comparativaCaps[0].fechaT1).toLocaleDateString('es-AR')
-      : new Date().toLocaleDateString('es-AR');
-
-    const fechaCorteAnterior = data?.comparativaCaps?.[0]?.fechaT0
-      ? new Date(data.comparativaCaps[0].fechaT0).toLocaleDateString('es-AR')
-      : `Hace ${periodoComparativa} días`;
-
-    const encabezadoHoja2 = [
-      ["REPORTE COMPARATIVO Y EVOLUCIÓN DE COBERTURA POR CAPS"],
-      [`Período analizado: Últimos ${periodoComparativa} días`],
-      [`Corte Anterior (${fechaCorteAnterior}) → Corte Actual (${fechaCorteActual})`],
-      [`Fecha de generación: ${fechaHoraDescarga}`],
-      [],
-      ["Centro de Salud (Efector)", `Padrón (${fechaCorteAnterior})`, `Padrón (${fechaCorteActual})`, `Controladas (${fechaCorteAnterior})`, `Controladas (${fechaCorteActual})`, `Cobertura (${fechaCorteAnterior})`, `Cobertura (${fechaCorteActual})`, "Variación Cobertura", "% Gestión Proactiva", "Próximos Turnos Tablero"]
-    ];
-
-    const datosCompList = (data?.comparativaCaps || []).map((c: any) => [
-      formatCapsDisplayName(c.capsName),
-      c.padronAnt ?? 0,
-      c.padronAct ?? 0,
-      c.ctrlAnt ?? 0,
-      c.ctrlAct ?? 0,
-      `${c.cobAnt ?? 0}%`,
-      `${c.cobAct ?? 0}%`,
-      `${(c.variacionCob ?? 0) >= 0 ? '+' : ''}${c.variacionCob ?? 0} p.p.`,
-      `${c.pctGestion ?? 0}%`,
-      c.turnosAsignados ?? 0
-    ]);
-
-    const hoja2 = XLSX.utils.aoa_to_sheet([...encabezadoHoja2, ...datosCompList]);
-    hoja2['!cols'] = [
-      { wch: 38 }, // Centro de Salud
-      { wch: 20 }, // Padrón Ant
-      { wch: 20 }, // Padrón Act
-      { wch: 24 }, // Controladas Ant
-      { wch: 24 }, // Controladas Act
-      { wch: 22 }, // Cob Ant
-      { wch: 22 }, // Cob Act
-      { wch: 20 }, // Variación p.p.
-      { wch: 22 }, // % Gestión
-      { wch: 24 }  // Turnos
-    ];
-
-    // ==========================================
-    // 📦 CREACIÓN DEL LIBRO Y DESCARGA
-    // ==========================================
     const libro = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(libro, hoja1, "Desempeño Actual");
-    XLSX.utils.book_append_sheet(libro, hoja2, `Evolución (${periodoComparativa} días)`);
+    XLSX.utils.book_append_sheet(libro, hoja, "Reporte CAPS Capital");
 
     const fechaDescargaISO = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(libro, `Reporte_Estadistico_Integral_CAPS_${fechaDescargaISO}.xlsx`);
+    XLSX.writeFile(libro, `Reporte_CAPS_Capital_${fechaDescargaISO}.xlsx`);
 
     registrarLog({
       modulo: "Estadísticas",
       accion: "EXPORTAR_EXCEL",
-      detalles: `Exportó reporte provincial integral en 2 hojas (Desempeño actual y evolución últimos ${periodoComparativa} días).`
+      detalles: `Exportó reporte consolidado de CAPS (${periodoComparativa} días).`
     }).catch(err => console.error("Error al registrar log:", err));
   };
 
@@ -509,105 +455,122 @@ export default function StatsPage() {
 
         {/* KPIs COMPACTOS SÓLO SI ES ADMIN O COORDINADOR */}
         {isAdminOrCoord ? (
-          <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+            
+            {/* 🌟 FILA 1: MÉTRICAS GENERALES PROVINCIALES */}
             <div className={styles.kpiGridAdmin}>
-            <div className={styles.kpiCardCompact}>
-              <span className={styles.kpiLabel}>Total Padrón Provincial</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
-                <span className={styles.kpiSubValue} style={{ color: '#0f172a', margin: 0 }}>
-                  {(data?.general?.total || 0).toLocaleString('es-AR')}
-                </span>
-                <span style={{ fontSize: '0.95rem', color: '#94a3b8', fontWeight: 700 }}>(100%)</span>
+              <div className={styles.kpiCardCompact}>
+                <span className={styles.kpiLabel}>Total Padrón Provincial</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
+                  <span className={styles.kpiSubValue} style={{ color: '#0f172a', margin: 0 }}>
+                    {(data?.general?.total || 0).toLocaleString('es-AR')}
+                  </span>
+                  <span style={{ fontSize: '0.95rem', color: '#94a3b8', fontWeight: 700 }}>(100%)</span>
+                </div>
+                <small className={styles.kpiSubtext}>Embarazadas activas</small>
               </div>
-              <small className={styles.kpiSubtext}>Embarazadas activas</small>
-            </div>
-            
-            <div className={styles.kpiCardCompact}>
-              <span className={styles.kpiLabel} style={{ color: '#991b1b' }}>Total en Alto Riesgo</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
-                <span className={styles.kpiSubValue} style={{ color: '#dc2626', margin: 0 }}>
-                  {(data?.riesgo?.total || 0).toLocaleString('es-AR')}
-                </span>
-                <span style={{ fontSize: '0.95rem', color: '#f87171', fontWeight: 700 }}>({getPct(data?.riesgo?.total || 0)})</span>
+              
+              <div className={styles.kpiCardCompact}>
+                <span className={styles.kpiLabel} style={{ color: '#991b1b' }}>Total en Alto Riesgo</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
+                  <span className={styles.kpiSubValue} style={{ color: '#dc2626', margin: 0 }}>
+                    {(data?.riesgo?.total || 0).toLocaleString('es-AR')}
+                  </span>
+                  <span style={{ fontSize: '0.95rem', color: '#f87171', fontWeight: 700 }}>({getPct(data?.riesgo?.total || 0)})</span>
+                </div>
+                <small className={styles.kpiSubtext} style={{ color: '#991b1b' }}>Seguimiento prioritario</small>
               </div>
-              <small className={styles.kpiSubtext} style={{ color: '#991b1b' }}>Seguimiento prioritario</small>
+
+              <div className={styles.kpiCardCompact}>
+                <span className={styles.kpiLabel} style={{ color: '#c76d07' }}>Total en Riesgo Controladas</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
+                  <span className={styles.kpiSubValue} style={{ color: '#f18913', margin: 0 }}>
+                    {(data?.gestion?.riesgoControladas || 0).toLocaleString('es-AR')}
+                  </span>
+                  <span style={{ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 }}>({getPct(data?.gestion?.riesgoControladas || 0)})</span>
+                </div>
+                <small className={styles.kpiSubtext} style={{ color: '#c76d07' }}>Pacientes de riesgo con controles al día</small>
+              </div>
+
+              <div className={`${styles.kpiCardCompact} ${styles.kpiCardVerde}`}>
+                <span className={styles.kpiLabel}>Total Controladas</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
+                  <span className={`${styles.kpiSubValue} ${styles.valGreen}`}>
+                    {(data?.gestion?.controladas || 0).toLocaleString('es-AR')}
+                  </span>
+                  <span style={{ fontSize: '0.95rem', color: '#16a34a', fontWeight: 700 }}>({getPct(data?.gestion?.controladas || 0)})</span>
+                </div>
+                <small className={styles.kpiSubtext}>Controles vigentes en los últimos 30 días</small>
+              </div>
+
+              <div className={styles.kpiCardCompact}>
+                <span className={styles.kpiLabel} style={{ color: '#0b6aa8e0' }}>Total Seguimiento Adecuado</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
+                  <span className={styles.kpiSubValue} style={{ color: '#1276b8e0', margin: 0 }}>
+                    {(data?.gestion?.seguimientoAdecuado || 0).toLocaleString('es-AR')}
+                  </span>
+                  <span style={{ fontSize: '0.95rem', color: '#207ae9c7', fontWeight: 700 }}>
+                    ({getPct(data?.gestion?.seguimientoAdecuado || 0)})
+                  </span>
+                </div>
+                <small className={styles.kpiSubtext} style={{ color: '#0b6aa8e0' }}>Seguimiento adecuado durante el embarazo</small>
+              </div>
             </div>
 
-            {/* 🌟 TARJETA MODIFICADA: Ahora es "Alto Riesgo Controladas" */}
-            <div className={styles.kpiCardCompact}>
-              <span className={styles.kpiLabel} style={{ color: '#c76d07' }}>Total en Riesgo Controladas</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
-                <span className={styles.kpiSubValue} style={{ color: '#f18913', margin: 0 }}>
-                  {(data?.gestion?.riesgoControladas || 0).toLocaleString('es-AR')}
-                </span>
-                <span style={{ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 }}>({getPct(data?.gestion?.riesgoControladas || 0)})</span>
-              </div>
-              <small className={styles.kpiSubtext} style={{ color: '#c76d07' }}>Pacientes de riesgo con controles al día</small>
-            </div>
+            {/* 🌟 FILA 2: DEPARTAMENTO CAPITAL (CALCULADO SOBRE PADRÓN CAPITAL) */}
+            <div className={styles.kpiGridAdmin}>
+              <KpiDesgloseCard 
+                label="Padrón Capital" 
+                pct={getPct(data?.general?.desgloseZona?.capital || 0)} 
+                value={data?.general?.desgloseZona?.capital || 0} 
+                valueColor="#0f172a" 
+                pctColor="#94a3b8" 
+                labelColor="#64748b"
+                subtext="del padrón provincial total"
+              />
 
-            <div className={`${styles.kpiCardCompact} ${styles.kpiCardVerde}`}>
-              <span className={styles.kpiLabel}>Total Controladas</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
-                <span className={`${styles.kpiSubValue} ${styles.valGreen}`}>
-                  {(data?.gestion?.controladas || 0).toLocaleString('es-AR')}
-                </span>
-                <span style={{ fontSize: '0.95rem', color: '#16a34a', fontWeight: 700 }}>({getPct(data?.gestion?.controladas || 0)})</span>
-              </div>
-              {/* 🌟 Etiqueta refinada con el período clínico */}
-              <small className={styles.kpiSubtext}>Controles vigentes en los últimos 30 días</small>
-            </div>
+              <KpiDesgloseCard 
+                label="Riesgo Capital" 
+                pct={getPctCapital(data?.riesgo?.desgloseZona?.capital || 0)} 
+                value={data?.riesgo?.desgloseZona?.capital || 0} 
+                valueColor="#dc2626" 
+                pctColor="#f87171" 
+                labelColor="#991b1b" 
+                subtext="Alto riesgo sobre padrón Capital"
+              />
 
-            {/* 🌟 NUEVO CONCEPTO: Tarjeta de Seguimiento Adecuado */}
-            <div className={styles.kpiCardCompact}>
-              <span className={styles.kpiLabel} style={{ color: '#0b6aa8e0' }}>Total Seguimiento Adecuado</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
-                <span className={styles.kpiSubValue} style={{ color: '#1276b8e0', margin: 0 }}>
-                  {(data?.gestion?.seguimientoAdecuado || 0).toLocaleString('es-AR')}
-                </span>
-                <span style={{ fontSize: '0.95rem', color: '#207ae9c7', fontWeight: 700 }}>
-                  ({getPct(data?.gestion?.seguimientoAdecuado || 0)})
-                </span>
-              </div>
-              <small className={styles.kpiSubtext} style={{ color: '#0b6aa8e0' }}>Seguimiento adecuado durante el embarazo</small>
-            </div>
-            
-            
-            </div>
+              <KpiDesgloseCard 
+                label="Riesgo Controlado Capital" 
+                pct={getPctCapital(data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0)} 
+                value={data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0} 
+                valueColor="#f18913" 
+                pctColor="#f1a23a" 
+                labelColor="#c76d07" 
+                subtext="Riesgo con control al día en Capital"
+              />
 
-            {/* 🌟 NUEVA FILA DE DESGLOSE POR ZONA (MÁS COMPACTA) */}
-            <div className={styles.kpiDesgloseGrid}>
-              {/* --- PADRÓN --- */}
-              <KpiDesgloseCard label="Padrón Capital" pct={getPct(data?.general?.desgloseZona?.capital || 0)} value={data?.general?.desgloseZona?.capital || 0} valueColor="#0f172a" pctColor="#94a3b8" />
-              <KpiDesgloseCard label="Padrón Interior" pct={getPct(data?.general?.desgloseZona?.interior || 0)} value={data?.general?.desgloseZona?.interior || 0} valueColor="#0f172a" pctColor="#94a3b8" />
-              {/* --- RIESGO --- */}
-              <KpiDesgloseCard label="Riesgo Capital" pct={getPct(data?.riesgo?.desgloseZona?.capital || 0)} value={data?.riesgo?.desgloseZona?.capital || 0} valueColor="#dc2626" pctColor="#f87171" labelColor="#991b1b" />
-              <KpiDesgloseCard label="Riesgo Interior" pct={getPct(data?.riesgo?.desgloseZona?.interior || 0)} value={data?.riesgo?.desgloseZona?.interior || 0} valueColor="#dc2626" pctColor="#f87171" labelColor="#991b1b" />
-              {/* --- ALTO RIESGO CONTROLADAS (reemplaza a Derivadas) --- 🌟 COLOR DE TÍTULO AÑADIDO */}
-              <KpiDesgloseCard label="Riesgo Controlado Capital" pct={getPct(data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0)} value={data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0} valueColor="#f18913" pctColor="#f1a23a" labelColor="#c76d07" />
-              <KpiDesgloseCard label="Riesgo Controlado Interior" pct={getPct(data?.gestion?.desgloseZona?.riesgoControladas?.interior || 0)} value={data?.gestion?.desgloseZona?.riesgoControladas?.interior || 0} valueColor="#f18913" pctColor="#f1a23a" labelColor="#c76d07" />
+              <KpiDesgloseCard 
+                label="Controladas Capital" 
+                pct={getPctCapital(data?.gestion?.desgloseZona?.controladas?.capital || 0)} 
+                value={data?.gestion?.desgloseZona?.controladas?.capital || 0} 
+                className={styles.kpiCardVerde} 
+                valueColor="#15803d" 
+                pctColor="#16a34a" 
+                labelColor="#166534"
+                subtext="Cobertura de controles en Capital"
+              />
 
-              {/* --- CONTROLADAS --- */}
-              <KpiDesgloseCard label="Controladas Capital" pct={getPct(data?.gestion?.desgloseZona?.controladas?.capital || 0)} value={data?.gestion?.desgloseZona?.controladas?.capital || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" labelColor="#15803d"/>
-              <KpiDesgloseCard label="Controladas Interior" pct={getPct(data?.gestion?.desgloseZona?.controladas?.interior || 0)} value={data?.gestion?.desgloseZona?.controladas?.interior || 0} className={styles.kpiCardVerde} valueColor="#15803d" pctColor="#16a34a" labelColor="#15803d"/>
-              {/* --- NUEVO DESGLOSE: SEGUIMIENTO ADECUADO --- */}
               <KpiDesgloseCard 
                 label="Seguimiento Adecuado Capital" 
-                pct={getPct(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)} 
+                pct={getPctCapital(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)} 
                 value={data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0} 
                 valueColor="#1276b8e0" 
                 pctColor="#207ae9c7" 
-                labelColor="#1276b8e0"
-              />
-              <KpiDesgloseCard 
-                label="Seguimiento Adecuado Interior" 
-                pct={getPct(data?.gestion?.desgloseZona?.seguimientoAdecuado?.interior || 0)} 
-                value={data?.gestion?.desgloseZona?.seguimientoAdecuado?.interior || 0} 
-                valueColor="#1276b8e0" 
-                pctColor="#207ae9c7" 
-                labelColor="#1276b8e0"
+                labelColor="#0b6aa8e0"
+                subtext="Continuidad clínica en Capital"
               />
             </div>
-          </>
+          </div>
         ) : (
           /* 🌟 INTERFAZ TRADICIONAL ORIGINAL TOTALMENTE BLINDADA CONTRA NULLS */
           <>
@@ -759,258 +722,161 @@ export default function StatsPage() {
           </>
         )}
 
-        {/* TABLA COMPARATIVA GERENCIAL POR PORCENTAJES PUROS */}
+        {/* 🌟 TABLA CONSOLIDADA: DESEMPEÑO Y EVOLUCIÓN POR CAPS */}
         {isAdminOrCoord && (
-          <div className={styles.tableContainerCaps}>
-            <div className={styles.tableHeaderArea}>
-              <h2>Desempeño y Cobertura de Gestión por CAPS</h2>
-              <p>
-                Análisis de indicadores clave sobre las embarazadas activas de cada centro, excluyendo a las pacientes derivadas.
-              </p>
-            </div>
-
-            <div className={styles.responsiveTableWrapper}>
-              <table className={styles.capsTable}>
-                <thead>
-                  <tr>
-                    <th onClick={() => handleSortCaps('capsName')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent}>
-                        <span>Centro de Salud (Efector)</span>
-                        <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'capsName' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
-                        </span>
-                      </div>
-                    </th>
-                    <th onClick={() => handleSortCaps('total')} className={styles.sortableHeader} title="Padrón activo total del CAPS sin pacientes derivadas">
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
-                        <span>Padrón Activo</span>
-                        <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'total' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
-                        </span>
-                      </div>
-                    </th>
-                    <th onClick={() => handleSortCaps('pctRiesgo')} className={styles.sortableHeader} title="Proporción de embarazadas con riesgo obstétrico sobre el padrón activo">
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
-                        <span>% Riesgo</span>
-                        <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'pctRiesgo' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
-                        </span>
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSortCaps('pctControl')} 
-                      className={styles.sortableHeader}
-                      title="Porcentaje de embarazadas con controles médicos al día (últimos 30 días)."
-                    >
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
-                        <span>% Controladas</span>
-                        <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'pctControl' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
-                        </span>
-                      </div>
-                    </th>
-                    <th onClick={() => handleSortCaps('pctSeguimientoAdecuado')} className={styles.sortableHeader} title="Mide el seguimiento adecuado a lo largo de todo el embarazo (controles y contactos al día).">
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
-                        <span>% Seguimiento Adecuado</span>
-                        <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'pctSeguimientoAdecuado' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
-                        </span>
-                      </div>
-                    </th>
-                    <th onClick={() => handleSortCaps('pctTurnosTablero')} className={styles.sortableHeader} title="Pacientes que concretaron turnos como resultado directo de una gestión del tablero">
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
-                        <span>% Turnos Asignados x Tablero</span>
-                        <span className={styles.sortIcon}>
-                          {sortConfigCaps.key === 'pctTurnosTablero' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
-                        </span>
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-              {sortedCaps && sortedCaps.length > 0 ? (
-                sortedCaps.map((caps: any, i: number) => {
-                  
-                  const totalCaps = caps.total || 0;
-                  // 🌟 CORRECCIÓN GENERAL: Usamos los valores absolutos que ya vienen del backend, no los recalculamos.
-                  const absRiesgo = caps.absRiesgo;
-                  const absControladas = caps.absControl;
-                  const absSeguimientoAdecuado = caps.absSeguimientoAdecuado;
-                  const absTurnos = caps.turnosAsignadosCaps;
-
-                  return (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 550, color: '#334155' }}>{formatCapsDisplayName(caps.capsName)}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{totalCaps}</td>
-                      
-                      <td 
-                        style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absRiesgo} de ${totalCaps} pacientes activas presentan criterios de riesgo obstétrico bajo seguimiento.`}
-                      >
-                        <span className={styles.badgeRiesgo}>
-                          {caps.pctRiesgo}%
-                        </span>
-                      </td>
-
-                      {/* % Controladas con Tooltip explicatorio de períodos */}
-                      <td 
-                        style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absControladas} de ${totalCaps} pacientes con controles médicos al día (últimos 30 días).\n\n• ${caps.controladasGestion || 0} por Gestión Proactiva (contacto/turno previo).\n• ${caps.controladasEspontaneas || 0} por Asistencia Espontánea (sin contacto previo).`}
-                      >
-                        <span className={caps.pctControl > 75 ? styles.badgeVerde : styles.badgeRojo}>
-                          {caps.pctControl}%
-                        </span>
-                      </td>
-                      
-                      {/* % Seguimiento Adecuado con Tooltip */}
-                      <td 
-                        style={{ textAlign: 'center', cursor: 'help' }} 
-                        title={`${absSeguimientoAdecuado} de ${totalCaps} pacientes tienen un seguimiento adecuado, cumpliendo con la captación temprana y manteniendo controles y contactos al día.`}
-                      >
-                        <span className={styles.badgeAmarillo}>
-                          {caps.pctSeguimientoAdecuado}%
-                        </span>
-                      </td>
-
-                      <td 
-                        style={{ textAlign: 'center', cursor: 'help' }}
-                        title={`${absTurnos} de ${totalCaps} pacientes tienen un turno próximo agendado (desde hoy en adelante).`}
-                      >
-                        <span className={styles.badgeCeleste}>
-                          {caps.pctTurnosTablero}%
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                    No se encontraron embarazadas en los CAPS bajo los filtros actuales.
-                  </td>
-                </tr>
-              )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-
-        {/* 🌟 NUEVO REPORTE COMPARATIVO Y EVOLUTIVO POR PERÍODOS */}
-        {isAdminOrCoord && (
-          <div className={styles.tableContainerCaps} style={{ marginTop: '2.5rem', marginBottom: '2.5rem' }}>
+          <div className={styles.tableContainerCaps} style={{ marginTop: '2rem', marginBottom: '2.5rem' }}>
             <div className={styles.tableHeaderArea} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <h2>Evolución y Comparativa de Cobertura por CAPS</h2>
+                <h2>Desempeño y Evolución de Cobertura por CAPS</h2>
                 <p>
-                  Comparación del padrón, controles y porcentaje de cobertura entre el corte actual y el período seleccionado.
+                  Monitoreo integral de padrón activo, controles médicos al día, gestión proactiva y variación de cobertura.
                 </p>
               </div>
 
-             {/* 1. Selector de botones en el JSX:*/}  
+              {/* ⏸️ BOTONES OCULTADOS MOMENTÁNEAMENTE HASTA TENER HISTORIAL COMPLETO
               <div style={{ display: 'flex', gap: '6px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setPeriodoComparativa(7)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.825rem',
-                    cursor: 'pointer',
-                    backgroundColor: periodoComparativa === 7 ? '#769FD3' : 'transparent',
-                    color: periodoComparativa === 7 ? '#fff' : '#64748b'
-                  }}
-                >
-                  Últimos 7 días
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPeriodoComparativa(15)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.825rem',
-                    cursor: 'pointer',
-                    backgroundColor: periodoComparativa === 15 ? '#769FD3' : 'transparent',
-                    color: periodoComparativa === 15 ? '#fff' : '#64748b'
-                  }}
-                >
-                  Últimos 15 días
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPeriodoComparativa(30)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.825rem',
-                    cursor: 'pointer',
-                    backgroundColor: periodoComparativa === 30 ? '#769FD3' : 'transparent',
-                    color: periodoComparativa === 30 ? '#fff' : '#64748b'
-                  }}
-                >
-                  Últimos 30 días
-                </button>
+                <button type="button" onClick={() => setPeriodoComparativa(7)}>Últimos 7 días</button>
+                <button type="button" onClick={() => setPeriodoComparativa(15)}>Últimos 15 días</button>
+                <button type="button" onClick={() => setPeriodoComparativa(30)}>Últimos 30 días</button>
               </div>
+              */}
             </div>
 
             <div className={styles.responsiveTableWrapper}>
               <table className={styles.capsTable}>
                 <thead>
                   <tr>
-                    <th>Centro de Salud (Efector)</th>
-                    <th style={{ textAlign: 'center' }}>Padrón Evolutivo</th>
-                    <th style={{ textAlign: 'center' }}>Controladas</th>
-                    <th style={{ textAlign: 'center' }}>Cob. Anterior</th>
-                    <th style={{ textAlign: 'center' }}>Cob. Actual</th>
-                    <th style={{ textAlign: 'center' }}>Variación</th>
-                    <th style={{ textAlign: 'center' }}>% Gestión</th>
-                    <th style={{ textAlign: 'center' }}>Próximos Turnos</th>
+                    <th onClick={() => handleSortCaps('displayName')} className={styles.sortableHeader}>
+                      <div className={styles.headerContent}>
+                        <span>Centro de Salud (Efector)</span>
+                        <span className={styles.sortIcon}>{sortConfigCaps.key === 'displayName' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
+                      </div>
+                    </th>
+                    <th onClick={() => handleSortCaps('padronAct')} className={styles.sortableHeader} title="Evolución del padrón de embarazadas activas entre el corte anterior y el actual.">
+                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                        <span>Padrón Evolutivo</span>
+                        <span className={styles.sortIcon}>{sortConfigCaps.key === 'padronAct' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
+                      </div>
+                    </th>
+                    <th style={{ textAlign: 'center' }} title="Evolución de embarazadas con control médico vigente entre ambos cortes.">
+                      Controladas
+                    </th>
+                    <th onClick={() => handleSortCaps('cobAct')} className={styles.sortableHeader} title="% de controladas sobre el padrón activo actual y variación en puntos porcentuales contra el período anterior.">
+                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                        <span>% Cobertura</span>
+                        <span className={styles.sortIcon}>{sortConfigCaps.key === 'cobAct' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
+                      </div>
+                    </th>
+                    <th onClick={() => handleSortCaps('pctSeguimientoAdecuado')} className={styles.sortableHeader} title="Cumplen con captación temprana (1er trimestre) y frecuencia adecuada de controles según EG.">
+                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                        <span>% Seg. Adecuado</span>
+                        <span className={styles.sortIcon}>{sortConfigCaps.key === 'pctSeguimientoAdecuado' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
+                      </div>
+                    </th>
+                    <th onClick={() => handleSortCaps('pctGestion')} className={styles.sortableHeader} title="% de embarazadas controladas que tuvieron un contacto previo registrado desde el tablero (Gestión Proactiva).">
+                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                        <span>% Gestión Proactiva</span>
+                        <span className={styles.sortIcon}>{sortConfigCaps.key === 'pctGestion' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
+                      </div>
+                    </th>
+                    <th onClick={() => handleSortCaps('turnosAsignadosCaps')} className={styles.sortableHeader} title="Pacientes con fecha de próximo turno agendada a partir de hoy.">
+                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                        <span>Próximos Turnos</span>
+                        <span className={styles.sortIcon}>{sortConfigCaps.key === 'turnosAsignadosCaps' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {comparativaProcesada.length > 0 ? (
-                    comparativaProcesada.map((row: any, idx: number) => {
-                      const isPositive = row.variacionCob >= 0;
+                  {sortedCaps.length > 0 ? (
+                    sortedCaps.map((caps: any, idx: number) => {
+                      const isPositive = caps.variacionCob >= 0;
+                      const diffPadron = caps.padronAct - caps.padronAnt;
+                      const signoPadron = diffPadron > 0 ? `+${diffPadron}` : `${diffPadron}`;
+
                       return (
                         <tr key={idx}>
-                          <td style={{ fontWeight: 550, color: '#334155' }}>{row.displayName}</td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span style={{ color: '#64748b' }}>{row.padronAnt}</span> → <span style={{ fontWeight: 600 }}>{row.padronAct}</span>
+                          {/* Centro de Salud */}
+                          <td style={{ fontWeight: 550, color: '#334155' }}>
+                            {caps.displayName}
                           </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span style={{ color: '#64748b' }}>{row.ctrlAnt}</span> → <span style={{ fontWeight: 600 }}>{row.ctrlAct}</span>
+
+                          {/* 🌟 Padrón Evolutivo con Tooltip */}
+                          <td 
+                            style={{ textAlign: 'center', cursor: 'help' }}
+                            title={`Evolución del Padrón:\n• Corte Anterior: ${caps.padronAnt} embarazadas activas\n• Corte Actual: ${caps.padronAct} embarazadas activas\n• Variación neta: ${signoPadron} pacientes`}
+                          >
+                            <span style={{ color: '#94a3b8' }}>{caps.padronAnt}</span>
+                            <span style={{ color: '#cbd5e1', margin: '0 4px' }}>→</span>
+                            <span style={{ fontWeight: 700, color: '#0f172a' }}>{caps.padronAct}</span>
                           </td>
-                          <td style={{ textAlign: 'center', color: '#64748b' }}>{row.cobAnt}%</td>
-                          <td style={{ textAlign: 'center', fontWeight: 600 }}>{row.cobAct}%</td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span style={{
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              fontSize: '0.825rem',
-                              fontWeight: 700,
-                              backgroundColor: isPositive ? '#dcfce7' : '#fee2e2',
-                              color: isPositive ? '#15803d' : '#b91c1c'
-                            }}>
-                              {isPositive ? `+${row.variacionCob}` : row.variacionCob} p.p.
+
+                          {/* 🌟 Controladas Evolutivo con Tooltip en toda la celda */}
+                          <td 
+                            style={{ textAlign: 'center', cursor: 'help' }}
+                            title={`Control Médico Vigente (últimos 30 días):\n• Corte Anterior: ${caps.ctrlAnt} controladas\n• Corte Actual: ${caps.ctrlAct} controladas\n\nDesglose Corte Actual:\n• ${caps.controladasGestion} por Gestión Proactiva (llamada/turno previo)\n• ${caps.controladasEspontaneas} por Asistencia Espontánea`}
+                          >
+                            <span style={{ color: '#94a3b8' }}>{caps.ctrlAnt}</span>
+                            <span style={{ color: '#cbd5e1', margin: '0 4px' }}>→</span>
+                            <span style={{ fontWeight: 700, color: '#15803d' }}>{caps.ctrlAct}</span>
+                          </td>
+
+                          {/* 🌟 % Cobertura + Variación con Tooltip detallado */}
+                          <td 
+                            style={{ textAlign: 'center', cursor: 'help' }}
+                            title={`Cobertura de Controles:\n• Actual: ${caps.cobAct}% (${caps.ctrlAct} de ${caps.padronAct} pacientes)\n• Anterior: ${caps.cobAnt}% (${caps.ctrlAnt} de ${caps.padronAnt} pacientes)\n• Variación: ${isPositive ? `+${caps.variacionCob}` : caps.variacionCob} p.p.`}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                              <span className={getSemaforoBadgeClass(caps.cobAct)}>
+                                {caps.cobAct}%
+                              </span>
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                backgroundColor: isPositive ? '#dcfce7' : '#fee2e2',
+                                color: isPositive ? '#15803d' : '#b91c1c'
+                              }}>
+                                {isPositive ? `+${caps.variacionCob}` : caps.variacionCob} p.p.
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* % Seguimiento Adecuado */}
+                          <td 
+                            style={{ textAlign: 'center', cursor: 'help' }}
+                            title={`${caps.absSeguimientoAdecuado} de ${caps.padronAct} pacientes cumplen con la captación precoz y continuidad esperada.`}
+                          >
+                            <span className={styles.badgeAmarillo}>
+                              {caps.pctSeguimientoAdecuado}%
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center', fontWeight: 600, color: '#1e40af' }}>{row.pctGestion}%</td>
-                          <td style={{ textAlign: 'center', fontWeight: 600 }}>{row.turnosAsignados}</td>
+
+                          {/* % Gestión Proactiva */}
+                          <td 
+                            style={{ textAlign: 'center', cursor: 'help' }}
+                            title={`${caps.controladasGestion} de las ${caps.ctrlAct} controladas fueron contactadas desde el tablero.`}
+                          >
+                            <span className={styles.badgeCeleste}>
+                              {caps.pctGestion}%
+                            </span>
+                          </td>
+
+                          {/* Próximos Turnos */}
+                          <td 
+                            style={{ textAlign: 'center', fontWeight: 600, color: '#334155', cursor: 'help' }}
+                            title={`${caps.turnosAsignadosCaps} pacientes tienen turno agendado desde hoy en adelante.`}
+                          >
+                            {caps.turnosAsignadosCaps}
+                          </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                        No hay registros históricos suficientes para el período seleccionado.
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                        No se encontraron registros de CAPS para el período seleccionado.
                       </td>
                     </tr>
                   )}
@@ -1179,19 +1045,22 @@ export default function StatsPage() {
   );
 }
 
-// NUEVO: Componente para las tarjetas de desglose
-const KpiDesgloseCard = ({ label, pct, value, className, valueColor, pctColor, labelColor }: any) => (
-  <div className={`${styles.kpiCardCompact} ${styles.kpiDesgloseCard} ${className || ''}`}>
-    <span className={styles.kpiDesgloseLabel} style={{ color: labelColor }}>
+// Componente unificado con la misma jerarquía y estilo que las cards principales
+const KpiDesgloseCard = ({ label, pct, value, className, valueColor, pctColor, labelColor, subtext }: any) => (
+  <div className={`${styles.kpiCardCompact} ${className || ''}`}>
+    <span className={styles.kpiLabel} style={{ color: labelColor }}>
       {label}
     </span>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginTop: '0.25rem' }}>
-      <span className={styles.kpiDesgloseValue} style={{ color: valueColor }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
+      <span className={styles.kpiSubValue} style={{ color: valueColor || '#0f172a', margin: 0 }}>
         {pct}
       </span>
-      <span style={{ fontSize: '0.75rem', color: pctColor, fontWeight: 600 }}>
+      <span style={{ fontSize: '0.95rem', color: pctColor || '#94a3b8', fontWeight: 700 }}>
         ({(value || 0).toLocaleString('es-AR')})
       </span>
     </div>
+    <small className={styles.kpiSubtext} style={{ color: labelColor || '#94a3b8' }}>
+      {subtext || "Métrica Departamento Capital"}
+    </small>
   </div>
 );

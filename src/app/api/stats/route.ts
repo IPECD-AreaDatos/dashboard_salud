@@ -203,131 +203,14 @@ export async function GET(request: Request) {
     `;
     const topRsgRes = await query(topRsgSql);
     
-    // 7. Query de CAPS unificada (Filtrado estricto por Departamento Capital con porcentajes y gestión proactiva)
-    const capsResumenSql = `
-      WITH caps_normalized AS (
-        SELECT
-          p.id,
-          COALESCE(s.codigo_sisa, p.sisa_centro_salud) AS raw_code,
-          TRIM(COALESCE(s.nombre, p.nombre_establecimiento)) AS raw_name,
-          translate(LOWER(TRIM(COALESCE(s.nombre, p.nombre_establecimiento))), 'áéíóúüñ', 'aeiouun') AS raw_name_lower,
-          p.riesgo,
-          p.fecha_ultimo_control,
-          p.eg_actual,
-          p.controles_1er_trim,
-          p.cantidad_controles
-        FROM public.pacientes_gold p
-        LEFT JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
-        WHERE p.embarazo_en_curso = true
-          AND p.fecha_probable_parto >= CURRENT_DATE
-          AND p.fecha_nacimiento IS NOT NULL
-          AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '')
-          AND (LOWER(COALESCE(s.nombre, p.nombre_establecimiento)) LIKE '%caps%' OR LOWER(COALESCE(s.nombre, p.nombre_establecimiento)) LIKE '%c.a.p.s.%')
-          AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital'
-          ${zonaGlobalClause}
-          ${securityClause}
-          ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
-      ), caps_normalized_step AS (
-        SELECT
-          *,
-          REGEXP_REPLACE(
-            REGEXP_REPLACE(
-              REGEXP_REPLACE(
-                REGEXP_REPLACE(
-                  REGEXP_REPLACE(
-                    REGEXP_REPLACE(
-                      REGEXP_REPLACE(
-                        REGEXP_REPLACE(raw_name_lower, '\\b(c[\\.? ]*a[\\.? ]*p[\\.? ]*s[\\.? ]*|caps)\\b', 'caps', 'g'),
-                        '\\b(viii)\\b', '8', 'g'
-                      ),
-                      '\\b(vii)\\b', '7', 'g'
-                    ),
-                    '\\b(vi)\\b', '6', 'g'
-                  ),
-                  '\\b(v)\\b', '5', 'g'
-                ),
-                '\\b(iv)\\b', '4', 'g'
-              ),
-              '\\b(iii)\\b', '3', 'g'
-            ),
-            '\\b(ii)\\b', '2', 'g'
-          ) AS normalized_name_step1
-        FROM caps_normalized
-      ), caps_normalized_step2 AS (
-        SELECT
-          *,
-          TRIM(
-            REGEXP_REPLACE(
-              REGEXP_REPLACE(
-                REGEXP_REPLACE(normalized_name_step1, '\\bsta\\b', 'santa', 'g'),
-                '\\bb[º°]?\\b', '', 'g'
-              ),
-              '[^a-z0-9 ]+', ' ', 'g'
-            )
-          ) AS normalized_name
-        FROM caps_normalized_step
-      )
-      SELECT
-        COALESCE(NULLIF(MIN(raw_code), ''), NULL) as caps_code,
-        MIN(raw_name) as caps_name,
-        normalized_name,
-        COUNT(DISTINCT id) as total,
-        COUNT(DISTINCT CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') THEN id END) as abs_riesgo,
-        COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 30 THEN id END) as abs_control,
-        COUNT(DISTINCT CASE WHEN (controles_1er_trim > 0 AND cantidad_controles > ((eg_actual * 7)/30) - (CASE WHEN eg_actual < 14 THEN 1 WHEN eg_actual < 28 THEN 2 ELSE 3 END)) THEN id END) as abs_seguimiento_adecuado,
-        COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN id END) as turnos_asignados_caps,
-        
-        -- Controladas que tuvieron contacto/gestión lograda en los últimos 45 días
-        COUNT(DISTINCT CASE 
-          WHEN fecha_ultimo_control IS NOT NULL 
-           AND (CURRENT_DATE - fecha_ultimo_control) <= 30 
-           AND EXISTS (
-             SELECT 1 
-             FROM public.seguimientos s_gest 
-             WHERE s_gest.paciente_id = p.id 
-               AND (s_gest.contacto_logrado = true OR s_gest.contacto_logrado IS NULL)
-               AND s_gest.fecha_contacto >= CURRENT_DATE - INTERVAL '45 days'
-           ) 
-          THEN id 
-        END) as controladas_gestion,
-
-        -- Controladas por demanda espontánea (sin registro de contacto)
-        COUNT(DISTINCT CASE 
-          WHEN fecha_ultimo_control IS NOT NULL 
-           AND (CURRENT_DATE - fecha_ultimo_control) <= 30 
-           AND NOT EXISTS (
-             SELECT 1 
-             FROM public.seguimientos s_esp 
-             WHERE s_esp.paciente_id = p.id 
-               AND (s_esp.contacto_logrado = true OR s_esp.contacto_logrado IS NULL)
-               AND s_esp.fecha_contacto >= CURRENT_DATE - INTERVAL '45 days'
-           ) 
-          THEN id 
-        END) as controladas_espontaneas,
-
-        -- Porcentajes directos desde SQL
-        ROUND((COUNT(DISTINCT CASE WHEN LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') THEN id END) * 100.0) / NULLIF(COUNT(DISTINCT id), 0), 1) as pct_riesgo,
-        ROUND((COUNT(DISTINCT CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 30 THEN id END) * 100.0) / NULLIF(COUNT(DISTINCT id), 0), 1) as pct_control,
-        ROUND((COUNT(DISTINCT CASE WHEN (controles_1er_trim > 0 AND cantidad_controles > ((eg_actual * 7)/30) - (CASE WHEN eg_actual < 14 THEN 1 WHEN eg_actual < 28 THEN 2 ELSE 3 END)) THEN id END) * 100.0) / NULLIF(COUNT(DISTINCT id), 0), 1) as pct_seguimiento_adecuado,
-        ROUND((COUNT(DISTINCT CASE WHEN seg_turnos.fecha_proximo_turno >= CURRENT_DATE THEN id END) * 100.0) / NULLIF(COUNT(DISTINCT id), 0), 1) as pct_turnos_tablero
-
-      FROM caps_normalized_step2 p
-      LEFT JOIN (
-        SELECT DISTINCT ON (paciente_id) paciente_id, proxima_cita as fecha_proximo_turno
-        FROM public.seguimientos
-        WHERE proxima_cita >= CURRENT_DATE
-        ORDER BY paciente_id, fecha_contacto DESC
-      ) seg_turnos ON seg_turnos.paciente_id = p.id
-      GROUP BY normalized_name
-      ORDER BY total DESC;
-    `;
+    
 
     //-----
-    // Capturamos el período de días (7, 15, 30)
+    // Capturamos el período dinámico para la comparativa (7, 15, 30 días)
     const diasComparativa = parseInt(searchParams.get("periodoDias") || "30", 10);
 
-    // 9. Query Evolutiva precisa filtrada por Departamento CAPITAL y normalizada
-    const comparativaCapsSql = `
+    // 🌟 Query Unificada y Consolidada de Desempeño y Evolución por CAPS (Capital)
+    const capsUnificadaSql = `
       WITH fecha_actual_cte AS (
         SELECT MAX(fecha_corte) as fecha_t1
         FROM public.indicadores_establecimientos
@@ -444,18 +327,20 @@ export async function GET(request: Request) {
       ORDER BY padron_act DESC;
     `;
 
-    const comparativaRes = await query(comparativaCapsSql);
-    const comparativaCaps = comparativaRes.rows.map(r => {
+    const capsRes = await query(capsUnificadaSql);
+    const resumenCaps = capsRes.rows.map((r: any) => {
       const padronAct = parseInt(r.padron_act) || 0;
       const padronAnt = parseInt(r.padron_ant) || 0;
       const ctrlAct = parseInt(r.controladas_act) || 0;
       const ctrlAnt = parseInt(r.controladas_ant) || 0;
       const ctrlContacto = parseInt(r.controladas_contacto_act) || 0;
+      const segAdecuado = parseInt(r.seg_adecuado_act) || 0;
 
       const cobAct = padronAct > 0 ? (ctrlAct * 100.0) / padronAct : 0;
       const cobAnt = padronAnt > 0 ? (ctrlAnt * 100.0) / padronAnt : 0;
       const varCob = cobAct - cobAnt;
       const pctGestion = ctrlAct > 0 ? (ctrlContacto * 100.0) / ctrlAct : 0;
+      const pctSegAdecuado = padronAct > 0 ? (segAdecuado * 100.0) / padronAct : 0;
 
       return {
         capsName: r.caps_name,
@@ -463,19 +348,24 @@ export async function GET(request: Request) {
         fechaT0: r.fecha_t0,
         padronAnt,
         padronAct,
+        total: padronAct,
         ctrlAnt,
         ctrlAct,
+        absControl: ctrlAct,
         cobAnt: parseFloat(cobAnt.toFixed(1)),
         cobAct: parseFloat(cobAct.toFixed(1)),
+        pctControl: parseFloat(cobAct.toFixed(1)),
         variacionCob: parseFloat(varCob.toFixed(1)),
+        absSeguimientoAdecuado: segAdecuado,
+        pctSeguimientoAdecuado: parseFloat(pctSegAdecuado.toFixed(1)),
+        controladasGestion: ctrlContacto,
+        controladasEspontaneas: Math.max(0, ctrlAct - ctrlContacto),
         pctGestion: parseFloat(pctGestion.toFixed(1)),
-        turnosAsignados: parseInt(r.turnos_act) || 0
+        turnosAsignadosCaps: parseInt(r.turnos_act) || 0
       };
     });
-    //-----
 
-    const capsResumenRes = await query(capsResumenSql);
-    // 🌟 DISTRIBUCIÓN POR EDAD GESTACIONAL (Semanas EG) - VERSIÓN BLINDADA CONTRA EL ERROR 42803
+    // 🌟 DISTRIBUCIÓN POR EDAD GESTACIONAL (Semanas EG)
     const edadGestacionalSql = `
       SELECT 
         rango_eg,
@@ -487,7 +377,7 @@ export async function GET(request: Request) {
           CASE 
             WHEN p.eg_actual BETWEEN 0 AND 4   THEN '0 a 4'
             WHEN p.eg_actual BETWEEN 5 AND 8   THEN '5 a 8'
-            WHEN p.eg_actual BETWEEN 9 AND 12  THEN '09 a 12'  -- Agregamos el 0 para que ordene perfecto de forma natural
+            WHEN p.eg_actual BETWEEN 9 AND 12  THEN '09 a 12'
             WHEN p.eg_actual BETWEEN 13 AND 16 THEN '13 a 16'
             WHEN p.eg_actual BETWEEN 17 AND 20 THEN '17 a 20'
             WHEN p.eg_actual BETWEEN 21 AND 24 THEN '21 a 24'
@@ -575,25 +465,22 @@ export async function GET(request: Request) {
       derivadas: session.user?.role === 'Centro de Salud' 
         ? (parseInt(derivadasCapsRes?.rows[0]?.total_derivadas) || 0) 
         : (parseInt(cardsKpis.derivadas) || 0),
-      sinContactoReciente: parseInt(chartsKpis.sin_contacto_reciente) || 0, // Se mantiene para la vista de CAPS
-      controladas: parseInt(cardsKpis.total_controladas) || 0, // Se mantiene para la vista de CAPS
+      sinContactoReciente: parseInt(chartsKpis.sin_contacto_reciente) || 0,
+      controladas: parseInt(cardsKpis.total_controladas) || 0,
       seguimientoAdecuado: parseInt(cardsKpis.total_seguimiento_adecuado) || 0,
-      // 🌟 NUEVOS DATOS PARA LAS TARJETAS
       riesgoControladas: parseInt(cardsKpis.total_riesgo_controladas) || 0,
       desgloseZona: {
-        // 🌟 NUEVOS CAMPOS PARA LAS CARDS DE CAPS
         seguimientoAdecuadoCaps: parseInt(chartsKpis.seguimiento_adecuado_caps) || 0,
         riesgoSinControl: parseInt(chartsKpis.riesgo_sin_control) || 0,
         turnosAsignadosCaps: parseInt(chartsKpis.turnos_asignados_caps) || 0,
         captacionPrecozCaps: parseInt(chartsKpis.captacion_precoz_caps) || 0,
         contactosConTurnoCaps: parseInt(chartsKpis.contactos_con_turno_caps) || 0,
         contactosTotalesCaps: parseInt(chartsKpis.contactos_totales_caps) || 0,
-
         controladas: { capital: parseInt(cardsKpis.total_controladas_capital) || 0, interior: parseInt(cardsKpis.total_controladas_interior) || 0 },
         contactadas: { capital: parseInt(cardsKpis.total_contactadas_capital) || 0, interior: parseInt(cardsKpis.total_contactadas_interior) || 0 },
         derivadas: { capital: parseInt(cardsKpis.derivadas_capital) || 0, interior: parseInt(cardsKpis.derivadas_interior) || 0 },
-        // 🌟 NUEVO DESGLOSE
-        riesgoControladas: { capital: parseInt(cardsKpis.total_riesgo_controladas_capital) || 0, interior: parseInt(cardsKpis.total_riesgo_controladas_interior) || 0 },        seguimientoAdecuado: { capital: parseInt(cardsKpis.total_seguimiento_adecuado_capital) || 0, interior: parseInt(cardsKpis.total_seguimiento_adecuado_interior) || 0 },
+        riesgoControladas: { capital: parseInt(cardsKpis.total_riesgo_controladas_capital) || 0, interior: parseInt(cardsKpis.total_riesgo_controladas_interior) || 0 },
+        seguimientoAdecuado: { capital: parseInt(cardsKpis.total_seguimiento_adecuado_capital) || 0, interior: parseInt(cardsKpis.total_seguimiento_adecuado_interior) || 0 },
       }
     };
 
@@ -606,23 +493,6 @@ export async function GET(request: Request) {
     const topGeneralMapped = topGenRes.rows.map(r => ({ name: (r.name || '').trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }));
     const topRiesgoMapped = topRsgRes.rows.map(r => ({ name: (r.name || '').trim(), departamento: r.departamento, value: parseInt(r.value) || 0 }));
 
-    // La API ahora devuelve los datos sin agrupar por nombre normalizado. El frontend se encargará de eso.
-    const resumenCapsMapped = capsResumenRes.rows.map((r: any) => ({
-      capsCode: r.caps_code,
-      capsName: r.caps_name,
-      total: parseInt(r.total) || 0,
-      absRiesgo: parseInt(r.abs_riesgo) || 0,
-      absControl: parseInt(r.abs_control) || 0,
-      absSeguimientoAdecuado: parseInt(r.abs_seguimiento_adecuado) || 0,
-      turnosAsignadosCaps: parseInt(r.turnos_asignados_caps) || 0,
-      controladasGestion: parseInt(r.controladas_gestion) || 0,
-      controladasEspontaneas: parseInt(r.controladas_espontaneas) || 0,
-      pctRiesgo: parseFloat(r.pct_riesgo) || 0,
-      pctControl: parseFloat(r.pct_control) || 0,
-      pctSeguimientoAdecuado: parseFloat(r.pct_seguimiento_adecuado) || 0,
-      pctTurnosTablero: parseFloat(r.pct_turnos_tablero) || 0
-    }));
-
     return NextResponse.json({
       ultimaActualizacion: ultimaActualizacionRes.rows[0]?.fecha || new Date().toISOString(),
       general: generalData,
@@ -631,9 +501,8 @@ export async function GET(request: Request) {
       actividad: actividadData,
       topGeneral: topGeneralMapped,
       topRiesgoAtraso: topRiesgoMapped,
-      resumenCaps: resumenCapsMapped,
-      comparativaCaps,
-      distribucionEG: distribucionEgMapped, // 🌟 NOMBRE CORREGIDO AQUÍ PARA COMBINAR CON EL FRONT
+      resumenCaps, // 🌟 Pasamos directamente el dataset enriquecido
+      distribucionEG: distribucionEgMapped,
       coberturaStats
     });
 
