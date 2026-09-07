@@ -731,6 +731,30 @@ export default function StatsPage() {
                 <p>
                   Monitoreo integral de padrón activo, controles médicos al día, gestión proactiva y variación de cobertura.
                 </p>
+                {/* 🌟 CÁPSULA EXPLICATIVA DE FECHAS DE CORTE */}
+                  {sortedCaps.length > 0 && sortedCaps[0]?.fechaT1 && (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      backgroundColor: '#f1f5f9',
+                      border: '1px solid #e2e8f0',
+                      padding: '8px 5px',
+                      borderRadius: '6px',
+                      fontSize: '1rem',
+                      color: '#334155',
+                      marginTop: '0.15rem'
+                    }}>
+                    <span style={{ fontWeight: 600, color: '#475569' }}>Período comparado:</span>
+                    <span>
+                      Corte Anterior (<strong>{new Date(sortedCaps[0].fechaT0).toLocaleDateString('es-AR')}</strong>)
+                    </span>
+                    <span style={{ color: '#94a3b8' }}>→</span>
+                    <span>
+                      Corte Actual (<strong>{new Date(sortedCaps[0].fechaT1).toLocaleDateString('es-AR')}</strong>)
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* ⏸️ BOTONES OCULTADOS MOMENTÁNEAMENTE HASTA TENER HISTORIAL COMPLETO
@@ -752,13 +776,13 @@ export default function StatsPage() {
                         <span className={styles.sortIcon}>{sortConfigCaps.key === 'displayName' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
                       </div>
                     </th>
-                    <th onClick={() => handleSortCaps('padronAct')} className={styles.sortableHeader} title="Evolución del padrón de embarazadas activas entre el corte anterior y el actual.">
+                    <th onClick={() => handleSortCaps('padronAct')} className={styles.sortableHeader} title="Evolución del padrón de embarazadas activas entre ambos cortes.">
                       <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
                         <span>Padrón Evolutivo</span>
                         <span className={styles.sortIcon}>{sortConfigCaps.key === 'padronAct' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
                       </div>
                     </th>
-                    <th style={{ textAlign: 'center' }} title="Evolución de embarazadas con control médico vigente entre ambos cortes.">
+                    <th style={{ textAlign: 'center' }} title="Embarazadas con control médico vigente: valor gris (corte anterior) y valor verde (corte actual).">
                       Controladas
                     </th>
                     <th onClick={() => handleSortCaps('cobAct')} className={styles.sortableHeader} title="% de controladas sobre el padrón activo actual y variación en puntos porcentuales contra el período anterior.">
