@@ -141,7 +141,7 @@ export default function StatsPage() {
       .trim(); // 10. Limpiar espacios al inicio y final
   };
 
-  const [periodoComparativa, setPeriodoComparativa] = useState<7 | 15 | 30>(30);
+  const [periodoComparativa, setPeriodoComparativa] = useState<7 | 14 | 30>(30);
 
   // Agrupamos la comparativa normalizando los nombres para evitar duplicados
   const comparativaProcesada = useMemo(() => {
@@ -728,24 +728,27 @@ export default function StatsPage() {
             <div className={styles.tableHeaderArea} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <h2>Desempeño y Evolución de Cobertura por CAPS</h2>
-                <p>
+                <p style={{ margin: '4px 0 0.5rem 0', color: '#64748b' }}>
                   Monitoreo integral de padrón activo, controles médicos al día, gestión proactiva y variación de cobertura.
                 </p>
-                {/* 🌟 CÁPSULA EXPLICATIVA DE FECHAS DE CORTE */}
-                  {sortedCaps.length > 0 && sortedCaps[0]?.fechaT1 && (
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      backgroundColor: '#f1f5f9',
-                      border: '1px solid #e2e8f0',
-                      padding: '8px 5px',
-                      borderRadius: '6px',
-                      fontSize: '1rem',
-                      color: '#334155',
-                      marginTop: '0.15rem'
-                    }}>
-                    <span style={{ fontWeight: 600, color: '#475569' }}>Período comparado:</span>
+
+                {/* 🌟 CÁPSULA EXPLICATIVA DE FECHAS DE CORTE DINÁMICAS */}
+                {sortedCaps.length > 0 && sortedCaps[0]?.fechaT1 && (
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    backgroundColor: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    color: '#334155',
+                    marginTop: '0.25rem'
+                  }}>
+                    <span style={{ fontWeight: 600, color: '#475569' }}>
+                      Período comparado ({periodoComparativa} días):
+                    </span>
                     <span>
                       Corte Anterior (<strong>{new Date(sortedCaps[0].fechaT0).toLocaleDateString('es-AR')}</strong>)
                     </span>
@@ -757,13 +760,63 @@ export default function StatsPage() {
                 )}
               </div>
 
-              {/* ⏸️ BOTONES OCULTADOS MOMENTÁNEAMENTE HASTA TENER HISTORIAL COMPLETO
-              <div style={{ display: 'flex', gap: '6px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
-                <button type="button" onClick={() => setPeriodoComparativa(7)}>Últimos 7 días</button>
-                <button type="button" onClick={() => setPeriodoComparativa(15)}>Últimos 15 días</button>
-                <button type="button" onClick={() => setPeriodoComparativa(30)}>Últimos 30 días</button>
+              {/* 🌟 SELECTOR DE PERÍODO ACTIVO (7, 14, 30 DÍAS) */}
+              <div style={{ display: 'flex', gap: '6px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  onClick={() => setPeriodoComparativa(7)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    backgroundColor: periodoComparativa === 7 ? '#769FD3' : 'transparent',
+                    color: periodoComparativa === 7 ? '#fff' : '#64748b',
+                    boxShadow: periodoComparativa === 7 ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Últimos 7 días
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPeriodoComparativa(14)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    backgroundColor: periodoComparativa === 14 ? '#769FD3' : 'transparent',
+                    color: periodoComparativa === 14 ? '#fff' : '#64748b',
+                    boxShadow: periodoComparativa === 14 ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Últimos 14 días
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPeriodoComparativa(30)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    backgroundColor: periodoComparativa === 30 ? '#769FD3' : 'transparent',
+                    color: periodoComparativa === 30 ? '#fff' : '#64748b',
+                    boxShadow: periodoComparativa === 30 ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Últimos 30 días
+                </button>
               </div>
-              */}
             </div>
 
             <div className={styles.responsiveTableWrapper}>
