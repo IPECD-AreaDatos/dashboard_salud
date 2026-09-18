@@ -55,13 +55,18 @@ const calcularDiasSinContacto = (fechaContacto: string) => {
 
 
 
-const getSemaforoClass = (dias: number) => {
+const getSemaforoControlClass = (dias: number) => {
   if (dias === 999) return styles.semaforoGris;
-  
-  // Nueva regla: 1 control/contacto cada 30 días para todas las EG
   if (dias > 60) return styles.semaforoRojo;
+  if (dias > 40) return styles.semaforoAmarillo;
+  return styles.semaforoVerde; // <= 40 días
+};
+
+const getSemaforoContactoClass = (dias: number) => {
+  if (dias === 999) return styles.semaforoGris;
+  if (dias > 45) return styles.semaforoRojo;
   if (dias > 30) return styles.semaforoAmarillo;
-  return styles.semaforoVerde;
+  return styles.semaforoVerde; // <= 30 días
 };
 
 // 👈 NUEVA FUNCIÓN: Semáforo invertido para alertas de proximidad de turnos
@@ -300,7 +305,7 @@ export default function SeguimientoPage() {
       // 👈 FALLBACK INTELIGENTE: Si al cargar la página por primera vez pedimos "Atrasadas" y no hay ninguna, cambiamos automáticamente a "Todas"
       if (esCargaInicial && atrasadosABuscar === "Si" && !data.fallbackActivo) {
         const atrasadasReales = pacientesObtenidos.filter((p: Paciente) => {
-          const clase = getSemaforoClass(p.dias);
+          const clase = getSemaforoControlClass(p.dias);
           return clase === styles.semaforoRojo || clase === styles.semaforoAmarillo;
         });
 
@@ -334,7 +339,7 @@ export default function SeguimientoPage() {
 
   const pacientesFiltrados = pacientes.filter(p => {
     if (aplicadoAtrasados === "Si") {
-      const clase = getSemaforoClass(p.dias);
+      const clase = getSemaforoControlClass(p.dias);
       // Gris (dias===999 = sin fecha de control) ES atrasada, la más crítica
       return clase === styles.semaforoRojo || 
             clase === styles.semaforoAmarillo || 
@@ -430,7 +435,7 @@ export default function SeguimientoPage() {
     const hoja = XLSX.utils.json_to_sheet(datosFormateados);
 
     // 🌟 3. INYECCIÓN DE LOS FILTROS APLICADOS AL FINAL DE LA PLANILLA
-    // Obtenemos el texto limpio de los filtros (Ej: " — Embarazadas de Riesgo — +30 días sin control")
+    // Obtenemos el texto limpio de los filtros (Ej: " — Embarazadas de Riesgo — +40 días sin control")
     const textoFiltros = getFiltrosAplicadosTexto();
     const filtrosLimpios = textoFiltros ? textoFiltros.replace(/^ — /, "") : "Ninguno (Listado Total)";
 
@@ -952,7 +957,7 @@ export default function SeguimientoPage() {
                                 {p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : "-"}
                               </span>
                               <div>
-                                <span className={getSemaforoClass(p.dias)}>
+                                <span className={getSemaforoControlClass(p.dias)}>
                                   {p.dias === 999 ? "S/D" : `${p.dias} días`}
                                 </span>
                               </div>
@@ -967,7 +972,7 @@ export default function SeguimientoPage() {
                                   : "-"}
                               </span>
                               <div className={styles.semaforoWrapper}>
-                                <span className={getSemaforoClass(diasSC)}>
+                                <span className={getSemaforoContactoClass(diasSC)}>
                                   {diasSC === 999 
                                     ? "S/D" 
                                     : diasSC <= 0 

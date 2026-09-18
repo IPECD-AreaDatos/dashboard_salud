@@ -891,7 +891,7 @@ export default function StatsPage() {
                           {/* 🌟 Controladas Evolutivo con Tooltip en toda la celda */}
                           <td 
                             style={{ textAlign: 'center', cursor: 'help' }}
-                            title={`Control Médico Vigente (últimos 30 días):\n• Corte Anterior: ${caps.ctrlAnt} controladas\n• Corte Actual: ${caps.ctrlAct} controladas\n\nDesglose Corte Actual:\n• ${caps.controladasGestion} por Gestión Proactiva (llamada/turno previo)\n• ${caps.controladasEspontaneas} por Asistencia Espontánea`}
+                            title={`Control Médico Vigente (últimos 40 días):\n• Corte Anterior: ${caps.ctrlAnt} controladas\n• Corte Actual: ${caps.ctrlAct} controladas\n\nDesglose Corte Actual:\n• ${caps.controladasGestion} por Gestión Proactiva (llamada/turno previo)\n• ${caps.controladasEspontaneas} por Asistencia Espontánea`}
                           >
                             <span style={{ color: '#94a3b8' }}>{caps.ctrlAnt}</span>
                             <span style={{ color: '#cbd5e1', margin: '0 4px' }}>→</span>
@@ -1084,7 +1084,7 @@ export default function StatsPage() {
 
                 <div className={styles.chartCard}>
                   <h3 className={styles.chartTitle}>
-                    {isMaternidad ? "Top 15 — Riesgo y sin control (>30 días) por centro de origen" : "Top 15 — Embarazadas de riesgo con control atrasado (>30 días)"}
+                    {isMaternidad ? "Top 15 — Riesgo y sin control (>40 días) por centro de origen" : "Top 15 — Embarazadas de riesgo con control atrasado (>40 días)"}
                   </h3>
                   <div className={styles.chartWrapper}>
                     <ResponsiveContainer width="100%" height="100%" minHeight={350}>
