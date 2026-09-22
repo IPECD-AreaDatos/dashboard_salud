@@ -500,7 +500,7 @@ export default function StatsPage() {
                   </span>
                   <span style={{ fontSize: '0.95rem', color: '#16a34a', fontWeight: 700 }}>({getPct(data?.gestion?.controladas || 0)})</span>
                 </div>
-                <small className={styles.kpiSubtext}>Controles vigentes en los últimos 30 días</small>
+                <small className={styles.kpiSubtext}>Controles vigentes en los últimos 40 días</small>
               </div>
 
               <div className={styles.kpiCardCompact}>

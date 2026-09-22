@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const exact = searchParams.get("exact") === "true"; 
   const dni = searchParams.get("dni");
   const establecimiento = searchParams.get("establecimiento");
-  const riesgo = searchParams.get("riesgo") || "Si";
+  const riesgo = searchParams.get("riesgo") || "Todas";
   
   // 👈 NUEVO: Reemplazamos fppDesde/Hasta por el parámetro único de trimestre
   const trimestre = searchParams.get("trimestre") || "Todos"; 

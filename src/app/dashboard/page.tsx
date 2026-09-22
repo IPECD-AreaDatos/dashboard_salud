@@ -123,7 +123,7 @@ export default function SeguimientoPage() {
   // Estados para los filtros (Como Tony)
   const [filterDni, setFilterDni] = useState("");
   const [filterEst, setFilterEst] = useState("Todos");
-  const [filterRiesgo, setFilterRiesgo] = useState("Si");
+  const [filterRiesgo, setFilterRiesgo] = useState("Todas");
   const [filterTrimestre, setFilterTrimestre] = useState("Todos"); 
   const [aplicadoTrimestre, setAplicadoTrimestre] = useState("Todos");
 
@@ -131,7 +131,7 @@ export default function SeguimientoPage() {
   const [aplicadoAtrasados, setAplicadoAtrasados] = useState("Si");
   
   // Estados que reflejan lo que REALMENTE está aplicado (se actualizan solo al presionar Aplicar)
-  const [aplicadoRiesgo, setAplicadoRiesgo] = useState("Si");
+  const [aplicadoRiesgo, setAplicadoRiesgo] = useState("Todas");
 
   const [totalGlobal, setTotalGlobal] = useState(0);
 
@@ -157,7 +157,7 @@ export default function SeguimientoPage() {
   // Carga inicial
   useEffect(() => {
     fetchFiltros();
-    fetchPacientes(undefined, false, undefined, "Todos", "Si", "Si", undefined, true);
+    fetchPacientes(undefined, false, undefined, "Todos", "Todas", "Si", undefined, true);
     // 👈 NUEVO: Logea que el centro o el administrador entró a la grilla de seguimiento
     registrarLog({ modulo: "Seguimiento", accion: "VISUALIZAR_LISTADO" });
   }, []);
@@ -214,17 +214,17 @@ export default function SeguimientoPage() {
     setMostrarSugerencias(false);
 
     // Restauramos estado del formulario
-    setFilterRiesgo("Si");
+    setFilterRiesgo("Todas");
     setFilterAtrasados("Si");
     setFilterTrimestre("Todos");
 
     // Restauramos etiquetas del resumen
-    setAplicadoRiesgo("Si");
+    setAplicadoRiesgo("Todas");
     setAplicadoAtrasados("Si");
     setAplicadoTrimestre("Todos");
 
     // Pasamos los valores directo para no depender del estado que aún no se actualizó
-    fetchPacientes("", false, undefined, "Todos", "Si", "Si", undefined, true);
+    fetchPacientes("", false, undefined, "Todos", "Todas", "Si", undefined, true);
   };
 
   // Limpia el filtro de establecimiento y relanza la búsqueda con todos los centros
