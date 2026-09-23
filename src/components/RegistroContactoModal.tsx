@@ -84,7 +84,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
           detalles: `Medio: ${formData.medio_contacto}. Dirigido a: ${formData.persona_contactada}. Obs: ${formData.observaciones}`
         });
 
-        // Acción B: Si el contacto fue logrado Y el operador le cargó una fecha de próxima cita, ¡hay un turno asignado!
+        // Acción B: Si el contacto fue logrado Y el operador le cargó una fecha de Próximo Turno, ¡hay un turno asignado!
         if (formData.contacto_logrado && formData.proxima_cita) {
           await registrarLog({
             modulo: "Seguimiento",
@@ -232,7 +232,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup} style={{maxWidth: '50%'}}>
-                  <label className={styles.formLabel}>Próxima cita (opcional):</label>
+                  <label className={styles.formLabel}>Próximo Turno (opcional):</label>
                   <input type="date" name="proxima_cita" value={formData.proxima_cita} onChange={handleChange} className={styles.input} />
                 </div>
               </div>
