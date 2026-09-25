@@ -697,7 +697,7 @@ export default function StatsPage() {
                   </div>
                 </div>
                 <span className={styles.kpiSubValue} style={{ color: '#15803d' }}>{efectividadContactoPct}%</span>
-                <small className={styles.kpiSubtext} style={{marginTop: '4px'}}>{`(${contactosConTurno} de ${contactosTotales} contactos)`}</small>
+                <small className={styles.kpiSubtext} style={{marginTop: '4px'}}>{`(${contactosConTurno} de ${contactosTotales} embarazadas)`}</small>
               </div>
             </div>
 

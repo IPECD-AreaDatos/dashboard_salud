@@ -115,8 +115,18 @@ export async function GET(request: Request) {
         (SELECT COUNT(DISTINCT p.id) FROM pacientes_filtradas p JOIN public.seguimientos s ON p.id = s.paciente_id WHERE s.proxima_cita >= CURRENT_DATE) as turnos_asignados_caps,
         (SELECT COUNT(*) FROM pacientes_filtradas WHERE LOWER(riesgo) IN ('si', 's', 'alto', 'moderado') AND (fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 40)) as riesgo_sin_control,
         (SELECT COUNT(*) FROM pacientes_filtradas WHERE controles_1er_trim > 0) as captacion_precoz_caps,
-        (SELECT COUNT(DISTINCT s.id) FROM pacientes_filtradas p JOIN public.seguimientos s ON p.id = s.paciente_id WHERE s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days' AND s.proxima_cita IS NOT NULL) as contactos_con_turno_caps,
-        (SELECT COUNT(DISTINCT s.id) FROM pacientes_filtradas p JOIN public.seguimientos s ON p.id = s.paciente_id WHERE s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days') as contactos_totales_caps
+        (SELECT COUNT(DISTINCT p.id) 
+          FROM pacientes_filtradas p 
+          JOIN public.seguimientos s ON p.id = s.paciente_id 
+          WHERE s.contacto_logrado = true 
+            AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days' 
+            AND s.proxima_cita >= CURRENT_DATE) as contactos_con_turno_caps,
+
+        (SELECT COUNT(DISTINCT p.id) 
+          FROM pacientes_filtradas p 
+          JOIN public.seguimientos s ON p.id = s.paciente_id 
+          WHERE s.contacto_logrado = true 
+            AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days') as contactos_totales_caps
     `;
 
     // 4.1 Métricas para las TARJETAS (NO son afectadas por el filtro de zona)
