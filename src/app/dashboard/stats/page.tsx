@@ -179,6 +179,34 @@ export default function StatsPage() {
     return items;
   }, [data?.resumenCaps, sortConfigCaps]);
 
+  const totalCaps = useMemo(() => {
+    if (sortedCaps.length === 0) return null;
+
+    const sum = (key: string) => sortedCaps.reduce((total: number, caps: Record<string, unknown>) => total + (Number(caps[key]) || 0), 0);
+    const padronAnt = sum('padronAnt');
+    const padronAct = sum('padronAct');
+    const ctrlAnt = sum('ctrlAnt');
+    const ctrlAct = sum('ctrlAct');
+    const cobAnt = padronAnt > 0 ? (ctrlAnt * 100) / padronAnt : 0;
+    const cobAct = padronAct > 0 ? (ctrlAct * 100) / padronAct : 0;
+
+    return {
+      capsCount: sortedCaps.length,
+      padronAnt,
+      padronAct,
+      ctrlAnt,
+      ctrlAct,
+      cobAnt: Number(cobAnt.toFixed(1)),
+      cobAct: Number(cobAct.toFixed(1)),
+      variacionCob: Number((cobAct - cobAnt).toFixed(1)),
+      pctSeguimientoAdecuado: Number((padronAct > 0 ? (sum('absSeguimientoAdecuado') * 100) / padronAct : 0).toFixed(1)),
+      controladasGestion: sum('controladasGestion'),
+      controladasEspontaneas: sum('controladasEspontaneas'),
+      pctGestion: Number((ctrlAct > 0 ? (sum('controladasGestion') * 100) / ctrlAct : 0).toFixed(1)),
+      turnosAsignadosCaps: sum('turnosAsignadosCaps'),
+    };
+  }, [sortedCaps]);
+
   // 1️⃣ Carga inicial (trae todo por defecto con período de 30 días)
   useEffect(() => {
     setLoading({ initial: true, filtering: false });
@@ -305,6 +333,24 @@ export default function StatsPage() {
       "Controladas Espontáneas": c.controladasEspontaneas,
       "Próximos Turnos": c.turnosAsignadosCaps
     }));
+
+    if (totalCaps) {
+      datosFormateados.push({
+        "Centro de Salud": `TOTAL CAPS (${totalCaps.capsCount})`,
+        [`Padrón (${fechaT0})`]: totalCaps.padronAnt,
+        [`Padrón (${fechaT1})`]: totalCaps.padronAct,
+        [`Controladas (${fechaT0})`]: totalCaps.ctrlAnt,
+        [`Controladas (${fechaT1})`]: totalCaps.ctrlAct,
+        [`Cobertura (${fechaT0})`]: `${totalCaps.cobAnt}%`,
+        [`Cobertura (${fechaT1})`]: `${totalCaps.cobAct}%`,
+        "Variación Cobertura": `${totalCaps.variacionCob >= 0 ? '+' : ''}${totalCaps.variacionCob} p.p.`,
+        "% Seguimiento Adecuado": `${totalCaps.pctSeguimientoAdecuado}%`,
+        "% Gestión Proactiva": `${totalCaps.pctGestion}%`,
+        "Controladas x Gestión": totalCaps.controladasGestion,
+        "Controladas Espontáneas": totalCaps.controladasEspontaneas,
+        "Próximos Turnos": totalCaps.turnosAsignadosCaps
+      });
+    }
 
     XLSX.utils.sheet_add_json(hoja, datosFormateados, { origin: "A14" });
     hoja['!cols'] = [
@@ -737,14 +783,15 @@ export default function StatsPage() {
                   <div style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '10px',
+                    gap: '12px',
                     backgroundColor: '#f1f5f9',
                     border: '1px solid #e2e8f0',
-                    padding: '6px 12px',
+                    padding: '8px 12px',
                     borderRadius: '6px',
                     fontSize: '0.9rem',
                     color: '#334155',
-                    marginTop: '0.25rem'
+                    marginTop: '0.25rem',
+                    marginBottom: '0.65rem'
                   }}>
                     <span style={{ fontWeight: 600, color: '#475569' }}>
                       Período comparado ({periodoComparativa} días):
@@ -958,6 +1005,38 @@ export default function StatsPage() {
                     </tr>
                   )}
                 </tbody>
+                {totalCaps && (
+                  <tfoot>
+                    <tr className={styles.totalRow}>
+                      <td>TOTAL CAPS ({totalCaps.capsCount})</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span>{totalCaps.padronAnt}</span>
+                        <span style={{ color: '#94a3b8', margin: '0 4px' }}>→</span>
+                        <span>{totalCaps.padronAct}</span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span>{totalCaps.ctrlAnt}</span>
+                        <span style={{ color: '#94a3b8', margin: '0 4px' }}>→</span>
+                        <span>{totalCaps.ctrlAct}</span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                          <span className={getSemaforoBadgeClass(totalCaps.cobAct)}>{totalCaps.cobAct}%</span>
+                          <span className={totalCaps.variacionCob >= 0 ? styles.totalPositive : styles.totalNegative}>
+                            {totalCaps.variacionCob >= 0 ? '+' : ''}{totalCaps.variacionCob} p.p.
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={styles.badgeAmarillo}>{totalCaps.pctSeguimientoAdecuado}%</span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={styles.badgeCeleste}>{totalCaps.pctGestion}%</span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>{totalCaps.turnosAsignadosCaps}</td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </div>

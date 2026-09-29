@@ -13,7 +13,19 @@ export default function InfoPacienteModal({ paciente, onClose }: any) {
 
   // 👈 NUEVA FUNCIÓN: Genera dinámicamente la guía de reparación en base a la alerta
   const obtenerInstruccionesCorreccion = (motivo: string) => {
-    const motivoLower = motivo.toLowerCase();
+    const motivoLower = motivo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    if (motivoLower.includes("embarazo") && motivoLower.includes("pof") && motivoLower.includes("30 dias") && motivoLower.includes("diferencia")) {
+      return "ℹ️ Este registro de SUMAR tiene una FPP que difiere más de 30 días de la de un embarazo POF en curso. Verificá ambas fichas y confirmá si corresponden al mismo embarazo o a uno nuevo. Si el embarazo anterior finalizó, corroborá que la interrupción haya sido informada; no asumir que se trata de una FPP incorrecta sin revisar los antecedentes.";
+    }
+
+    if (motivoLower.includes("menor a 2 semanas")) {
+      return "⚠️ La edad gestacional informada es menor a 2 semanas. Verificá la FPP, la fecha del último control y la edad gestacional en la fuente indicada; corregí el dato de origen solo si confirmás que es incorrecto.";
+    }
+
+    if (motivoLower.includes("falta registrar") || motivoLower.includes("sin fpp")) {
+      return "⚠️ No se recibió una Fecha Probable de Parto (FPP). Verificá la ficha en el sistema de origen (SUMAR/POF) y completá la FPP si corresponde.";
+    }
     
     if (motivoLower.includes("fpp") || motivoLower.includes("edad gestacional")) {
       if (motivoLower.includes("pof")) {

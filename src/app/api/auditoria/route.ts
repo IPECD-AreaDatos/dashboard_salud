@@ -4,6 +4,32 @@ import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 
+const formatearMotivoAuditoria = (motivo: string | null) => {
+  const motivoOriginal = motivo?.trim() || "Edad gestacional inválida (< 2 semanas) o ausente";
+  const motivoNormalizado = motivoOriginal
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (motivoNormalizado === "eg_actual_menor_2") {
+    return "Edad gestacional menor a 2 semanas";
+  }
+
+  if (motivoNormalizado === "sin_fpp") {
+    return "Falta registrar la Fecha Probable de Parto (FPP)";
+  }
+
+  if (motivoNormalizado.includes("embarazo en curso en pof") && motivoNormalizado.includes("30 dias de diferencia")) {
+    return "Existe un embarazo POF en curso con una FPP a más de 30 días de diferencia";
+  }
+
+  if (motivoOriginal.includes("_")) {
+    return motivoOriginal.replace(/_/g, " ");
+  }
+
+  return motivoOriginal;
+};
+
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   
@@ -94,7 +120,7 @@ export async function GET(request: Request) {
           data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,  -- 👈 AGREGAR ESTA LÍNEA
           fuente,
           batch_id, 
-          'Edad gestacional inválida (< 2 semanas) o ausente' as motivo_auditoria
+          COALESCE(NULLIF(TRIM(motivo), ''), 'Edad gestacional inválida (< 2 semanas) o ausente') as motivo_auditoria
         FROM pacientes_sin_fpp_stage
         WHERE ingestion_at::date = (SELECT ultima_fecha::date FROM max_fecha)
         
@@ -175,7 +201,7 @@ export async function GET(request: Request) {
         fecha_nacimiento: p.fecha_nacimiento,
         eg_actual: p.eg_actual !== null ? parseFloat(p.eg_actual) : null,
         establecimiento: p.nombre_establecimiento_oficial || "Establecimiento no mapeado",
-        motivo_auditoria: `[${fuenteFormateada}] — ${p.motivo_auditoria}`,
+        motivo_auditoria: `[${fuenteFormateada}] — ${formatearMotivoAuditoria(p.motivo_auditoria)}`,
         edad: p.edad_paciente || null,
         fuente_limpia: fuenteFormateada,
         lote: p.batch_id || "S/D"
