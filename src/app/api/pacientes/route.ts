@@ -64,7 +64,8 @@ export async function GET(request: Request) {
       SELECT COUNT(*) 
       FROM pacientes_gold p
       WHERE fecha_probable_parto >= CURRENT_DATE 
-        AND embarazo_en_curso = true ${securityClause}
+        AND embarazo_en_curso = true
+        AND p.en_red_perinatal_msp = true ${securityClause}
     `;
     const totalRes = await query(countQuery);
     const totalGlobal = parseInt(totalRes.rows[0].count, 10);
@@ -72,7 +73,10 @@ export async function GET(request: Request) {
     // Función auxiliar para armar la query y sus parámetros
     const ejecutarConsultaPacientes = async (aplicarRestriccionesGestión: boolean) => {
       const params: any[] = [];
-      let whereClause = `WHERE embarazo_en_curso = true AND fecha_probable_parto >= CURRENT_DATE AND p.fecha_nacimiento IS NOT NULL`;
+      let whereClause = `WHERE embarazo_en_curso = true
+        AND fecha_probable_parto >= CURRENT_DATE
+        AND p.fecha_nacimiento IS NOT NULL
+        AND p.en_red_perinatal_msp = true`;
       
       if (dni && exact) {
         params.push(dni.trim());

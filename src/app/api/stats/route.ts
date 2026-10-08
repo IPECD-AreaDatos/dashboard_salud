@@ -91,6 +91,7 @@ export async function GET(request: Request) {
         WHERE p.fecha_probable_parto >= ${fechaUmbral} 
           AND p.embarazo_en_curso = true 
           AND p.fecha_nacimiento IS NOT NULL
+          AND p.en_red_perinatal_msp = true
           ${securityClause} ${centroFilterClause} ${zonaGlobalClause} ${derivacionClause}
       )
       SELECT 
@@ -155,6 +156,7 @@ export async function GET(request: Request) {
         SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas
       FROM public.pacientes_gold p
       WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.fecha_nacimiento IS NOT NULL
+        AND p.en_red_perinatal_msp = true
         ${securityClause} ${centroFilterClause} ${derivacionClause}
     `;
 
@@ -165,6 +167,7 @@ export async function GET(request: Request) {
       WHERE p.fecha_probable_parto >= ${fechaUmbral} 
         AND p.embarazo_en_curso = true 
         AND p.fecha_nacimiento IS NOT NULL
+        AND p.en_red_perinatal_msp = true
         AND p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != ''
         ${securityClause} ${centroFilterClause}
     `;
@@ -193,7 +196,8 @@ export async function GET(request: Request) {
       SELECT s.nombre as name, s.departamento, COUNT(DISTINCT p.id) as value
       FROM public.pacientes_gold p
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = (CASE WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != '' THEN p.sisa_centro_derivado ELSE p.sisa_centro_salud END)
-      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true        ${securityClause} ${derivacionClause}
+      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.en_red_perinatal_msp = true
+        ${securityClause} ${derivacionClause}
         ${zonaGlobalClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento ORDER BY value DESC
@@ -205,7 +209,7 @@ export async function GET(request: Request) {
       SELECT s.nombre as name, s.departamento, COUNT(DISTINCT p.id) as value
       FROM public.pacientes_gold p
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = (CASE WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != '' THEN p.sisa_centro_derivado ELSE p.sisa_centro_salud END)
-      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
+      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.en_red_perinatal_msp = true AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
         ${securityClause} ${derivacionClause}
         ${zonaGlobalClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
@@ -411,6 +415,7 @@ export async function GET(request: Request) {
           CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40 THEN p.id ELSE NULL END as id_controlada
         FROM public.pacientes_gold p
         WHERE p.embarazo_en_curso = true AND p.fecha_probable_parto >= ${fechaUmbral} AND p.fecha_nacimiento IS NOT NULL
+          AND p.en_red_perinatal_msp = true
           ${securityClause}
           ${centroFilterClause} ${derivacionClause}
           ${zonaGlobalClause}
@@ -432,6 +437,7 @@ export async function GET(request: Request) {
         SUM(CASE WHEN p.fuente_principal NOT IN ('sumar') AND (p.fuente_principal NOT IN ('pof', 'v_embarazosdw') OR p.cobertura_salud IS NULL) THEN 1 ELSE 0 END) as sin_datos
       FROM public.pacientes_gold p
       WHERE p.embarazo_en_curso = true AND p.fecha_probable_parto >= ${fechaUmbral} AND p.fecha_nacimiento IS NOT NULL
+        AND p.en_red_perinatal_msp = true
         ${securityClause}
         ${centroFilterClause} ${derivacionClause}
         ${zonaGlobalClause}

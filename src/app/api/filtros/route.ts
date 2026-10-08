@@ -13,7 +13,8 @@ export async function GET() {
         COUNT(CASE 
           WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') 
                AND p.fecha_probable_parto >= CURRENT_DATE 
-               AND p.embarazo_en_curso = true -- 👈 Control sanitario de embarazo activo
+               AND p.embarazo_en_curso = true
+               AND p.en_red_perinatal_msp = true -- 👈 Solo pacientes bajo cuidado activo
           THEN 1 
         END) as total_riesgo
       FROM pacientes_gold p
@@ -21,6 +22,7 @@ export async function GET() {
       INNER JOIN efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
       WHERE s.nombre IS NOT NULL
         AND s.nombre != ''
+        AND p.en_red_perinatal_msp = true
       GROUP BY s.cuie, s.codigo_sisa, s.nombre, s.localidad, s.departamento
       ORDER BY total_riesgo DESC, s.nombre ASC
     `;

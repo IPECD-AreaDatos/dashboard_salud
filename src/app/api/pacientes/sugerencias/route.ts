@@ -21,6 +21,7 @@ export async function GET(request: Request) {
        WHERE (dni LIKE $1 OR apellido ILIKE $1)
          AND embarazo_en_curso = true
          AND fecha_probable_parto >= CURRENT_DATE
+         AND en_red_perinatal_msp = true
        LIMIT 10`,
       [`${searchTerm}%`]
     );
