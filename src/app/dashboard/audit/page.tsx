@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { registrarLog } from "@/lib/analytics";
-import styles from "../Dashboard.module.css"; 
+import styles from "./Audit.module.css";
 import Navbar from "@/components/Navbar";
 // 👈 Agregamos Download (lucide-react)
 import { Search, Phone, RefreshCcw, Filter, X, Download } from "lucide-react";
@@ -234,6 +234,30 @@ export default function AuditPage() {
     <>
       <Navbar />
       <div className={styles.container}>
+
+        <div className={styles.auditTabs}>
+          <div className={styles.auditTabGroup}>
+            <a 
+              className={styles.auditTabActive} 
+              href="/salud-dashboard/dashboard/audit"
+            >
+              Auditoría
+            </a>
+            <a 
+              className={styles.auditTab} 
+              href="/salud-dashboard/dashboard/audit/red-perinatal"
+            >
+              Red Perinatal
+            </a>
+          </div>
+
+          <a 
+            className={styles.auditBackButton} 
+            href="/salud-dashboard/dashboard/audit/red-perinatal"
+          >
+            Ir a Red Perinatal →
+          </a>
+        </div>
 
         <div className={styles.mainGrid}>
           {/* CONTROLES Y FILTROS (Lateral) */}
