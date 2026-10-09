@@ -24,6 +24,7 @@ interface PacienteAuditoria {
   edad: number | null;
   fuente_limpia: string;
   lote: string;
+  fecha_ingesta: string | null;
 }
 
 export default function AuditPage() {
@@ -155,7 +156,7 @@ export default function AuditPage() {
     const headers = [
       "ID Ficha", "Nombre de la Embarazada", "DNI", "Teléfono", 
       "Fecha de Nacimiento", "FPP", "EG Actual (Semanas)", 
-      "Establecimiento", "Motivo de Auditoría", "Lote"
+      "Establecimiento", "Motivo de Auditoría", "Lote", "Fecha Extracción"
     ];
 
     const datosMapeados = sortedPacientes.map(p => [
@@ -168,7 +169,8 @@ export default function AuditPage() {
       p.eg_actual !== null ? `${p.eg_actual}s` : "-",
       p.establecimiento || "S/D",
       p.motivo_auditoria,
-      p.lote || "-"
+      p.lote || "-",
+      p.fecha_ingesta ? new Date(p.fecha_ingesta).toLocaleDateString('es-AR') : "S/D"
     ]);
 
     // Combinamos metadatos + encabezado de la tabla + registros
@@ -241,13 +243,13 @@ export default function AuditPage() {
               className={styles.auditTabActive} 
               href="/salud-dashboard/dashboard/audit"
             >
-              Auditoría
+              Revisar Datos
             </a>
             <a 
               className={styles.auditTab} 
               href="/salud-dashboard/dashboard/audit/red-perinatal"
             >
-              Red Perinatal
+              Fuera de Red Perinatal MSP
             </a>
           </div>
 
@@ -255,7 +257,7 @@ export default function AuditPage() {
             className={styles.auditBackButton} 
             href="/salud-dashboard/dashboard/audit/red-perinatal"
           >
-            Ir a Red Perinatal →
+            Ir a Fuera de Red Perinatal MSP →
           </a>
         </div>
 
@@ -418,7 +420,7 @@ export default function AuditPage() {
 
             <div className={styles.tableHeader}>
               <h2 className={styles.tableTitle}>
-                {esPerfilGestion ? "Listado de Auditoría Provincial" : `Panel de Calidad: ${centroNombreOId}`}
+                {esPerfilGestion ? "Listado de Datos a Revisar" : `Panel de Calidad: ${centroNombreOId}`}
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 {ultimaActualizacion && (
@@ -471,6 +473,8 @@ export default function AuditPage() {
                     </th>
                     
                     <th>Motivo Auditoría</th>
+
+                    <th style={{ whiteSpace: 'nowrap' }}>Fecha Extracción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -522,7 +526,13 @@ export default function AuditPage() {
                             {p.motivo_auditoria}
                           </span>
                         </td>
-
+                        
+                        <td style={{ color: '#64748b', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                          {p.fecha_ingesta 
+                            ? new Date(p.fecha_ingesta).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
+                            : 'S/D'}
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Lote: {p.lote}</div>
+                        </td>
                       </tr>
                     ))
                   )}

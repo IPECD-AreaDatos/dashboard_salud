@@ -1,4 +1,3 @@
-/*src/app/api/auditoria/route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
@@ -32,21 +31,21 @@ const formatearMotivoAuditoria = (motivo: string | null) => {
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  
+
   if (
-    !session || 
-    (session.user?.role !== 'Administrador' && 
-     session.user?.role !== 'Coordinador' && 
-     session.user?.role !== 'Centro de Salud' && 
-     session.user?.role !== 'Maternidad' && 
-     session.user?.role !== 'Supervisora' && 
-     session.user?.role?.toLowerCase() !== 'lectura' &&
-     session.user?.name !== 'admin')
+    !session ||
+    (session.user?.role !== "Administrador" &&
+      session.user?.role !== "Coordinador" &&
+      session.user?.role !== "Centro de Salud" &&
+      session.user?.role !== "Maternidad" &&
+      session.user?.role !== "Supervisora" &&
+      session.user?.role?.toLowerCase() !== "lectura" &&
+      session.user?.name !== "admin")
   ) {
     return NextResponse.json({ error: "No autorizado para consultar auditoría" }, { status: 403 });
   }
 
-  if (session.user?.role === 'Supervisora') {
+  if (session.user?.role === "Supervisora") {
     return NextResponse.json({ error: "No autorizado para consultar auditoría" }, { status: 403 });
   }
 
@@ -59,36 +58,49 @@ export async function GET(request: Request) {
     const cuie = session.user?.cuie_code;
     const userRole = session.user?.role;
 
-    const params: any[] = [];
-    
-    // 🛡️ 1. CAPA DE SEGURIDAD AUTOMÁTICA EN SEGUNDO PLANO (RBAC)
+    const params: unknown[] = [];
+
+    // 🛡️ 1. SEGURIDAD RBAC
     let filteringClauses = `WHERE 1=1`;
 
-    if (userRole === 'Centro de Salud') {
+    if (userRole === "Centro de Salud") {
       if (sisa) {
-        filteringClauses += ` AND uni.centro_salud_raw = '${sisa}'`;
+        params.push(sisa);
+        filteringClauses += ` AND uni.centro_salud_raw = $${params.length}`;
       } else if (cuie) {
-        filteringClauses += ` AND (uni.centro_salud_raw = '${cuie}' OR uni.centro_salud_raw IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+        params.push(cuie);
+        params.push(cuie);
+        filteringClauses += ` AND (uni.centro_salud_raw = $${params.length - 1} OR uni.centro_salud_raw IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $${params.length}))`;
       }
-    } else if (userRole === 'Maternidad') {
+    } else if (userRole === "Maternidad") {
       const matId = session.user?.maternidad_id;
       let localClause = "";
       if (sisa) {
-        localClause = `uni.centro_salud_raw = '${sisa}'`;
+        params.push(sisa);
+        localClause = `uni.centro_salud_raw = $${params.length}`;
       } else if (cuie) {
-        localClause = `(uni.centro_salud_raw = '${cuie}' OR uni.centro_salud_raw IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
+        params.push(cuie);
+        params.push(cuie);
+        localClause = `(uni.centro_salud_raw = $${params.length - 1} OR uni.centro_salud_raw IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $${params.length}))`;
       }
-      // ✅ Ahora comparamos el derivacion_maternidad_id DEL PROPIO REGISTRO, no del batch completo
-      filteringClauses += ` AND (${localClause} OR uni.derivacion_maternidad_id = '${matId}')`;
+      if (localClause && matId) {
+        params.push(matId);
+        filteringClauses += ` AND (${localClause} OR uni.derivacion_maternidad_id = $${params.length})`;
+      }
     }
 
     // 🔍 2. FILTROS MANUALES
     if (dni) {
-        params.push(`${dni}%`);
-        filteringClauses += ` AND uni.dni LIKE $${params.length}`;
+      params.push(`${dni}%`);
+      filteringClauses += ` AND uni.dni LIKE $${params.length}`;
     }
 
-    if ((userRole === 'Administrador' || userRole === 'Coordinador' || userRole?.toLowerCase() === 'lectura') && establecimiento && establecimiento !== "Todos" && establecimiento !== "undefined") {
+    if (
+      (userRole === "Administrador" || userRole === "Coordinador" || userRole?.toLowerCase() === "lectura") &&
+      establecimiento &&
+      establecimiento !== "Todos" &&
+      establecimiento !== "undefined"
+    ) {
       if (establecimiento === "Establecimiento no mapeado") {
         filteringClauses += ` AND s.nombre IS NULL`;
       } else {
@@ -97,16 +109,19 @@ export async function GET(request: Request) {
       }
     }
 
-    // 📊 3. QUERY UNIFICADA DE AUDITORÍA OPTIMIZADA CON FILTRO GLOBAL AL ÚLTIMO DÍA DE EXTRACCIÓN
+    // 📊 3. QUERY CON ÚLTIMA EXTRACCIÓN INDEPENDIENTE POR TABLA + INGESTION_AT
     const sql = `
-      WITH max_fecha AS (
-        SELECT GREATEST(
-          COALESCE((SELECT MAX(ingestion_at) FROM pacientes_sin_fpp_stage), '1970-01-01'::timestamp),
-          COALESCE((SELECT MAX(ingestion_at) FROM pacientes_sin_fnac_stage), '1970-01-01'::timestamp),
-          COALESCE((SELECT MAX(ingestion_at) FROM pacientes_sin_dni_stage), '1970-01-01'::timestamp)
-        ) as ultima_fecha
+      WITH ultimo_sin_fpp AS (
+        SELECT MAX(ingestion_at::date) AS fecha FROM pacientes_sin_fpp_stage
+      ),
+      ultimo_sin_fnac AS (
+        SELECT MAX(ingestion_at::date) AS fecha FROM pacientes_sin_fnac_stage
+      ),
+      ultimo_sin_dni AS (
+        SELECT MAX(ingestion_at::date) AS fecha FROM pacientes_sin_dni_stage
       ),
       unificado AS (
+        -- 1. Casos de pacientes sin FPP
         SELECT 
           COALESCE(dni, data_json::json->>'dni') as dni,
           data_json::json->>'nombre' as nombre,
@@ -117,15 +132,17 @@ export async function GET(request: Request) {
           (data_json::json->>'fecha_nacimiento')::date as fecha_nacimiento,
           (data_json::json->>'eg_actual')::numeric as eg_actual,
           COALESCE(data_json::json->>'sisa_centro_salud', data_json::json->>'cuie_seguimiento') as centro_salud_raw,
-          data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,  -- 👈 AGREGAR ESTA LÍNEA
+          data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,
           fuente,
-          batch_id, 
+          batch_id,
+          ingestion_at,
           COALESCE(NULLIF(TRIM(motivo), ''), 'Edad gestacional inválida (< 2 semanas) o ausente') as motivo_auditoria
         FROM pacientes_sin_fpp_stage
-        WHERE ingestion_at::date = (SELECT ultima_fecha::date FROM max_fecha)
+        WHERE ingestion_at::date = (SELECT fecha FROM ultimo_sin_fpp)
         
         UNION ALL
         
+        -- 2. Casos de pacientes sin fecha de nacimiento
         SELECT 
           COALESCE(dni, data_json::json->>'dni') as dni,
           data_json::json->>'nombre' as nombre,
@@ -136,15 +153,17 @@ export async function GET(request: Request) {
           (data_json::json->>'fecha_nacimiento')::date as fecha_nacimiento,
           (data_json::json->>'edad_calculada')::numeric as eg_actual,
           COALESCE(data_json::json->>'sisa_centro_salud', data_json::json->>'cuie_seguimiento') as centro_salud_raw,
-          data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,  -- 👈 AGREGAR ESTA LÍNEA
+          data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,
           fuente,
-          batch_id, 
+          batch_id,
+          ingestion_at,
           'Edad calculada inconsistente (< 10 años) o ausente' as motivo_auditoria
         FROM pacientes_sin_fnac_stage
-        WHERE ingestion_at::date = (SELECT ultima_fecha::date FROM max_fecha)
+        WHERE ingestion_at::date = (SELECT fecha FROM ultimo_sin_fnac)
         
         UNION ALL
         
+        -- 3. Casos de pacientes sin DNI
         SELECT 
           COALESCE(data_json::json->>'dni', '') as dni,
           data_json::json->>'nombre' as nombre,
@@ -155,12 +174,13 @@ export async function GET(request: Request) {
           (data_json::json->>'fecha_nacimiento')::date as fecha_nacimiento,
           (data_json::json->>'eg_actual')::numeric as eg_actual,
           COALESCE(data_json::json->>'sisa_centro_salud', data_json::json->>'cuie_seguimiento') as centro_salud_raw,
-          data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,  -- 👈 AGREGAR ESTA LÍNEA
+          data_json::json->>'derivacion_maternidad_id' as derivacion_maternidad_id,
           fuente,
-          batch_id, 
+          batch_id,
+          ingestion_at,
           'DNI inválido o no informado' as motivo_auditoria
         FROM pacientes_sin_dni_stage
-        WHERE ingestion_at::date = (SELECT ultima_fecha::date FROM max_fecha)
+        WHERE ingestion_at::date = (SELECT fecha FROM ultimo_sin_dni)
           AND data_json::json->>'apellido' IS NOT NULL 
           AND data_json::json->>'apellido' != ''
       )
@@ -177,7 +197,8 @@ export async function GET(request: Request) {
         uni.motivo_auditoria,
         uni.fuente,
         EXTRACT(YEAR FROM AGE(CURRENT_DATE, uni.fecha_nacimiento))::int as edad_paciente,
-        uni.batch_id, 
+        uni.batch_id,
+        uni.ingestion_at,
         s.nombre as nombre_establecimiento_oficial
       FROM unificado uni
       LEFT JOIN efectores_sisa s ON (uni.centro_salud_raw = s.cuie OR uni.centro_salud_raw = s.codigo_sisa)
@@ -186,16 +207,19 @@ export async function GET(request: Request) {
     `;
 
     const result = await query(sql, params);
-    
-    const pacientes = result.rows.map(p => {
-      const fuenteFormateada = p.fuente === 'sumar' 
-        ? 'SUMAR' 
-        : (p.fuente === 'v_embarazosdw' ? 'POF' : p.fuente || 'S/D');
+
+    const pacientes = result.rows.map((p) => {
+      const fuenteFormateada =
+        p.fuente === "sumar"
+          ? "SUMAR"
+          : p.fuente === "v_embarazosdw"
+          ? "POF"
+          : p.fuente || "S/D";
 
       return {
         id: parseInt(p.id, 10),
         dni: p.dni || "S/D",
-        nombre: p.apellido && p.nombre ? `${p.apellido}, ${p.nombre}` : (p.nombre || "Sin Nombre/Apellido"),
+        nombre: p.apellido && p.nombre ? `${p.apellido}, ${p.nombre}` : p.nombre || "Sin Nombre/Apellido",
         telefono: p.telefono || "-",
         fpp: p.fecha_probable_parto,
         fecha_nacimiento: p.fecha_nacimiento,
@@ -204,7 +228,9 @@ export async function GET(request: Request) {
         motivo_auditoria: `[${fuenteFormateada}] — ${formatearMotivoAuditoria(p.motivo_auditoria)}`,
         edad: p.edad_paciente || null,
         fuente_limpia: fuenteFormateada,
-        lote: p.batch_id || "S/D"
+        lote: p.batch_id || "S/D",
+        fecha_ingesta: p.ingestion_at || null,
+        
       };
     });
 
@@ -220,7 +246,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       data: pacientes,
       totalGlobal: pacientes.length,
-      ultimaActualizacion 
+      ultimaActualizacion,
     });
   } catch (error) {
     console.error("Error en API Auditoría:", error);

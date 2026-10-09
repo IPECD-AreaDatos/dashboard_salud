@@ -179,14 +179,14 @@ export default function RedPerinatalAuditPage() {
       <div className={styles.container}>
         <div className={styles.auditTabs}>
             <div className={styles.auditTabGroup}>
-                <a className={styles.auditTab} href="/salud-dashboard/dashboard/audit">Auditoría</a>
-                <a className={styles.auditTabActive} href="/salud-dashboard/dashboard/audit/red-perinatal">Red Perinatal</a>
+                <a className={styles.auditTab} href="/salud-dashboard/dashboard/audit">Revisar Datos</a>
+                <a className={styles.auditTabActive} href="/salud-dashboard/dashboard/audit/red-perinatal">Fuera de Red Perinatal MSP</a>
             </div>
             <button 
                 className={styles.auditBackButton} 
                 onClick={() => window.location.assign("/salud-dashboard/dashboard/audit")}
             >
-                ← Volver a Auditoría
+                ← Volver a Revisar Datos
             </button>
         </div>
 
