@@ -295,12 +295,18 @@ export default function StatsPage() {
       return;
     }
 
+    // 🌟 Etiqueta dinámica: "CAPS" o "SAPS"
+    const redSaludLabel = tipoEfectorTabla === 'SAPS' ? 'SAPS' : 'CAPS';
+    const tipoCentroTexto = tipoEfectorTabla === 'SAPS' 
+      ? 'CENTROS MUNICIPALES (SAPS)' 
+      : 'CENTROS PROVINCIALES (CAPS)';
+
     const fechaHoraDescarga = new Date().toLocaleDateString('es-AR') + " " + new Date().toLocaleTimeString('es-AR');
     const fechaT0 = sortedCaps[0]?.fechaT0 ? new Date(sortedCaps[0].fechaT0).toLocaleDateString('es-AR') : `Hace ${periodoComparativa} días`;
     const fechaT1 = sortedCaps[0]?.fechaT1 ? new Date(sortedCaps[0].fechaT1).toLocaleDateString('es-AR') : 'Actual';
 
     const encabezado = [
-      ["REPORTE INTEGRAL DE GESTIÓN Y COBERTURA POR CAPS (CAPITAL)"],
+      [`REPORTE INTEGRAL DE GESTIÓN Y COBERTURA POR ${redSaludLabel} (CAPITAL)`],
       [`Período analizado: Últimos ${periodoComparativa} días (${fechaT0} → ${fechaT1})`],
       [`Fecha de descarga: ${fechaHoraDescarga}`],
       [],
@@ -324,7 +330,7 @@ export default function StatsPage() {
         `${data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0} (${getPct(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)})`
       ],
       [],
-      ["DESEMPEÑO Y EVOLUCIÓN POR CENTRO DE SALUD"]
+      [`DESEMPEÑO Y EVOLUCIÓN POR ${tipoCentroTexto}`]
     ];
 
     const hoja = XLSX.utils.aoa_to_sheet(encabezado);
@@ -347,7 +353,7 @@ export default function StatsPage() {
 
     if (totalCaps) {
       datosFormateados.push({
-        "Centro de Salud": `TOTAL CAPS (${totalCaps.capsCount})`,
+        "Centro de Salud": `TOTAL ${redSaludLabel} (${totalCaps.capsCount})`,
         [`Padrón (${fechaT0})`]: totalCaps.padronAnt,
         [`Padrón (${fechaT1})`]: totalCaps.padronAct,
         [`Controladas (${fechaT0})`]: totalCaps.ctrlAnt,
@@ -371,15 +377,15 @@ export default function StatsPage() {
     ];
 
     const libro = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(libro, hoja, "Reporte CAPS Capital");
+    XLSX.utils.book_append_sheet(libro, hoja, `Reporte ${redSaludLabel} Capital`);
 
     const fechaDescargaISO = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(libro, `Reporte_CAPS_Capital_${fechaDescargaISO}.xlsx`);
+    XLSX.writeFile(libro, `Reporte_${redSaludLabel}_Capital_${fechaDescargaISO}.xlsx`);
 
     registrarLog({
       modulo: "Estadísticas",
       accion: "EXPORTAR_EXCEL",
-      detalles: `Exportó reporte consolidado de CAPS (${periodoComparativa} días).`
+      detalles: `Exportó reporte consolidado de ${redSaludLabel} (${periodoComparativa} días).`
     }).catch(err => console.error("Error al registrar log:", err));
   };
 
