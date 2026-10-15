@@ -51,6 +51,15 @@ const formatCapsDisplayName = (rawName: string): string => {
   let name = rawName.toUpperCase();
   name = romanToArabic(name);
 
+  // Si es SAPS, lo mostramos limpio y formateado
+  if (name.includes('SAPS') || name.includes('S.A.P.S.')) {
+    return name
+      .replace(/S\.?A\.?P\.?S\.?\s*/gi, 'SAPS ')
+      .replace(/["'“”]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   const capsMatch = name.match(/C\.?A\.?P\.?S\.?\s*N?º?°?\s*(\d+)/i);
   const capsNum = capsMatch ? capsMatch[1] : null;
 
@@ -99,11 +108,13 @@ export default function StatsPage() {
   const [data, setData] = useState<any>(null);
   const [initialProvincialData, setInitialProvincialData] = useState<any>(null); // Nuevo estado para datos provinciales iniciales
   const [loading, setLoading] = useState({ initial: true, filtering: false }); // Estado de carga más detallado
-  const [zonaChart, setZonaChart] = useState<'Todos' | 'Capital' | 'Interior'>('Todos');
+  const [zonaChart, setZonaChart] = useState<'Todos' | 'Capital' | 'Interior' | 'CAPS' | 'SAPS'>('Todos');
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null);
 
+  const [tipoEfectorTabla, setTipoEfectorTabla] = useState<'CAPS' | 'SAPS'>('CAPS');
+  
   const [sortConfigCaps, setSortConfigCaps] = useState<{ 
-      key: 'displayName' | 'padronAct' | 'cobAct' | 'variacionCob' | 'pctSeguimientoAdecuado' | 'pctGestion' | 'turnosAsignadosCaps'; 
+      key: 'displayName' | 'padronAct' | 'ctrlAct' | 'cobAct' | 'variacionCob' | 'pctSeguimientoAdecuado' | 'pctGestion' | 'turnosAsignadosCaps'; 
       direction: 'asc' | 'desc' 
     }>({ key: 'padronAct', direction: 'desc' });
 
@@ -211,7 +222,7 @@ export default function StatsPage() {
   useEffect(() => {
     setLoading({ initial: true, filtering: false });
 
-    apiFetch(`/stats?establecimiento=Todos&periodoDias=30`)
+    apiFetch(`/stats?establecimiento=Todos&periodoDias=30&tipoEfector=CAPS`)
       .then(res => res.json())
       .then(resData => {
         setData(resData);
@@ -238,8 +249,8 @@ export default function StatsPage() {
     setLoading(prev => ({ ...prev, filtering: true }));
 
     // 🌟 Enviamos tanto la zona como el período de días seleccionado
-    apiFetch(`/stats?establecimiento=${zonaChart}&periodoDias=${periodoComparativa}`)
-      .then(res => res.json())
+    apiFetch(`/stats?establecimiento=${zonaChart}&periodoDias=${periodoComparativa}&tipoEfector=${tipoEfectorTabla}`)      
+    .then(res => res.json())
       .then(filteredData => {
         setData((prev: any) => ({
           ...prev,
@@ -256,7 +267,7 @@ export default function StatsPage() {
         console.error(err);
         setLoading(prev => ({ ...prev, filtering: false }));
       });
-  }, [zonaChart, periodoComparativa, initialProvincialData]);
+  }, [zonaChart, periodoComparativa, tipoEfectorTabla, initialProvincialData]);
 
   // 🌟 Cálculo para la tarjeta de Efectividad de Contacto
   const contactosConTurno = data?.gestion?.desgloseZona?.contactosConTurnoCaps || 0;
@@ -768,12 +779,62 @@ export default function StatsPage() {
           </>
         )}
 
-        {/* 🌟 TABLA CONSOLIDADA: DESEMPEÑO Y EVOLUCIÓN POR CAPS */}
+        {/* 🌟 TABLA CONSOLIDADA: DESEMPEÑO Y EVOLUCIÓN POR CAPS / SAPS */}
         {isAdminOrCoord && (
+          <>
+            {/* 🌟 SELECTOR DE PESTAÑAS (FUERA DE LA TABLA) */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '0.6rem', 
+              marginTop: '2rem',
+              marginBottom: '0.8rem' 
+            }}>
+              <button
+                type="button"
+                onClick={() => setTipoEfectorTabla('CAPS')}
+                style={{
+                  padding: '0.65rem 1.6rem',
+                  borderRadius: '10px',
+                  fontSize: '0.925rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: tipoEfectorTabla === 'CAPS' ? '2px solid #587ba8' : '1px solid #cbd5e1',
+                  backgroundColor: tipoEfectorTabla === 'CAPS' ? '#587ba8' : '#ffffff',
+                  color: tipoEfectorTabla === 'CAPS' ? '#ffffff' : '#475569',
+                  boxShadow: tipoEfectorTabla === 'CAPS' ? '0 4px 12px rgba(88, 123, 168, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Centros Provinciales (CAPS)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTipoEfectorTabla('SAPS')}
+                style={{
+                  padding: '0.65rem 1.6rem',
+                  borderRadius: '10px',
+                  fontSize: '0.925rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: tipoEfectorTabla === 'SAPS' ? '2px solid #587ba8' : '1px solid #cbd5e1',
+                  backgroundColor: tipoEfectorTabla === 'SAPS' ? '#587ba8' : '#ffffff',
+                  color: tipoEfectorTabla === 'SAPS' ? '#ffffff' : '#475569',
+                  boxShadow: tipoEfectorTabla === 'SAPS' ? '0 4px 12px rgba(88, 123, 168, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Centros Municipales (SAPS)
+              </button>
+            </div>
+
+            {/* CAJA BLANCA DE LA TABLA */}
           <div className={styles.tableContainerCaps} style={{ marginTop: '2rem', marginBottom: '2.5rem' }}>
             <div className={styles.tableHeaderArea} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <h2>Desempeño y Evolución de Cobertura por CAPS</h2>
+                <h2 style={{ margin: 0 }}>Desempeño y Evolución de Cobertura por {tipoEfectorTabla}</h2>
+
+                
                 <p style={{ margin: '4px 0 0.5rem 0', color: '#64748b' }}>
                   Monitoreo integral de padrón activo, controles médicos al día, gestión proactiva y variación de cobertura.
                 </p>
@@ -882,8 +943,17 @@ export default function StatsPage() {
                         <span className={styles.sortIcon}>{sortConfigCaps.key === 'padronAct' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
                       </div>
                     </th>
-                    <th style={{ textAlign: 'center' }} title="Embarazadas con control médico vigente: valor gris (corte anterior) y valor verde (corte actual).">
-                      Controladas
+                    <th 
+                      onClick={() => handleSortCaps('ctrlAct')} 
+                      className={styles.sortableHeader} 
+                      title="Embarazadas con control médico vigente: valor gris (corte anterior) y valor verde (corte actual)."
+                    >
+                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                        <span>Controladas</span>
+                        <span className={styles.sortIcon}>
+                          {sortConfigCaps.key === 'ctrlAct' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </div>
                     </th>
                     <th onClick={() => handleSortCaps('cobAct')} className={styles.sortableHeader} title="% de controladas sobre el padrón activo actual y variación en puntos porcentuales contra el período anterior.">
                       <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
@@ -1008,7 +1078,7 @@ export default function StatsPage() {
                 {totalCaps && (
                   <tfoot>
                     <tr className={styles.totalRow}>
-                      <td>TOTAL CAPS ({totalCaps.capsCount})</td>
+                      <td>TOTAL {tipoEfectorTabla} ({totalCaps.capsCount})</td>
                       <td style={{ textAlign: 'center' }}>
                         <span>{totalCaps.padronAnt}</span>
                         <span style={{ color: '#94a3b8', margin: '0 4px' }}>→</span>
@@ -1040,6 +1110,7 @@ export default function StatsPage() {
               </table>
             </div>
           </div>
+          </>
         )}
 
 
@@ -1056,6 +1127,8 @@ export default function StatsPage() {
                 <button style={getBtnStyle('Todos')} onClick={() => setZonaChart('Todos')}>Toda la Provincia</button>
                 <button style={getBtnStyle('Capital')} onClick={() => setZonaChart('Capital')}>Solo Capital</button>
                 <button style={getBtnStyle('Interior')} onClick={() => setZonaChart('Interior')}>Solo Interior</button>
+                <button style={getBtnStyle('CAPS')} onClick={() => setZonaChart('CAPS')}>Solo CAPS</button>
+                <button style={getBtnStyle('SAPS')} onClick={() => setZonaChart('SAPS')}>Solo SAPS</button>
               </div>
             )}
 

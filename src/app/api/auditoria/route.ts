@@ -109,16 +109,14 @@ export async function GET(request: Request) {
       }
     }
 
-    // 📊 3. QUERY CON ÚLTIMA EXTRACCIÓN INDEPENDIENTE POR TABLA + INGESTION_AT
+    // 📊 3. QUERY CON FECHA MÁXIMA GLOBAL COMÚN A TODAS LAS STAGES
     const sql = `
-      WITH ultimo_sin_fpp AS (
-        SELECT MAX(ingestion_at::date) AS fecha FROM pacientes_sin_fpp_stage
-      ),
-      ultimo_sin_fnac AS (
-        SELECT MAX(ingestion_at::date) AS fecha FROM pacientes_sin_fnac_stage
-      ),
-      ultimo_sin_dni AS (
-        SELECT MAX(ingestion_at::date) AS fecha FROM pacientes_sin_dni_stage
+      WITH ultima_fecha_global AS (
+        SELECT GREATEST(
+          (SELECT MAX(ingestion_at::date) FROM public.pacientes_sin_fpp_stage),
+          (SELECT MAX(ingestion_at::date) FROM public.pacientes_sin_fnac_stage),
+          (SELECT MAX(ingestion_at::date) FROM public.pacientes_sin_dni_stage)
+        ) AS fecha
       ),
       unificado AS (
         -- 1. Casos de pacientes sin FPP
@@ -137,8 +135,8 @@ export async function GET(request: Request) {
           batch_id,
           ingestion_at,
           COALESCE(NULLIF(TRIM(motivo), ''), 'Edad gestacional inválida (< 2 semanas) o ausente') as motivo_auditoria
-        FROM pacientes_sin_fpp_stage
-        WHERE ingestion_at::date = (SELECT fecha FROM ultimo_sin_fpp)
+        FROM public.pacientes_sin_fpp_stage
+        WHERE ingestion_at::date = (SELECT fecha FROM ultima_fecha_global)
         
         UNION ALL
         
@@ -158,8 +156,8 @@ export async function GET(request: Request) {
           batch_id,
           ingestion_at,
           'Edad calculada inconsistente (< 10 años) o ausente' as motivo_auditoria
-        FROM pacientes_sin_fnac_stage
-        WHERE ingestion_at::date = (SELECT fecha FROM ultimo_sin_fnac)
+        FROM public.pacientes_sin_fnac_stage
+        WHERE ingestion_at::date = (SELECT fecha FROM ultima_fecha_global)
         
         UNION ALL
         
@@ -179,8 +177,8 @@ export async function GET(request: Request) {
           batch_id,
           ingestion_at,
           'DNI inválido o no informado' as motivo_auditoria
-        FROM pacientes_sin_dni_stage
-        WHERE ingestion_at::date = (SELECT fecha FROM ultimo_sin_dni)
+        FROM public.pacientes_sin_dni_stage
+        WHERE ingestion_at::date = (SELECT fecha FROM ultima_fecha_global)
           AND data_json::json->>'apellido' IS NOT NULL 
           AND data_json::json->>'apellido' != ''
       )
@@ -201,7 +199,7 @@ export async function GET(request: Request) {
         uni.ingestion_at,
         s.nombre as nombre_establecimiento_oficial
       FROM unificado uni
-      LEFT JOIN efectores_sisa s ON (uni.centro_salud_raw = s.cuie OR uni.centro_salud_raw = s.codigo_sisa)
+      LEFT JOIN public.efectores_sisa s ON (uni.centro_salud_raw = s.cuie OR uni.centro_salud_raw = s.codigo_sisa)
       ${filteringClauses}
       ORDER BY uni.motivo_auditoria DESC, uni.apellido ASC
     `;

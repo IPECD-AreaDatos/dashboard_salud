@@ -1,4 +1,3 @@
-/*src/app/api/stats/route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
@@ -15,13 +14,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "No autorizado para consultar estadísticas" }, { status: 403 });
   }
 
-  // Capturamos el establecimiento seleccionado del selector global o botones del front
   const { searchParams } = new URL(request.url);
   const establecimiento = searchParams.get("establecimiento");
+  // 🌟 NUEVO: Parámetro para alternar tabla entre CAPS y SAPS (por defecto CAPS)
+  const tipoEfector = (searchParams.get("tipoEfector") || "CAPS").toUpperCase();
 
   try {
     const fechaUmbral = "CURRENT_DATE";
-    const fechaMinimaControl = "'2025-03-01'";
     const diasAtrasoCorte = 40;
 
     const sisa = session.user?.sisa_code;
@@ -31,7 +30,6 @@ export async function GET(request: Request) {
     let securityClause = "";
     if (session.user?.role === 'Centro de Salud') {
       if (sisa) {
-        // 🌟 CORREGIDO: Lógica de seguridad idéntica a la de la grilla de seguimiento
         securityClause = ` AND (p.sisa_centro_salud = '${sisa}')`;
       } else if (cuie) {
         securityClause = ` AND (
@@ -52,11 +50,12 @@ export async function GET(request: Request) {
       securityClause = ` AND (${localClause} OR p.derivacion_maternidad_id = '${matId}')`;
     }
 
-    // 2. Cláusula Dinámica de Selección de Centro para Coordinador/Admin
+    // 2. Cláusula Dinámica de Selección de Centro
     let centroFilterClause = "";
     const statsParams: any[] = [];
    
-    if (establecimiento && establecimiento !== "Todos" && establecimiento !== "Capital" && establecimiento !== "Interior" && establecimiento !== "undefined") {
+    const botonesEspeciales = ["Todos", "Capital", "Interior", "CAPS", "SAPS", "undefined"];
+    if (establecimiento && !botonesEspeciales.includes(establecimiento)) {
       statsParams.push(establecimiento);
       if (/^\d+$/.test(establecimiento.trim()) && establecimiento.trim().length >= 10) {
         centroFilterClause = ` AND (p.sisa_centro_salud = $1 OR p.sisa_centro_derivado = $1)`;
@@ -69,21 +68,33 @@ export async function GET(request: Request) {
       }
     }
 
-    // Filtros de apoyo para los botones geográficos explícitos
+    // 🌟 FILTROS DE ZONA / TIPO DE EFECTOR PARA LOS GRÁFICOS (5 Botones)
     let zonaGlobalClause = "";
     if (establecimiento === "Capital") {
       zonaGlobalClause = " AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL'";
     } else if (establecimiento === "Interior") {
       zonaGlobalClause = " AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL'";
+    } else if (establecimiento === "CAPS") {
+      zonaGlobalClause = ` AND p.sisa_centro_salud IN (
+        SELECT codigo_sisa FROM efectores_sisa 
+        WHERE (LOWER(nombre) LIKE '%caps%' OR LOWER(nombre) LIKE '%c.a.p.s.%')
+          AND LOWER(TRIM(COALESCE(departamento, 'CAPITAL'))) = 'capital'
+      )`;
+    } else if (establecimiento === "SAPS") {
+      zonaGlobalClause = ` AND p.sisa_centro_salud IN (
+        SELECT codigo_sisa FROM efectores_sisa 
+        WHERE (LOWER(nombre) LIKE '%saps%' OR LOWER(nombre) LIKE '%s.a.p.s.%')
+          AND LOWER(TRIM(COALESCE(departamento, 'CAPITAL'))) = 'capital'
+      )`;
     }
 
-    // 3. Cláusula de derivación según rol
+    // 3. Cláusula de derivación
     let derivacionClause = "";
     if (session.user?.role === 'Centro de Salud') {
       derivacionClause = ` AND (p.nombre_centro_derivado IS NULL OR p.nombre_centro_derivado = '')`;
     }
 
-    // 4. Métricas para los GRÁFICOS (afectadas por el filtro de zona)
+    // 4. Métricas para los GRÁFICOS
     const chartsKpiSql = `
       WITH pacientes_filtradas AS (
         SELECT DISTINCT p.*
@@ -91,7 +102,7 @@ export async function GET(request: Request) {
         WHERE p.fecha_probable_parto >= ${fechaUmbral} 
           AND p.embarazo_en_curso = true 
           AND p.fecha_nacimiento IS NOT NULL
-          AND p.en_red_perinatal_msp = true
+          AND COALESCE(p.en_red_perinatal_msp, true) = true
           ${securityClause} ${centroFilterClause} ${zonaGlobalClause} ${derivacionClause}
       )
       SELECT 
@@ -108,7 +119,7 @@ export async function GET(request: Request) {
         (SELECT COUNT(*) FROM pacientes_filtradas WHERE (fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 40)) as controles_pendientes,
         (SELECT COUNT(*) FROM pacientes_filtradas WHERE fecha_probable_parto BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days')) as proximos_partos,
         (SELECT COUNT(*) FROM pacientes_filtradas WHERE telefono IS NULL OR telefono = '' OR telefono = '-') as sin_telefono,
-        (SELECT COUNT(*) FROM pacientes_filtradas WHERE (fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 30) AND (NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = pacientes_filtradas.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days'))) as sin_contacto_reciente,
+        (SELECT COUNT(*) FROM pacientes_filtradas WHERE (fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 40) AND (NOT EXISTS (SELECT 1 FROM seguimientos s WHERE s.paciente_id = pacientes_filtradas.id AND s.contacto_logrado = true AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days'))) as sin_contacto_reciente,
         (SELECT COUNT(*) FROM pacientes_filtradas WHERE fecha_ultimo_control = CURRENT_DATE - 1) as controles_hoy,
         (SELECT COUNT(*) FROM pacientes_filtradas WHERE fecha_ultimo_control BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1) as controles_semana,
         (SELECT COUNT(*) FROM pacientes_filtradas WHERE fecha_ultimo_control BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE - 1) as controles_mes,
@@ -122,7 +133,6 @@ export async function GET(request: Request) {
           WHERE s.contacto_logrado = true 
             AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days' 
             AND s.proxima_cita >= CURRENT_DATE) as contactos_con_turno_caps,
-
         (SELECT COUNT(DISTINCT p.id) 
           FROM pacientes_filtradas p 
           JOIN public.seguimientos s ON p.id = s.paciente_id 
@@ -130,18 +140,16 @@ export async function GET(request: Request) {
             AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days') as contactos_totales_caps
     `;
 
-    // 4.1 Métricas para las TARJETAS (NO son afectadas por el filtro de zona)
+    // 4.1 Métricas para las TARJETAS (NO son afectadas por los filtros)
     const cardsKpiSql = `
       SELECT
         COUNT(DISTINCT p.id) as total,
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') THEN 1 ELSE 0 END) as total_riesgo,
         SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40 THEN 1 ELSE 0 END) as total_controladas,
-        -- 🌟 NUEVO CONCEPTO: Seguimiento Adecuado (reemplaza a Vínculo Activo)
         SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) THEN 1 ELSE 0 END) as total_seguimiento_adecuado,
 
         SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_capital,
         SUM(CASE WHEN COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_interior,        
-        -- 🌟 NUEVOS CAMPOS: Calculamos las de riesgo que SÍ están controladas
         COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40) THEN p.id END) as total_riesgo_controladas,
         COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN p.id END) as total_riesgo_controladas_capital,
         COUNT(DISTINCT CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN p.id END) as total_riesgo_controladas_interior,
@@ -149,36 +157,33 @@ export async function GET(request: Request) {
         SUM(CASE WHEN LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_riesgo_interior,
         SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40 AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_capital,
         SUM(CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40 AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_controladas_interior,
-        -- 🌟 NUEVO CONCEPTO: Desglose de Seguimiento Adecuado
         SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) = 'CAPITAL' THEN 1 ELSE 0 END) as total_seguimiento_adecuado_capital,
         SUM(CASE WHEN (p.controles_1er_trim > 0 AND p.cantidad_controles > ((p.eg_actual * 7)/30) - (CASE WHEN p.eg_actual < 14 THEN 1 WHEN p.eg_actual < 28 THEN 2 ELSE 3 END)) AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL' THEN 1 ELSE 0 END) as total_seguimiento_adecuado_interior,
-
         SUM(CASE WHEN p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != '' THEN 1 ELSE 0 END) as derivadas
       FROM public.pacientes_gold p
-      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.fecha_nacimiento IS NOT NULL
-        AND p.en_red_perinatal_msp = true
+      WHERE p.fecha_probable_parto >= ${fechaUmbral} 
+        AND p.embarazo_en_curso = true 
+        AND p.fecha_nacimiento IS NOT NULL
+        AND COALESCE(p.en_red_perinatal_msp, true) = true
         ${securityClause} ${centroFilterClause} ${derivacionClause}
     `;
 
-    // 4.2 Query específica para contar las derivadas de un CAPS, ignorando el filtro de derivación.
     const derivadasCapsSql = `
       SELECT COUNT(p.id) as total_derivadas
       FROM public.pacientes_gold p
       WHERE p.fecha_probable_parto >= ${fechaUmbral} 
         AND p.embarazo_en_curso = true 
         AND p.fecha_nacimiento IS NOT NULL
-        AND p.en_red_perinatal_msp = true
+        AND COALESCE(p.en_red_perinatal_msp, true) = true
         AND p.nombre_centro_derivado IS NOT NULL AND p.nombre_centro_derivado != ''
         ${securityClause} ${centroFilterClause}
     `;
 
-    // Ejecutamos ambas consultas en paralelo
     const promises = [
       query(chartsKpiSql, statsParams),
       query(cardsKpiSql, statsParams)
     ];
 
-    // 4.3 Query para obtener la fecha de la última actualización real de la tabla gold
     const ultimaActualizacionSql = `SELECT MAX(ingestion_at) as fecha FROM pacientes_gold`;
     promises.push(query(ultimaActualizacionSql));
 
@@ -187,7 +192,6 @@ export async function GET(request: Request) {
     }
 
     const [chartsKpiRes, cardsKpiRes, ultimaActualizacionRes, derivadasCapsRes] = await Promise.all(promises);
-
     const chartsKpis = chartsKpiRes.rows[0];
     const cardsKpis = cardsKpiRes.rows[0];
 
@@ -196,7 +200,9 @@ export async function GET(request: Request) {
       SELECT s.nombre as name, s.departamento, COUNT(DISTINCT p.id) as value
       FROM public.pacientes_gold p
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = (CASE WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != '' THEN p.sisa_centro_derivado ELSE p.sisa_centro_salud END)
-      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.en_red_perinatal_msp = true
+      WHERE p.fecha_probable_parto >= ${fechaUmbral} 
+        AND p.embarazo_en_curso = true 
+        AND COALESCE(p.en_red_perinatal_msp, true) = true
         ${securityClause} ${derivacionClause}
         ${zonaGlobalClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
@@ -209,21 +215,31 @@ export async function GET(request: Request) {
       SELECT s.nombre as name, s.departamento, COUNT(DISTINCT p.id) as value
       FROM public.pacientes_gold p
       INNER JOIN public.efectores_sisa s ON s.codigo_sisa = (CASE WHEN p.sisa_centro_derivado IS NOT NULL AND p.sisa_centro_derivado != '' THEN p.sisa_centro_derivado ELSE p.sisa_centro_salud END)
-      WHERE p.fecha_probable_parto >= ${fechaUmbral} AND p.embarazo_en_curso = true AND p.en_red_perinatal_msp = true AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
+      WHERE p.fecha_probable_parto >= ${fechaUmbral} 
+        AND p.embarazo_en_curso = true 
+        AND COALESCE(p.en_red_perinatal_msp, true) = true 
+        AND LOWER(p.riesgo) IN ('si', 's', 'alto', 'moderado') 
+        AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > ${diasAtrasoCorte})
         ${securityClause} ${derivacionClause}
         ${zonaGlobalClause}
         ${centroFilterClause ? centroFilterClause.replace(/= \$1/g, "= '" + establecimiento + "'") : ""}
       GROUP BY s.codigo_sisa, s.nombre, s.departamento ORDER BY value DESC
     `;
     const topRsgRes = await query(topRsgSql);
-    
-    
 
-    //-----
-    // Capturamos el período dinámico para la comparativa (7, 15, 30 días)
+    // Período de días para la comparativa (7, 14, 30)
     const diasComparativa = parseInt(searchParams.get("periodoDias") || "30", 10);
 
-    // 🌟 Query Unificada y Consolidada de Desempeño y Evolución por CAPS (Capital)
+    // 🌟 7. QUERY DE TABLA EVOLUTIVA DINÁMICA (CAPS o SAPS según tipoEfector)
+    const filtroNombreEfector = tipoEfector === 'SAPS'
+      ? "(s.coordinador ILIKE '%saps%' OR LOWER(s.nombre) LIKE '%saps%' OR LOWER(s.nombre) LIKE '%s.a.p.s.%')"
+      : "(s.coordinador ILIKE '%caps%' OR LOWER(s.nombre) LIKE '%caps%' OR LOWER(s.nombre) LIKE '%c.a.p.s.%')";
+
+    // Definición del filtro antes del SQL:
+    const filtroEfectoresSql = tipoEfector === 'SAPS'
+      ? "(s.coordinador ILIKE '%saps%' OR LOWER(s.nombre) LIKE '%saps%' OR LOWER(s.nombre) LIKE '%s.a.p.s.%')"
+      : "(s.coordinador ILIKE '%caps%' OR LOWER(s.nombre) LIKE '%caps%' OR LOWER(s.nombre) LIKE '%c.a.p.s.%')";
+
     const capsUnificadaSql = `
       WITH fecha_actual_cte AS (
         SELECT MAX(fecha_corte) as fecha_t1
@@ -247,57 +263,50 @@ export async function GET(request: Request) {
           )
         ) as fecha_t0
       ),
-      caps_capital AS (
+      efectores_capital AS (
         SELECT 
           s.codigo_sisa,
           TRIM(s.nombre) as raw_name,
           translate(LOWER(TRIM(s.nombre)), 'áéíóúüñ', 'aeiouun') as raw_name_lower
         FROM public.efectores_sisa s
-        WHERE (LOWER(s.nombre) LIKE '%caps%' OR LOWER(s.nombre) LIKE '%c.a.p.s.%')
+        WHERE ${filtroEfectoresSql}
           AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital'
       ),
-      caps_normalized_step AS (
-        SELECT 
-          codigo_sisa,
-          raw_name,
-          REGEXP_REPLACE(
-            REGEXP_REPLACE(
-              REGEXP_REPLACE(
-                REGEXP_REPLACE(
-                  REGEXP_REPLACE(
-                    REGEXP_REPLACE(
-                      REGEXP_REPLACE(
-                        REGEXP_REPLACE(raw_name_lower, '\\b(c[\\.? ]*a[\\.? ]*p[\\.? ]*s[\\.? ]*|caps)\\b', 'caps', 'g'),
-                        '\\b(viii)\\b', '8', 'g'
-                      ),
-                      '\\b(vii)\\b', '7', 'g'
-                    ),
-                    '\\b(vi)\\b', '6', 'g'
-                  ),
-                  '\\b(v)\\b', '5', 'g'
-                ),
-                '\\b(iv)\\b', '4', 'g'
-              ),
-              '\\b(iii)\\b', '3', 'g'
-            ),
-            '\\b(ii)\\b', '2', 'g'
-          ) AS normalized_name_step1
-        FROM caps_capital
-      ),
-      caps_normalized_step2 AS (
+      efectores_normalized AS (
         SELECT 
           codigo_sisa,
           raw_name,
           TRIM(
             REGEXP_REPLACE(
               REGEXP_REPLACE(
-                REGEXP_REPLACE(normalized_name_step1, '\\bsta\\b', 'santa', 'g'),
-                '\\bb[º°]?\\b', '', 'g'
+                REGEXP_REPLACE(
+                  REGEXP_REPLACE(
+                    REGEXP_REPLACE(
+                      REGEXP_REPLACE(
+                        REGEXP_REPLACE(
+                          REGEXP_REPLACE(
+                            REGEXP_REPLACE(
+                              REGEXP_REPLACE(raw_name_lower, '\\b(c[\\.? ]*a[\\.? ]*p[\\.? ]*s[\\.? ]*|caps)\\b', 'caps', 'g'),
+                              '\\b(s[\\.? ]*a[\\.? ]*p[\\.? ]*s[\\.? ]*|saps)\\b', 'saps', 'g'
+                            ),
+                            '\\b(viii)\\b', '8', 'g'
+                          ),
+                          '\\b(vii)\\b', '7', 'g'
+                        ),
+                        '\\b(vi)\\b', '6', 'g'
+                      ),
+                      '\\b(v)\\b', '5', 'g'
+                    ),
+                    '\\b(iv)\\b', '4', 'g'
+                  ),
+                  '\\b(iii)\\b', '3', 'g'
+                ),
+                '\\b(ii)\\b', '2', 'g'
               ),
               '[^a-z0-9 ]+', ' ', 'g'
             )
           ) AS normalized_name
-        FROM caps_normalized_step
+        FROM efectores_capital
       ),
       datos_t1 AS (
         SELECT 
@@ -334,7 +343,7 @@ export async function GET(request: Request) {
         SUM(COALESCE(da.controladas_contacto_act, 0)) as controladas_contacto_act,
         SUM(COALESCE(da.seg_adecuado_act, 0)) as seg_adecuado_act,
         SUM(COALESCE(da.turnos_act, 0)) as turnos_act
-      FROM caps_normalized_step2 c
+      FROM efectores_normalized c
       LEFT JOIN datos_t1 da ON c.codigo_sisa = da.sisa_centro_salud
       LEFT JOIN datos_t0 dant ON c.codigo_sisa = dant.sisa_centro_salud
       GROUP BY c.normalized_name
@@ -379,7 +388,7 @@ export async function GET(request: Request) {
       };
     });
 
-    // 🌟 DISTRIBUCIÓN POR EDAD GESTACIONAL (Semanas EG)
+    // 8. Gráficos de EG y Cobertura
     const edadGestacionalSql = `
       SELECT 
         rango_eg,
@@ -414,8 +423,10 @@ export async function GET(request: Request) {
           END as orden_num,
           CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40 THEN p.id ELSE NULL END as id_controlada
         FROM public.pacientes_gold p
-        WHERE p.embarazo_en_curso = true AND p.fecha_probable_parto >= ${fechaUmbral} AND p.fecha_nacimiento IS NOT NULL
-          AND p.en_red_perinatal_msp = true
+        WHERE p.embarazo_en_curso = true 
+          AND p.fecha_probable_parto >= ${fechaUmbral} 
+          AND p.fecha_nacimiento IS NOT NULL
+          AND COALESCE(p.en_red_perinatal_msp, true) = true
           ${securityClause}
           ${centroFilterClause} ${derivacionClause}
           ${zonaGlobalClause}
@@ -436,8 +447,10 @@ export async function GET(request: Request) {
         SUM(CASE WHEN p.fuente_principal NOT IN ('sumar') AND p.fuente_principal IN ('pof', 'v_embarazosdw') AND p.cobertura_salud NOT ILIKE '%plan nacer%' AND p.cobertura_salud NOT ILIKE '%sumar%' AND p.cobertura_salud IS NOT NULL THEN 1 ELSE 0 END) as con_obra_social,
         SUM(CASE WHEN p.fuente_principal NOT IN ('sumar') AND (p.fuente_principal NOT IN ('pof', 'v_embarazosdw') OR p.cobertura_salud IS NULL) THEN 1 ELSE 0 END) as sin_datos
       FROM public.pacientes_gold p
-      WHERE p.embarazo_en_curso = true AND p.fecha_probable_parto >= ${fechaUmbral} AND p.fecha_nacimiento IS NOT NULL
-        AND p.en_red_perinatal_msp = true
+      WHERE p.embarazo_en_curso = true 
+        AND p.fecha_probable_parto >= ${fechaUmbral} 
+        AND p.fecha_nacimiento IS NOT NULL
+        AND COALESCE(p.en_red_perinatal_msp, true) = true
         ${securityClause}
         ${centroFilterClause} ${derivacionClause}
         ${zonaGlobalClause}
@@ -517,9 +530,10 @@ export async function GET(request: Request) {
       actividad: actividadData,
       topGeneral: topGeneralMapped,
       topRiesgoAtraso: topRiesgoMapped,
-      resumenCaps, // 🌟 Pasamos directamente el dataset enriquecido
+      resumenCaps,
       distribucionEG: distribucionEgMapped,
-      coberturaStats
+      coberturaStats,
+      tipoEfector // devolvemos qué vista se generó
     });
 
   } catch (error) {
