@@ -1,17 +1,32 @@
 #!/bin/bash
-echo "ðŸš€ Iniciando actualizaciÃ³n del Dashboard de Salud..."
+# Evitar que el build falle por falta de memoria en el EC2 de 8GB
+export NODE_OPTIONS="--max-old-space-size=4096"
 
-# 1. Bajar cambios
-git pull origin main
+echo "?? Iniciando actualización robusta del Dashboard de Salud..."
 
-# 2. Instalar dependencias (solo si cambiaron)
-npm install
+# 1. Limpiar cualquier cambio accidental en el servidor y bajar lo nuevo
+echo "?? Trayendo cambios de GitHub..."
+git fetch origin main
+git reset --hard origin/main
 
-# 3. Limpiar build viejo y compilar
+# 2. Instalar dependencias
+echo "?? Instalando dependencias..."
+npm install --quiet
+
+# 3. Limpieza total y Build
+echo "???  Compilando aplicación (Next.js)..."
 rm -rf .next
-NODE_OPTIONS="--max-old-space-size=4096" npm run build
+if npm run build; then
+    echo "? Build completado con éxito."
+else
+    echo "? Error en el build. Abortando deploy."
+    exit 1
+fi
 
-# 4. Reiniciar en PM2
-pm2 restart salud-dashboard
+# 4. Reinicio inteligente en PM2
+# startOrRestart asegura que si el proceso no existe, lo crea; y si existe, lo refresca.
+echo "?? Reiniciando proceso en PM2..."
+pm2 startOrRestart ecosystem.config.js --name "salud-dashboard" || pm2 restart salud-dashboard
 
-echo "âœ… Â¡Dashboard actualizado y online!"
+pm2 save
+echo "? ¡Dashboard online en http://54.94.131.196/salud-dashboard!"
