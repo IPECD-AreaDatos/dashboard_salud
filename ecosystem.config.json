@@ -2,7 +2,7 @@
   "apps": [
     {
       "name": "dashboard-salud",
-      "script": "npm",
+      "script": "node_modules/next/dist/bin/next",
       "args": "start",
       "env": {
         "PORT": 3000,
