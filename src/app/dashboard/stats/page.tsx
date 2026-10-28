@@ -305,6 +305,19 @@ export default function StatsPage() {
     const fechaT0 = sortedCaps[0]?.fechaT0 ? new Date(sortedCaps[0].fechaT0).toLocaleDateString('es-AR') : `Hace ${periodoComparativa} días`;
     const fechaT1 = sortedCaps[0]?.fechaT1 ? new Date(sortedCaps[0].fechaT1).toLocaleDateString('es-AR') : 'Actual';
 
+    // 🌟 Cálculo de porcentajes para riesgo controladas con denominador de embarazadas de riesgo
+    const totalRiesgoPcia = data?.riesgo?.total || 0;
+    const riesgoControladasPcia = data?.gestion?.riesgoControladas || 0;
+    const pctRiesgoCtrlPcia = totalRiesgoPcia > 0 
+      ? `(${((riesgoControladasPcia * 100) / totalRiesgoPcia).toFixed(1)}%)` 
+      : '(0.0%)';
+
+    const totalRiesgoCap = data?.riesgo?.desgloseZona?.capital || 0;
+    const riesgoControladasCap = data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0;
+    const pctRiesgoCtrlCap = totalRiesgoCap > 0 
+      ? `(${((riesgoControladasCap * 100) / totalRiesgoCap).toFixed(1)}%)` 
+      : '(0.0%)';
+
     const encabezado = [
       [`REPORTE INTEGRAL DE GESTIÓN Y COBERTURA POR ${redSaludLabel} (CAPITAL)`],
       [`Período analizado: Últimos ${periodoComparativa} días (${fechaT0} → ${fechaT1})`],
@@ -314,8 +327,8 @@ export default function StatsPage() {
       ["Padrón Provincial Activo", "Total en Alto Riesgo", "Total en Riesgo Controladas", "Total Controladas (Al Día)", "Total Seguimiento Adecuado"],
       [
         `${totalPadron} (100%)`,
-        `${data?.riesgo?.total || 0} (${getPct(data?.riesgo?.total || 0)})`, 
-        `${data?.gestion?.riesgoControladas || 0} (${getPct(data?.gestion?.riesgoControladas || 0)})`,
+        `${totalRiesgoPcia} (${getPct(totalRiesgoPcia)})`, 
+        `${riesgoControladasPcia} ${pctRiesgoCtrlPcia}`,
         `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`, 
         `${data?.gestion?.seguimientoAdecuado || 0} (${getPct(data?.gestion?.seguimientoAdecuado || 0)})`
       ],
@@ -324,10 +337,10 @@ export default function StatsPage() {
       ["Padrón Capital", "Riesgo Capital", "Riesgo Controlado Capital", "Controladas Capital", "Seguimiento Adecuado Capital"],
       [
         `${data?.general?.desgloseZona?.capital || 0} (${getPct(data?.general?.desgloseZona?.capital || 0)})`,
-        `${data?.riesgo?.desgloseZona?.capital || 0} (${getPct(data?.riesgo?.desgloseZona?.capital || 0)})`,
-        `${data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0} (${getPct(data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0)})`,
-        `${data?.gestion?.desgloseZona?.controladas?.capital || 0} (${getPct(data?.gestion?.desgloseZona?.controladas?.capital || 0)})`,
-        `${data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0} (${getPct(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)})`
+        `${totalRiesgoCap} (${getPctCapital(totalRiesgoCap)})`,
+        `${riesgoControladasCap} ${pctRiesgoCtrlCap}`,
+        `${data?.gestion?.desgloseZona?.controladas?.capital || 0} (${getPctCapital(data?.gestion?.desgloseZona?.controladas?.capital || 0)})`,
+        `${data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0} (${getPctCapital(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)})`
       ],
       [],
       [`DESEMPEÑO Y EVOLUCIÓN POR ${tipoCentroTexto}`]
@@ -466,6 +479,11 @@ export default function StatsPage() {
     );
   }
 
+  const getPctRiesgo = (numerador: number, denominador: number): string => {
+    if (!denominador || denominador === 0) return '0.0%';
+    return `${((numerador * 100) / denominador).toFixed(1)}%`;
+  };
+
   return (
     <>
       <Navbar />
@@ -550,7 +568,10 @@ export default function StatsPage() {
                   <span className={styles.kpiSubValue} style={{ color: '#f18913', margin: 0 }}>
                     {(data?.gestion?.riesgoControladas || 0).toLocaleString('es-AR')}
                   </span>
-                  <span style={{ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 }}>({getPct(data?.gestion?.riesgoControladas || 0)})</span>
+                  {/* 🌟 CORREGIDO: Denominador = Total en Alto Riesgo (data?.riesgo?.total) */}
+                  <span style={{ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 }}>
+                    ({getPctRiesgo(data?.gestion?.riesgoControladas || 0, data?.riesgo?.total || 0)})
+                  </span>
                 </div>
                 <small className={styles.kpiSubtext} style={{ color: '#c76d07' }}>Pacientes de riesgo con controles al día</small>
               </div>
@@ -604,7 +625,11 @@ export default function StatsPage() {
 
               <KpiDesgloseCard 
                 label="Riesgo Controlado Capital" 
-                pct={getPctCapital(data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0)} 
+                /* 🌟 CORREGIDO: Denominador = Riesgo Capital (data?.riesgo?.desgloseZona?.capital) */
+                pct={getPctRiesgo(
+                  data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0, 
+                  data?.riesgo?.desgloseZona?.capital || 0
+                )} 
                 value={data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0} 
                 valueColor="#f18913" 
                 pctColor="#f1a23a" 
