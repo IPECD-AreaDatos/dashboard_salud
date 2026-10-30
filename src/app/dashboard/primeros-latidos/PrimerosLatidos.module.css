@@ -59,7 +59,7 @@
   box-shadow: 0 4px 10px rgba(88, 123, 168, 0.35);
 }
 
-/* Cards KPIs */
+/* Cards KPIs con interactividad */
 .kpiGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -75,6 +75,20 @@
   display: flex;
   flex-direction: column;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+
+.kpiCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+}
+
+.cardActive {
+  background-color: #f8fafc;
+  box-shadow: 0 0 0 2px #587ba8, 0 4px 12px rgba(88, 123, 168, 0.18);
+  transform: translateY(-1px);
 }
 
 .cardVerde { border-left: 4px solid #16a34a; }
@@ -214,7 +228,7 @@
 
 /* Contenedor del scroll vertical interno */
 .scrollTableContainer {
-  max-height: 580px;
+  max-height: calc(100vh - 420px);
   overflow-y: auto;
   overflow-x: auto;
 }
@@ -234,11 +248,13 @@
   background: #f8fafc;
 }
 
+/* Configuración de tabla para ajuste horizontal completo */
 .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
+  table-layout: auto;
 }
 
 /* Encabezado fijo (Sticky) */
@@ -246,32 +262,94 @@
   position: sticky;
   top: 0;
   background-color: #f8fafc;
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 0.65rem;
   font-weight: 700;
+  font-size: 0.8rem;
   color: #475569;
   border-bottom: 2px solid #e2e8f0;
   z-index: 2;
   white-space: nowrap;
 }
 
+/* Celdas con padding optimizado */
 .table td {
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 0.65rem;
   border-bottom: 1px solid #f1f5f9;
   color: #334155;
-  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .table tbody tr:hover {
   background-color: #f8fafc;
 }
 
+/* Clases específicas por columna */
+.colDni {
+  width: 95px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.colPaciente {
+  max-width: 220px;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.colFecha {
+  width: 85px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.825rem;
+}
+
+.colDias {
+  width: 70px;
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.colEstado {
+  width: 140px;
+  white-space: nowrap;
+}
+
+.colEstablecimiento {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.colLocalidad {
+  width: 115px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.colTelefono {
+  width: 110px;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
 /* Badges semáforo */
 .badge {
-  padding: 3px 9px;
+  padding: 2px 8px;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: 0.725rem;
   font-weight: 700;
   display: inline-block;
+  white-space: nowrap;
 }
 
 .badgeVerde { background-color: #dcfce7; color: #15803d; }
@@ -336,4 +414,29 @@
   font-size: 0.8rem;
   color: #94a3b8;
   text-align: center;
+}
+
+.cardAzul { border-left: 4px solid #3b82f6; }
+.cardVioleta { border-left: 4px solid #8b5cf6; }
+.cardGris { border-left: 4px solid #94a3b8; }
+
+.colorAzul { color: #1d4ed8; }
+.colorVioleta { color: #7e22ce; }
+.colorGris { color: #64748b; }
+
+/* Cabeceras ordenables */
+.thSortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.thSortable:hover {
+  background-color: #edf2f7;
+}
+
+.thContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }

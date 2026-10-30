@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
-import { Download, Search, Loader2 } from "lucide-react";
+import { Download, Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Image from "next/image";
 import logoColorImg from "../../../../public/logo_color.png";
@@ -54,6 +54,74 @@ export default function PrimerosLatidosPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchData();
+  };
+
+  // Estado de ordenamiento
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  }>({
+    key: "dias_ultimo_control", // Orden inicial: por días sin control
+    direction: "asc",
+  });
+
+  const handleSort = (key: string) => {
+    let direction: "asc" | "desc" = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Lista ordenada en memoria con useMemo
+  const sortedPacientes = useMemo(() => {
+    if (!data?.pacientes) return [];
+    const items = [...data.pacientes];
+
+    return items.sort((a: any, b: any) => {
+      let valA = a[sortConfig.key];
+      let valB = b[sortConfig.key];
+
+      // Manejo de valores nulos o indefinidos (van al final)
+      if (valA === null || valA === undefined || valA === "") return 1;
+      if (valB === null || valB === undefined || valB === "") return -1;
+
+      // Orden numérico (DNI, Días)
+      if (typeof valA === "number" && typeof valB === "number") {
+        return sortConfig.direction === "asc" ? valA - valB : valB - valA;
+      }
+
+      // Orden fechas
+      if (
+        sortConfig.key.includes("fecha") &&
+        Date.parse(valA) &&
+        Date.parse(valB)
+      ) {
+        const timeA = new Date(valA).getTime();
+        const timeB = new Date(valB).getTime();
+        return sortConfig.direction === "asc" ? timeA - timeB : timeB - timeA;
+      }
+
+      // Orden alfabético (Strings)
+      const strA = valA.toString().toLowerCase();
+      const strB = valB.toString().toLowerCase();
+
+      if (strA < strB) return sortConfig.direction === "asc" ? -1 : 1;
+      if (strA > strB) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [data?.pacientes, sortConfig]);
+
+  // Componente auxiliar para pintar el ícono correspondiente
+  const renderSortIcon = (colKey: string) => {
+    if (sortConfig.key !== colKey) {
+      return <ArrowUpDown size={13} style={{ opacity: 0.35, marginLeft: 4 }} />;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp size={13} style={{ color: "#587ba8", marginLeft: 4 }} />
+    ) : (
+      <ArrowDown size={13} style={{ color: "#587ba8", marginLeft: 4 }} />
+    );
   };
 
   // Descarga del reporte idéntico al Excel de Tony (13 columnas)
@@ -109,48 +177,77 @@ export default function PrimerosLatidosPage() {
           </button>
         </div>
 
-        {/* Fila de KPIs SegEm */}
+        {/* Fila de KPIs SegEm: Ventanas de Cobro para Primeros Latidos */}
         <div className={styles.kpiGrid}>
-          <div className={styles.kpiCard}>
+          {/* Card: Total Padrón Activo */}
+          <div 
+            onClick={() => setCorteDias("Todos")}
+            className={`${styles.kpiCard} ${corteDias === "Todos" ? styles.cardActive : ""}`}
+            title="Ver todas las embarazadas en curso"
+          >
             <span className={styles.kpiLabel}>Total Padrón Activo</span>
             <span className={`${styles.kpiValue} ${styles.colorPadron}`}>
               {parseInt(kpis.total_activas || 0).toLocaleString("es-AR")}
             </span>
-            <small className={styles.kpiSub}>Embarazadas vigentes</small>
+            <small className={styles.kpiSub}>Universo total provincial</small>
           </div>
 
-          <div className={`${styles.kpiCard} ${styles.cardVerde}`}>
-            <span className={styles.kpiLabel} style={{ color: "#15803d" }}>Aptas (Control al día &le; 40d)</span>
+          {/* Card: Aptas <= 40 días */}
+          <div 
+            onClick={() => setCorteDias("40")}
+            className={`${styles.kpiCard} ${styles.cardVerde} ${corteDias === "40" ? styles.cardActive : ""}`}
+            title="Beneficiarias con control vigente dentro de los 40 días"
+          >
+            <span className={styles.kpiLabel} style={{ color: "#15803d" }}>Aptas (Control &le; 40 días)</span>
             <span className={`${styles.kpiValue} ${styles.colorVerde}`}>
-              {parseInt(kpis.aptas_al_dia || 0).toLocaleString("es-AR")}
+              {parseInt(kpis.aptas_40 || 0).toLocaleString("es-AR")}
             </span>
             <small className={styles.kpiSub}>
-              {kpis.total_activas > 0 ? ((kpis.aptas_al_dia * 100) / kpis.total_activas).toFixed(1) : 0}% con controles vigentes
+              {kpis.total_activas > 0 ? ((kpis.aptas_40 * 100) / kpis.total_activas).toFixed(1) : 0}% del padrón provincial
             </small>
           </div>
 
-          <div className={`${styles.kpiCard} ${styles.cardAmarilla}`}>
-            <span className={styles.kpiLabel} style={{ color: "#b45309" }}>Atraso &gt; 40 días</span>
-            <span className={`${styles.kpiValue} ${styles.colorAmarillo}`}>
-              {parseInt(kpis.atraso_mas_40 || 0).toLocaleString("es-AR")}
+          {/* Card: Aptas <= 60 días */}
+          <div 
+            onClick={() => setCorteDias("60")}
+            className={`${styles.kpiCard} ${styles.cardAzul} ${corteDias === "60" ? styles.cardActive : ""}`}
+            title="Beneficiarias si se amplía la ventana de corte a 60 días"
+          >
+            <span className={styles.kpiLabel} style={{ color: "#1d4ed8" }}>Aptas (Ventana &le; 60 días)</span>
+            <span className={`${styles.kpiValue} ${styles.colorAzul}`}>
+              {parseInt(kpis.aptas_60 || 0).toLocaleString("es-AR")}
             </span>
-            <small className={styles.kpiSub}>Alerta primer corte</small>
+            <small className={styles.kpiSub}>
+              {kpis.total_activas > 0 ? ((kpis.aptas_60 * 100) / kpis.total_activas).toFixed(1) : 0}% con ventana flexible
+            </small>
           </div>
 
-          <div className={`${styles.kpiCard} ${styles.cardNaranja}`}>
-            <span className={styles.kpiLabel} style={{ color: "#c2410c" }}>Atraso &gt; 60 días</span>
-            <span className={`${styles.kpiValue} ${styles.colorNaranja}`}>
-              {parseInt(kpis.atraso_mas_60 || 0).toLocaleString("es-AR")}
+          {/* Card: Aptas <= 90 días */}
+          <div 
+            onClick={() => setCorteDias("90")}
+            className={`${styles.kpiCard} ${styles.cardVioleta} ${corteDias === "90" ? styles.cardActive : ""}`}
+            title="Beneficiarias si se amplía la ventana máxima a 90 días"
+          >
+            <span className={styles.kpiLabel} style={{ color: "#7e22ce" }}>Aptas (Ventana &le; 90 días)</span>
+            <span className={`${styles.kpiValue} ${styles.colorVioleta}`}>
+              {parseInt(kpis.aptas_90 || 0).toLocaleString("es-AR")}
             </span>
-            <small className={styles.kpiSub}>Revisión de continuidad</small>
+            <small className={styles.kpiSub}>
+              {kpis.total_activas > 0 ? ((kpis.aptas_90 * 100) / kpis.total_activas).toFixed(1) : 0}% con ventana extendida
+            </small>
           </div>
 
-          <div className={`${styles.kpiCard} ${styles.cardRoja}`}>
-            <span className={styles.kpiLabel} style={{ color: "#b91c1c" }}>Atraso &gt; 90 días</span>
-            <span className={`${styles.kpiValue} ${styles.colorRojo}`}>
-              {parseInt(kpis.atraso_mas_90 || 0).toLocaleString("es-AR")}
+          {/* Card: No Aptas / Sin Control (> 90 días o sin registro) */}
+          <div 
+            onClick={() => setCorteDias("no_aptas")}
+            className={`${styles.kpiCard} ${styles.cardGris} ${corteDias === "no_aptas" ? styles.cardActive : ""}`}
+            title="Embarazadas sin control reciente o sin controles registrados"
+          >
+            <span className={styles.kpiLabel} style={{ color: "#64748b" }}>Inactivas / Sin Control</span>
+            <span className={`${styles.kpiValue} ${styles.colorGris}`}>
+              {parseInt(kpis.no_aptas_mas_90 || 0).toLocaleString("es-AR")}
             </span>
-            <small className={styles.kpiSub}>Sujetas a suspensión / baja</small>
+            <small className={styles.kpiSub}>Atraso &gt; 90d o sin registro</small>
           </div>
         </div>
 
@@ -171,14 +268,13 @@ export default function PrimerosLatidosPage() {
 
           <div className={styles.filterControls}>
             <div className={styles.filterItem}>
-              <label>Corte por días:</label>
+              <label>Corte para beneficio:</label>
               <select value={corteDias} onChange={(e) => setCorteDias(e.target.value)}>
                 <option value="Todos">Todas las embarazadas</option>
-                <option value="al_dia">Al día (&le; 40 días)</option>
-                <option value="40">Más de 40 días sin control</option>
-                <option value="60">Más de 60 días sin control</option>
-                <option value="90">Más de 90 días sin control</option>
-                <option value="sin_control">Sin ningún control registrado</option>
+                <option value="40">Aptas corte estricto (&le; 40 días)</option>
+                <option value="60">Aptas ventana ampliada (&le; 60 días)</option>
+                <option value="90">Aptas ventana máxima (&le; 90 días)</option>
+                <option value="no_aptas">Inactivas / Sin control (&gt; 90 días o S/D)</option>
               </select>
             </div>
 
@@ -221,20 +317,36 @@ export default function PrimerosLatidosPage() {
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>DNI</th>
-                    <th>Paciente</th>
-                    <th>FPP</th>
-                    <th>Último Control</th>
-                    <th style={{ textAlign: "center" }}>Días sin Control</th>
-                    <th>Estado Prestación</th>
-                    <th>Establecimiento</th>
-                    <th>Localidad</th>
-                    <th>Teléfono</th>
+                    <th className={`${styles.colDni} ${styles.thSortable}`} onClick={() => handleSort("dni")}>
+                      <div className={styles.thContent}>DNI {renderSortIcon("dni")}</div>
+                    </th>
+                    <th className={`${styles.colPaciente} ${styles.thSortable}`} onClick={() => handleSort("apellido")}>
+                      <div className={styles.thContent}>Paciente {renderSortIcon("apellido")}</div>
+                    </th>
+                    <th className={`${styles.colFecha} ${styles.thSortable}`} onClick={() => handleSort("fecha_probable_parto")}>
+                      <div className={styles.thContent}>FPP {renderSortIcon("fecha_probable_parto")}</div>
+                    </th>
+                    <th className={`${styles.colFecha} ${styles.thSortable}`} onClick={() => handleSort("fecha_ultimo_control")}>
+                      <div className={styles.thContent}>Último Control {renderSortIcon("fecha_ultimo_control")}</div>
+                    </th>
+                    <th className={`${styles.colDias} ${styles.thSortable}`} onClick={() => handleSort("dias_ultimo_control")}>
+                      <div className={styles.thContent} style={{ justifyContent: "center" }}>
+                        Días {renderSortIcon("dias_ultimo_control")}
+                      </div>
+                    </th>
+                    <th className={styles.colEstado}>Estado Prestación</th>
+                    <th className={`${styles.colEstablecimiento} ${styles.thSortable}`} onClick={() => handleSort("nombre_establecimiento")}>
+                      <div className={styles.thContent}>Establecimiento {renderSortIcon("nombre_establecimiento")}</div>
+                    </th>
+                    <th className={`${styles.colLocalidad} ${styles.thSortable}`} onClick={() => handleSort("localidad")}>
+                      <div className={styles.thContent}>Localidad {renderSortIcon("localidad")}</div>
+                    </th>
+                    <th className={styles.colTelefono}>Teléfono</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data?.pacientes?.length > 0 ? (
-                    data.pacientes.map((p: any) => {
+                  {sortedPacientes.length > 0 ? (
+                    sortedPacientes.map((p: any) => {
                       const dias = p.dias_ultimo_control;
                       let badgeStyle = styles.badgeVerde;
                       let estadoTexto = "Al día (Apta)";
@@ -255,23 +367,35 @@ export default function PrimerosLatidosPage() {
 
                       return (
                         <tr key={p.id}>
-                          <td style={{ fontWeight: 600 }}>{p.dni}</td>
-                          <td style={{ fontWeight: 600, color: "#0f172a" }}>
+                          <td className={styles.colDni} style={{ fontWeight: 600 }}>
+                            {p.dni}
+                          </td>
+                          <td className={styles.colPaciente} title={`${p.apellido}, ${p.nombre}`}>
                             {p.apellido}, {p.nombre}
                           </td>
-                          <td>{p.fecha_probable_parto ? new Date(p.fecha_probable_parto).toLocaleDateString("es-AR") : "-"}</td>
-                          <td>{p.fecha_ultimo_control ? new Date(p.fecha_ultimo_control).toLocaleDateString("es-AR") : "Sin registro"}</td>
-                          <td style={{ textAlign: "center", fontWeight: 700 }}>
+                          <td className={styles.colFecha}>
+                            {p.fecha_probable_parto ? new Date(p.fecha_probable_parto).toLocaleDateString("es-AR") : "-"}
+                          </td>
+                          <td className={styles.colFecha}>
+                            {p.fecha_ultimo_control ? new Date(p.fecha_ultimo_control).toLocaleDateString("es-AR") : "Sin registro"}
+                          </td>
+                          <td className={styles.colDias}>
                             {dias !== null ? `${dias} d` : "-"}
                           </td>
-                          <td>
+                          <td className={styles.colEstado}>
                             <span className={`${styles.badge} ${badgeStyle}`}>
                               {estadoTexto}
                             </span>
                           </td>
-                          <td style={{ fontSize: "0.825rem", color: "#475569" }}>{p.nombre_establecimiento || "-"}</td>
-                          <td>{p.localidad || "-"}</td>
-                          <td>{p.telefono || "-"}</td>
+                          <td className={styles.colEstablecimiento} title={p.nombre_establecimiento || "-"}>
+                            {p.nombre_establecimiento || "-"}
+                          </td>
+                          <td className={styles.colLocalidad} title={p.localidad || "-"}>
+                            {p.localidad || "-"}
+                          </td>
+                          <td className={styles.colTelefono}>
+                            {p.telefono || "-"}
+                          </td>
                         </tr>
                       );
                     })

@@ -52,17 +52,15 @@ export async function GET(request: Request) {
       filterClauses += ` AND (p.nombre_establecimiento = $${params.length} OR p.sisa_centro_salud = $${params.length})`;
     }
 
-    // 5. Filtro de corte de días desde último control
-    if (corteDias === "40") {
-      filterClauses += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 40)`;
-    } else if (corteDias === "60") {
-      filterClauses += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 60)`;
-    } else if (corteDias === "90") {
-      filterClauses += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 90)`;
-    } else if (corteDias === "al_dia") {
+    // 5. Filtro según ventana de días para otorgar beneficio
+    if (corteDias === "40" || corteDias === "al_dia") {
       filterClauses += ` AND p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40`;
-    } else if (corteDias === "sin_control") {
-      filterClauses += ` AND p.fecha_ultimo_control IS NULL`;
+    } else if (corteDias === "60") {
+      filterClauses += ` AND p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 60`;
+    } else if (corteDias === "90") {
+      filterClauses += ` AND p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 90`;
+    } else if (corteDias === "no_aptas") {
+      filterClauses += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 90)`;
     }
 
     // Consulta de listado completo de embarazadas activas (universo exacto del Excel de Tony)
@@ -92,18 +90,17 @@ export async function GET(request: Request) {
         AND p.fecha_nacimiento IS NOT NULL
         AND COALESCE(p.en_red_perinatal_msp, true) = true
         ${filterClauses}
-      ORDER BY dias_ultimo_control DESC NULLS FIRST, p.apellido ASC;
+      ORDER BY dias_ultimo_control DESC NULLS LAST, p.apellido ASC;
     `;
 
-    // Consulta de KPIs ejecutivos para las cards superiores de Primeros Latidos
+    // KPIs para Primeros Latidos: Ventanas de cobro acumuladas
     const kpiSql = `
       SELECT 
         COUNT(*) AS total_activas,
-        COUNT(CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 40 THEN 1 END) AS aptas_al_dia,
-        COUNT(CASE WHEN fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 40 THEN 1 END) AS atraso_mas_40,
-        COUNT(CASE WHEN fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 60 THEN 1 END) AS atraso_mas_60,
-        COUNT(CASE WHEN fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 90 THEN 1 END) AS atraso_mas_90,
-        COUNT(CASE WHEN fecha_ultimo_control IS NULL THEN 1 END) AS sin_ningun_control
+        COUNT(CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 40 THEN 1 END) AS aptas_40,
+        COUNT(CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 60 THEN 1 END) AS aptas_60,
+        COUNT(CASE WHEN fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - fecha_ultimo_control) <= 90 THEN 1 END) AS aptas_90,
+        COUNT(CASE WHEN fecha_ultimo_control IS NULL OR (CURRENT_DATE - fecha_ultimo_control) > 90 THEN 1 END) AS no_aptas_mas_90
       FROM public.pacientes_gold p
       WHERE p.embarazo_en_curso = true
         AND p.fecha_probable_parto >= CURRENT_DATE
