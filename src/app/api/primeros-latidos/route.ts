@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   // Permiso para Primeros Latidos, Admin y Coordinadores
-  const allowedRoles = ["Administrador", "Coordinador", "Primeros Latidos"];
+  const allowedRoles = ["Administrador", "Primeros Latidos"];
   if (!allowedRoles.includes(session.user?.role || "")) {
     return NextResponse.json({ error: "Acceso denegado a Primeros Latidos" }, { status: 403 });
   }

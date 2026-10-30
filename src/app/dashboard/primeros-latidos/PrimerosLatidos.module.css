@@ -26,7 +26,7 @@
 .title {
   font-size: 1.65rem;
   font-weight: 800;
-  color: #1e3a5f;
+  color: #3d5f8b;
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -111,7 +111,7 @@
   line-height: 1.1;
 }
 
-.colorPadron { color: #0f172a; }
+.colorPadron { color: #10386b; }
 .colorVerde { color: #16a34a; }
 .colorAmarillo { color: #d97706; }
 .colorNaranja { color: #ea580c; }
@@ -223,7 +223,7 @@
   font-size: 1.1rem;
   font-weight: 700;
   margin: 0;
-  color: #1e293b;
+  color: #204472;
 }
 
 /* Contenedor del scroll vertical interno */
@@ -293,7 +293,7 @@
 .colPaciente {
   max-width: 220px;
   font-weight: 600;
-  color: #0f172a;
+  color: #587ba8;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

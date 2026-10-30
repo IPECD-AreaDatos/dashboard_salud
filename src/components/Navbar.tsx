@@ -46,8 +46,10 @@ export default function Navbar() {
       menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });
     }
 
-    // Administradores y Coordinadores también pueden supervisar la vista de Primeros Latidos
-    if (isAdminOrCoord) {
+    // ✅ AHORA: Solo Administrador (o usuario admin)
+    const isAdmin = userRole === 'Administrador' || session?.user?.name === 'admin' || session?.user?.username === 'admin1';
+
+    if (isAdmin) {
       menuItems.push({
         name: 'Primeros Latidos',
         href: '/dashboard/primeros-latidos',

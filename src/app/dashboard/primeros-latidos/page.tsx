@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import * as XLSX from "xlsx";
 import { Download, Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -10,6 +12,23 @@ import logoSaludImg from "../../../../public/Logo_Salud_Publica_colorH.png";
 import styles from "./PrimerosLatidos.module.css";
 
 export default function PrimerosLatidosPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  const userRole = session?.user?.role;
+  const isAdmin = userRole === "Administrador" || session?.user?.name === "admin" || (session?.user as any)?.username === "admin1";
+  const isPrimerosLatidos = userRole === "Primeros Latidos";
+
+  // 🛡️ 1. Control de acceso: Si es un Coordinador u otro rol, se redirige a /dashboard
+  useEffect(() => {
+    if (status === "authenticated") {
+      if (!isPrimerosLatidos && !isAdmin) {
+        const basePath = window.location.pathname.startsWith('/salud-dashboard') ? '/salud-dashboard' : '';
+        router.replace(`${basePath}/dashboard`);
+      }
+    }
+  }, [userRole, isAdmin, isPrimerosLatidos, status, router]);
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,8 +67,11 @@ export default function PrimerosLatidosPage() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [zona, departamento, corteDias]);
+    // Solo busca datos si el usuario tiene permiso
+    if (status === "authenticated" && (isPrimerosLatidos || isAdmin)) {
+      fetchData();
+    }
+  }, [zona, departamento, corteDias, status, isPrimerosLatidos, isAdmin]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +83,7 @@ export default function PrimerosLatidosPage() {
     key: string;
     direction: "asc" | "desc";
   }>({
-    key: "dias_ultimo_control", // Orden inicial: por días sin control
+    key: "dias_ultimo_control", // Orden inicial: controles más recientes primero
     direction: "asc",
   });
 
@@ -82,7 +104,7 @@ export default function PrimerosLatidosPage() {
       let valA = a[sortConfig.key];
       let valB = b[sortConfig.key];
 
-      // Manejo de valores nulos o indefinidos (van al final)
+      // Manejo de valores nulos o vacíos (se ubican al final)
       if (valA === null || valA === undefined || valA === "") return 1;
       if (valB === null || valB === undefined || valB === "") return -1;
 
@@ -112,7 +134,7 @@ export default function PrimerosLatidosPage() {
     });
   }, [data?.pacientes, sortConfig]);
 
-  // Componente auxiliar para pintar el ícono correspondiente
+  // Ícono de ordenamiento
   const renderSortIcon = (colKey: string) => {
     if (sortConfig.key !== colKey) {
       return <ArrowUpDown size={13} style={{ opacity: 0.35, marginLeft: 4 }} />;
@@ -156,6 +178,11 @@ export default function PrimerosLatidosPage() {
   };
 
   const kpis = data?.kpis || {};
+
+  // 🛡️ 2. Si la sesión está cargando o el usuario no tiene permisos, no renderiza la interfaz
+  if (status === "loading" || (!isPrimerosLatidos && !isAdmin)) {
+    return null;
+  }
 
   return (
     <div className={styles.mainWrapper}>
