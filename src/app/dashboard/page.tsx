@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw, X, Download} from "lucide-react";
 import RegistroContactoModal from "@/components/RegistroContactoModal";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import Image from "next/image";
 import logoColorImg from "../../../public/logo_color.png";
@@ -97,8 +98,16 @@ const romanToArabic = (text: string) => {
 };
 
 export default function SeguimientoPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const userRole = session?.user?.role;
+
+  useEffect(() => {
+    if (status === "authenticated" && userRole === "Primeros Latidos") {
+      router.replace("/dashboard/primeros-latidos");
+    }
+  }, [userRole, status, router]);
+
   const isRestrictedRole = userRole === 'Centro de Salud' || userRole === 'Maternidad';
   const isSupervisora = userRole === 'Supervisora';
 
@@ -471,6 +480,11 @@ export default function SeguimientoPage() {
       detalles: `Exportó planilla Excel con ${pacientesFiltrados.length} registros usando filtros activos.`
     }).catch(err => console.error("Error al registrar log de exportación:", err));
   };
+
+  // 🛡️ Si es rol de Primeros Latidos, no dibuja nada porque el useEffect ya lo está redirigiendo
+  if (userRole === "Primeros Latidos") {
+    return null;
+  }
 
   return (
     <>

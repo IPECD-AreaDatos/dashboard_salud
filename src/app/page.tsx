@@ -33,7 +33,17 @@ export default function LandingPage() {
       setError("Credenciales incorrectas");
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      // Determinamos el prefijo base de la app
+      const basePath = window.location.pathname.startsWith('/salud-dashboard') ? '/salud-dashboard' : '';
+      
+      const sessionRes = await fetch(`${basePath}/api/auth/session`);
+      const sessionData = await sessionRes.json();
+
+      if (sessionData?.user?.role === "Primeros Latidos") {
+        router.push("/dashboard/primeros-latidos");
+      } else {
+        router.push("/dashboard");
+      }
     }
   };
 
