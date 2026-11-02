@@ -34,7 +34,6 @@ export const authOptions: NextAuthOptions = {
           const storedHash = user.password_hash.trim();
           const providedPassword = credentials.password.trim();
 
-          console.log("Comparando:", providedPassword, "contra", storedHash);
 
           const match = await bcrypt.compare(providedPassword, storedHash);
 
