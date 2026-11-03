@@ -14,10 +14,14 @@ function docker(args,input){const r=spawnSync('docker',args,{encoding:'utf8',inp
  for(let i=0;;i++){try{await fetch(base);break}catch(e){if(i===80)throw e;await sleep(250)}}
  async function available(c){return (await (await fetch(base+'/api/central-estado',{headers:{cookie:'imi_sso='+c}})).json()).disponible}
  assert.equal(await available(good),true);assert.equal(await available(bad),false);assert.equal(await available(missingScope),false);
+ let landing=await fetch(base,{headers:{cookie:'imi_sso='+good}});let html=await landing.text();assert.match(html,/Ingresando con tu cuenta del portal/);assert.doesNotMatch(html,/placeholder="Usuario"/);
+ landing=await fetch(base);html=await landing.text();assert.match(html,/placeholder="Usuario"/);
+
  const initial=await fetch(base+'/api/auth/csrf');const csrf=await initial.json();const csrfCookie=initial.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ');
  const login=await fetch(base+'/api/auth/callback/imi-central',{method:'POST',redirect:'manual',headers:{cookie:csrfCookie+'; imi_sso='+good,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrfToken:csrf.csrfToken,callbackUrl:base,json:'true'})});
  const cookies=login.headers.getSetCookie().map(x=>x.split(';')[0]).filter(x=>x.includes('session-token='));assert.ok(cookies.length,'No se emitió sesión NextAuth');const cookie='imi_sso='+good+'; '+cookies.join('; ');
  let response=await fetch(base+'/api/auth/session',{headers:{cookie}});let session=await response.json();assert.equal(session.user.username,'ficticio');assert.equal(session.user.role,'Administrador');assert.equal(session.origin,'central');
+ const reused=await fetch(base,{headers:{cookie},redirect:'manual'});assert.ok([303,307,308].includes(reused.status));assert.match(reused.headers.get('location'),/\/salud-dashboard\/dashboard(?:\/|$)/);
  revoked=true;response=await fetch(base+'/api/auth/session',{headers:{cookie}});session=await response.json();assert.ok(!session.user,'Una sesión central revocada siguió activa');
  console.log('OK: vinculación explícita, alcance ausente, emisión y revocación de sesión central');
 }finally{if(app){app.kill();await new Promise(r=>app.once('exit',r))}if(identity)await new Promise(r=>identity.close(r));if(created)spawnSync('docker',['rm','-f',name],{stdio:'ignore'})}})().catch(e=>{console.error(e);process.exitCode=1});
