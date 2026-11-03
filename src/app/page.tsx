@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -17,6 +17,24 @@ export default function LandingPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    let active = true;
+    async function usePortalSession() {
+      try {
+        const res = await fetch('/salud-dashboard/api/central-estado', { cache: 'no-store' });
+        const state = res.ok ? await res.json() : null;
+        if (!active || !state?.disponible) return;
+        const login = await signIn('imi-central', { redirect: false });
+        if (!active || !login?.ok) return;
+        const current = await fetch('/salud-dashboard/api/auth/session', { cache: 'no-store' });
+        const session = current.ok ? await current.json() : null;
+        router.replace(session?.user?.role === 'Primeros Latidos' ? '/dashboard/primeros-latidos' : '/dashboard');
+      } catch { /* El ingreso habitual sigue disponible. */ }
+    }
+    void usePortalSession();
+    return () => { active = false; };
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

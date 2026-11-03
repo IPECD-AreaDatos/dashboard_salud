@@ -3,6 +3,7 @@ import NextAuth, { DefaultSession } from "next-auth";
 
 declare module "next-auth" {
   interface Session {
+    origin?: 'central' | 'local';
     user: {
       id?: string;
       role?: string;

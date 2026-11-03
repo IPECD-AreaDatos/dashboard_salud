@@ -123,7 +123,7 @@ export default function Navbar() {
         </div>
 
         <button
-          onClick={() => signOut({ callbackUrl: '/salud-dashboard' })}
+          onClick={async () => { if (session?.origin === 'central') { const result = await fetch('/sso/logout', { method: 'POST' }); if (!result.ok) return; } await signOut({ callbackUrl: '/salud-dashboard' }); }}
           className={styles.logoutBtn}
           title="Cerrar Sesión"
         >
