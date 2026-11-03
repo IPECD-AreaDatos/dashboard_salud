@@ -31,6 +31,8 @@ const formatearMotivoAuditoria = (motivo: string | null) => {
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
+  if (session?.user?.role === 'Centro de Salud' && !session.user.sisa_code && !session.user.cuie_code) return NextResponse.json({ error: 'La cuenta no tiene centro asignado' }, { status: 403 });
+  if (session?.user?.role === 'Maternidad' && !session.user.sisa_code && !session.user.cuie_code && !session.user.maternidad_id) return NextResponse.json({ error: 'La cuenta no tiene maternidad asignada' }, { status: 403 });
 
   if (
     !session ||
@@ -83,10 +85,10 @@ export async function GET(request: Request) {
         params.push(cuie);
         localClause = `(uni.centro_salud_raw = $${params.length - 1} OR uni.centro_salud_raw IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = $${params.length}))`;
       }
-      if (localClause && matId) {
-        params.push(matId);
-        filteringClauses += ` AND (${localClause} OR uni.derivacion_maternidad_id = $${params.length})`;
-      }
+      const parts: string[] = [];
+      if (localClause) parts.push(localClause);
+      if (matId) { params.push(matId); parts.push(`uni.derivacion_maternidad_id = $${params.length}`); }
+      filteringClauses += ` AND (${parts.length ? parts.join(' OR ') : 'FALSE'})`;
     }
 
     // 🔍 2. FILTROS MANUALES

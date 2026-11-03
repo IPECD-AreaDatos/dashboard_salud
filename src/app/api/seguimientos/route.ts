@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
+import { patientScope } from "@/lib/patientScope";
 import { authOptions } from "../auth/[...nextauth]/route";
 
 /**
@@ -17,9 +18,10 @@ export async function GET(request: Request) {
   if (!pacienteId) return NextResponse.json({ error: "Falta pacienteId" }, { status: 400 });
 
   try {
+    const scope = patientScope(session.user);
     const res = await query(
-      "SELECT * FROM seguimientos WHERE paciente_id = $1 ORDER BY fecha_contacto DESC",
-      [parseInt(pacienteId)]
+      `SELECT s.* FROM seguimientos s JOIN pacientes_gold p ON p.id = s.paciente_id WHERE s.paciente_id = $1 AND ${scope.sql} ORDER BY s.fecha_contacto DESC`,
+      [parseInt(pacienteId), ...scope.params]
     );
     return NextResponse.json(res.rows);
   } catch (error) {
@@ -53,10 +55,13 @@ export async function POST(request: Request) {
       persona_contactada,
       telefono_contactado,
       observaciones,
-      proxima_cita,
-      personal_salud,
-      usuario_id // 👈 NUEVO: Lo extraemos directo del body que configuramos en el modal
+      proxima_cita
+      // El autor se toma exclusivamente de la sesión autenticada.
     } = body;
+
+    const scope = patientScope(session.user);
+    const permitted = await query(`SELECT 1 FROM pacientes_gold p WHERE p.id = $1 AND ${scope.sql} LIMIT 1`, [paciente_id, ...scope.params]);
+    if (!permitted.rows.length) return NextResponse.json({ error: "No autorizado para esta paciente" }, { status: 403 });
 
     const sql = `
       INSERT INTO seguimientos (
@@ -78,7 +83,7 @@ export async function POST(request: Request) {
     `;
 
     // Usamos el ID real de la sesión de NextAuth para el usuario_id
-    const dbUsuarioId = usuario_id || session.user.id;
+    const dbUsuarioId = session.user.id;
     const cita = proxima_cita ? proxima_cita : null;
 
     const params = [
@@ -89,7 +94,7 @@ export async function POST(request: Request) {
       telefono_contactado,
       observaciones,
       cita,
-      personal_salud,
+      session.user.username || session.user.name || "Usuario",
       dbUsuarioId ? parseInt(dbUsuarioId.toString(), 10) : null // $9 👈 Convertido a número estricto para evitar incompatibilidad de tipos con int4
     ];
 

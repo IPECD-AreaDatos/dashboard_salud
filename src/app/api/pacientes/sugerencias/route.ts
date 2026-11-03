@@ -1,9 +1,15 @@
 /*src/app/api/pacientes/sugerencias/route.ts*/
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../auth/[...nextauth]/route";
+import { patientScope } from "@/lib/patientScope";
 // Cambiamos 'pool' por 'query' porque es lo que realmente exporta tu lib/db.ts
-import { query } from "@/lib/db"; 
+import { query } from "@/lib/db";
 
 export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const scope = patientScope(session.user);
   const { searchParams } = new URL(request.url);
   const searchTerm = searchParams.get("q");
 
@@ -16,17 +22,18 @@ export async function GET(request: Request) {
     // Usamos 'query' que es una función directa en tu proyecto[cite: 2]
     // Buscamos por DNI o por Apellido en la Capa Gold consolidada[cite: 2]
     const result = await query(
-      `SELECT dni, nombre, apellido 
-       FROM pacientes_gold 
-       WHERE (dni LIKE $1 OR apellido ILIKE $1)
+      `SELECT p.dni, p.nombre, p.apellido
+       FROM pacientes_gold p
+       WHERE (p.dni LIKE $1 OR p.apellido ILIKE $1)
          AND embarazo_en_curso = true
          AND fecha_probable_parto >= CURRENT_DATE
          AND en_red_perinatal_msp = true
+         AND ${scope.sql}
        LIMIT 10`,
-      [`${searchTerm}%`]
+      [`${searchTerm}%`, ...scope.params]
     );
 
-    // Dependiendo de cómo esté configurado tu db.ts, 'result' puede ser 
+    // Dependiendo de cómo esté configurado tu db.ts, 'result' puede ser
     // directamente el array de filas o un objeto con la propiedad .rows
     const rows = Array.isArray(result) ? result : (result as any).rows;
 

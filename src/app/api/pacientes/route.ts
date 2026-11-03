@@ -10,6 +10,8 @@ import { authOptions } from "../auth/[...nextauth]/route";
  */
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
+  if (session?.user?.role === 'Centro de Salud' && !session.user.sisa_code && !session.user.cuie_code) return NextResponse.json({ error: 'La cuenta no tiene centro asignado' }, { status: 403 });
+  if (session?.user?.role === 'Maternidad' && !session.user.sisa_code && !session.user.cuie_code && !session.user.maternidad_id) return NextResponse.json({ error: 'La cuenta no tiene maternidad asignada' }, { status: 403 });
 
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -56,7 +58,7 @@ export async function GET(request: Request) {
       } else if (cuie) {
         localClause = `(p.sisa_centro_salud = '${cuie}' OR p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
       }
-      securityClause = ` AND (${localClause} OR p.derivacion_maternidad_id = '${matId}')`;
+      securityClause = ` AND (${localClause || 'FALSE'} OR p.derivacion_maternidad_id = '${matId}')`;
     }
 
     // 2. Obtener el total para el contador del Dashboard

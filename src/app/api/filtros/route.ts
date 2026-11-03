@@ -1,8 +1,14 @@
 /*src/app/api/filtros/route.ts*/ 
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
+import { patientScope } from "@/lib/patientScope";
 import { query } from "@/lib/db";
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const scope = patientScope(session.user, 0);
   try {
     const sql = `
       SELECT 
@@ -23,10 +29,11 @@ export async function GET() {
       WHERE s.nombre IS NOT NULL
         AND s.nombre != ''
         AND p.en_red_perinatal_msp = true
+        AND ${scope.sql}
       GROUP BY s.cuie, s.codigo_sisa, s.nombre, s.localidad, s.departamento
       ORDER BY total_riesgo DESC, s.nombre ASC
     `;
-    const result = await query(sql);
+    const result = await query(sql, scope.params);
 
     // Mapeamos enviando las propiedades separadas y un label completo para búsquedas
     const establecimientos = result.rows.map((r: any) => {

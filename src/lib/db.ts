@@ -10,9 +10,9 @@ const pool = new Pool({
   user: process.env.DB_USER || process.env.USER_DBB2,
   password: process.env.DB_PASSWORD || process.env.PASSWORD_DBB2,
   database: process.env.DB_NAME || process.env.DB_NAME_SALUD,
-  ssl: {
-    rejectUnauthorized: false // Necesario para conexiones externas a veces
-  }
+  // La excepción de TLS solo existe para la base ficticia local de pruebas.
+  ssl: process.env.IMI_SSO_TEST_MODE === 'si' && process.env.DB_HOST === '127.0.0.1' && process.env.DB_NAME === 'salud_sso_test'
+    ? false : { rejectUnauthorized: false }
 });
 
 /**
