@@ -1,0 +1,1145 @@
+.container {
+  min-height: 100vh;
+  background-color: #ededed;
+  color: #2e2d2c;
+  font-family: 'Barlow', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+}
+
+.contentWrapper {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 32px 32px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Header & Filtros */
+.headerSection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.headerTitle {
+  margin: 0;
+  font-weight: 700;
+  font-size: 38px;
+  color: #4e6fae;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.headerSubtitle {
+  margin: 6px 0 0;
+  color: #5e5d5b;
+  font-size: 16px;
+}
+
+.filtersGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.dateLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #5e5d5b;
+}
+
+.dateInput {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #ededed;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #2e2d2c;
+  background: #ffffff;
+  outline: none;
+}
+
+.periodButtonGroup {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #ededed;
+  border-radius: 10px;
+}
+
+.periodBtn {
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  background: transparent;
+  color: #5e5d5b;
+  transition: all 0.15s ease;
+}
+
+.periodBtnActive {
+  background: #4e6fae;
+  color: #ffffff;
+}
+
+.btnReporte {
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: #4e6fae;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btnReporte:hover {
+  background: #3f5f9e;
+}
+
+/* 1. Padrón Provincial y Distribución Panorámica */
+.padronCard {
+  background: #ffffff;
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  padding: 22px 26px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.padronLayout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 40px;
+  align-items: center;
+}
+
+.padronTotalCol {
+  flex: 0 0 auto;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 40px;
+  border-right: 1px solid #ededed;
+}
+
+.padronLabel {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5e5d5b;
+}
+
+.padronNumber {
+  margin: 0;
+  font-size: 48px;
+  line-height: 1.05;
+  font-weight: 700;
+  color: #2e2d2c;
+  font-variant-numeric: tabular-nums;
+}
+
+.padronSubtext {
+  margin: 0;
+  font-size: 15px;
+  color: #2e2d2c;
+}
+
+.padronFecha {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #5e5d5b;
+}
+
+.distribucionCols {
+  flex: 1 1 520px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.zonaCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zonaHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid #4e6fae;
+  padding-bottom: 6px;
+}
+
+.zonaTitulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2e2d2c;
+}
+
+.zonaStats {
+  font-size: 14px;
+  color: #5e5d5b;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.zonaNumero {
+  font-size: 22px;
+  color: #2e2d2c;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.stackedBar {
+  display: flex;
+  height: 34px;
+  border-radius: 8px;
+  overflow: hidden;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  background-color: #f1f5f9;
+}
+
+.barCaps {
+  background: #4e6fae;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.barSaps {
+  background-color: #8db4ff;
+  color: #2e2d2c;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.barHosp {
+  background-color: #cae1ff;
+  color: #2e2d2c;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Tabs */
+.tabsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tabsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tabBtn {
+  height: 52px;
+  padding: 0 28px;
+  border-radius: 10px;
+  font-size: 17px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  border: 1px solid #ededed;
+  background: #ffffff;
+  color: #2e2d2c;
+  transition: all 0.15s ease;
+}
+
+.tabBtnActive {
+  background: #4e6fae;
+  color: #ffffff;
+  border-color: #4e6fae;
+}
+
+.warningBanner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: #fef7e6;
+  border: 1px solid #f2c15a;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #6f0603;
+  line-height: 1.45;
+}
+
+/* Cards Indicadores */
+.kpisSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionContextTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5e5d5b;
+  font-size: 14px;
+}
+
+.kpiRowGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.indicadorCard {
+  background: #ffffff;
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.indicadorCardAtraso {
+  background: #ffffff;
+  border: 1.5px solid #f2b1a3;
+  border-radius: 14px;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-decoration: none;
+  color: #2e2d2c;
+  cursor: pointer;
+}
+
+.indicadorCardSmall {
+  background: #ffffff;
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-decoration: none;
+  color: #2e2d2c;
+}
+
+.cardHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressBarTrack {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: #ededed;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  border-radius: 5px;
+}
+
+/* Uso del Tablero */
+.usoCard {
+  background: #ffffff;
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  padding: 24px 26px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  align-items: center;
+}
+
+.usoActivosCol {
+  flex: 1 1 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.usoSinUsoCol {
+  flex: 2 1 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-left: 1px solid #ededed;
+  padding-left: 28px;
+}
+
+.chip {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6f0603;
+  background: #ffffff;
+  border: 1px solid #f2b1a3;
+  padding: 6px 12px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+/* Tabla Desempeño */
+.desempenoCard {
+  background: #ffffff;
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  padding: 24px 26px;
+}
+
+.tableTitle {
+  margin: 0 0 14px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #4e6fae;
+}
+
+.tableGridHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 2.6fr) repeat(3, minmax(0, 1fr)) minmax(0, 1.3fr);
+  gap: 12px;
+  padding: 0 12px 10px;
+  border-bottom: 1.5px solid #ededed;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: #5e5d5b;
+}
+
+.tableGridRow {
+  display: grid;
+  grid-template-columns: minmax(0, 2.6fr) repeat(3, minmax(0, 1fr)) minmax(0, 1.3fr);
+  gap: 12px;
+  padding: 13px 12px;
+  border-bottom: 1px solid #ededed;
+  align-items: center;
+  font-size: 14px;
+}
+
+.tableGridRow:hover {
+  background-color: #fbfbfb;
+}
+
+.tableGridFooter {
+  display: grid;
+  grid-template-columns: minmax(0, 2.6fr) repeat(3, minmax(0, 1fr)) minmax(0, 1.3fr);
+  gap: 12px;
+  padding: 14px 12px;
+  background: #ededed;
+  border-radius: 0 0 10px 10px;
+  align-items: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.btnColSort {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: #5e5d5b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pillCoverage {
+  padding: 3px 10px;
+  border-radius: 999px;
+  display: inline-block;
+  min-width: 52px;
+  text-align: center;
+}
+
+.pillSeguimiento {
+  background: #e6eef8;
+  color: #3f5f9e;
+  padding: 3px 10px;
+  border-radius: 999px;
+  display: inline-block;
+  min-width: 52px;
+  text-align: center;
+}
+
+/* Gráficos Inferiores */
+.bottomChartsGrid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .distribucionCols {
+    grid-template-columns: 1fr;
+  }
+  .bottomChartsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chartCard {
+  background: #ffffff;
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  padding: 24px 26px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.chartTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2e2d2c;
+}
+
+.chartSub {
+  margin: 4px 0 16px;
+  font-size: 13px;
+  color: #5e5d5b;
+}
+
+/* Ranking Horizontal de Cobertura */
+.rankingContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rankingRow {
+  display: grid;
+  grid-template-columns: 170px 1fr 54px;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.rankingName {
+  text-align: right;
+  color: #2e2d2c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.rankingBarTrack {
+  position: relative;
+  height: 18px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border-left: 1px solid #cfcecc;
+  background-color: #fafafa;
+}
+
+.rankingBarFill {
+  height: 10px;
+  border-radius: 0 3px 3px 0;
+  transition: width 0.3s ease;
+}
+
+.avgLine {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border-left: 2px solid #4e6fae;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Barra Cobertura de Salud */
+.coberturaStackedBar {
+  display: flex;
+  height: 26px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+  background-color: #ededed;
+}
+
+/* Semanas de Gestación / Trimestres */
+.egGridTri {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 2rem;
+}
+
+.egTriCard {
+  border: 1px solid #ededed;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: #ffffff;
+}
+
+.egTriCardDashed {
+  border: 1.5px solid #90b4e1;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: linear-gradient(135deg, #f0f6ff 0%, #ffffff 100%);
+  box-shadow: 0 1px 4px rgba(78, 111, 174, 0.08);
+}
+
+.egTriCardDashed b {
+  color: #3f5f9e;
+}
+.dotVerde { width: 8px; height: 8px; border-radius: 50%; background: #356f23; }
+.dotAmbar { width: 8px; height: 8px; border-radius: 50%; background: #faae05; }
+.dotRojo { width: 8px; height: 8px; border-radius: 50%; background: #ea2f09; }
+.dotGris { width: 8px; height: 8px; border-radius: 50%; background: #cfcecc; }
+
+/* Histograma de Semanas de Gestación corregido */
+.egHistogramWrapper {
+  overflow-x: auto;
+  padding: 24px 8px 10px;
+}
+
+.egHistogramTrack {
+  min-width: 650px;
+  height: 240px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  border-bottom: 2px solid #ededed;
+  padding-bottom: 8px;
+}
+
+.egBarCol {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 100%;
+}
+
+.egBarTrack {
+  width: 100%;
+  max-width: 46px;
+  background-color: #ededed;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.egBarFill {
+  background-color: #8fb25a;
+  border-radius: 4px 4px 0 0;
+  width: 100%;
+  transition: height 0.3s ease;
+}
+
+.egLabelPct {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2e2d2c;
+  line-height: 1;
+}
+
+.egLabelCount {
+  font-size: 11px;
+  color: #5e5d5b;
+  line-height: 1;
+}
+
+.egLabelRango {
+  font-size: 12px;
+  color: #2e2d2c;
+  white-space: nowrap;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* Indicador con semáforo de Último Uso */
+.ultimoUsoWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #2e2d2c;
+  font-weight: 500;
+}
+
+/* Histograma de 10 barras de Edad Gestacional */
+.egHistogramWrapper {
+  overflow-x: auto;
+  padding-top: 10px;
+}
+
+.egHistogramTrack {
+  min-width: 650px;
+  height: 250px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  border-bottom: 1.5px solid #ededed;
+  padding-bottom: 8px;
+}
+
+.egBarCol {
+  flex: 1 1 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+.egBarTrack {
+  width: 100%;
+  max-width: 44px;
+  background-color: #ededed;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.egBarFill {
+  background-color: #8fb25a;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease;
+}
+
+/* Sección Evolución de Cobertura */
+.evoHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.evoSelectWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.evoSelectWrapper label {
+  font-size: 13px;
+  color: #5e5d5b;
+}
+
+.evoSelect {
+  height: 42px;
+  min-width: 280px;
+  padding: 0 12px;
+  border: 1px solid #cfcecc;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #2e2d2c;
+  background-color: #ffffff;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.evoSelect:focus {
+  border-color: #4e6fae;
+}
+
+.evoSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.evoLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #2e2d2c;
+  align-items: center;
+}
+
+
+/* Leyenda de Semanas de Gestación */
+.egLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  font-size: 13px;
+  color: #2e2d2c;
+  margin-bottom: 24px;
+}
+
+.egLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.egSquareVerde {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background-color: #8fb25a;
+}
+
+.egSquareGris {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background-color: #e2e8f0;
+  border: 1px solid #cbd5e1;
+}
+
+/* Contenedor del Histograma con espacio arriba para tooltips */
+.egHistogramWrapper {
+  overflow-x: auto;
+  padding-top: 55px; /* Espacio superior para que el tooltip nunca se corte */
+  position: relative;
+}
+
+.egHistogramTrack {
+  min-width: 680px;
+  height: 250px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 8px;
+}
+
+/* Columna interactiva */
+.egBarCol {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 100%;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 2px 0;
+  transition: background-color 0.15s ease;
+}
+
+.egBarCol:hover {
+  background-color: #f1f5f9;
+}
+
+/* Tooltip visible gestionado por React */
+.egTooltipActive {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  background: #1e293b;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.egTooltipActive::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #1e293b transparent transparent transparent;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Barra gris visible con borde definido */
+.egBarTrack {
+  width: 100%;
+  max-width: 44px;
+  background-color: #e2e8f0; /* Gris con contraste real */
+  border: 1px solid #cbd5e1;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Relleno verde de controladas */
+.egBarFill {
+  background-color: #8fb25a;
+  width: 100%;
+  border-radius: 0;
+  transition: height 0.3s ease;
+}
+
+.egLabelPct {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
+}
+
+.egLabelCount {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1;
+}
+
+.egLabelRango {
+  font-size: 12px;
+  color: #334155;
+  white-space: nowrap;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* 1. Barras Apiladas Capital / Interior sin cortes de texto */
+.stackedBar {
+  display: flex;
+  height: 34px;
+  border-radius: 8px;
+  overflow: hidden;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #f1f5f9;
+}
+
+.barCaps, .barSaps, .barHosp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 24px; /* Permite ver el bloque aunque el porcentaje sea bajo */
+  transition: width 0.3s ease;
+}
+
+.barCaps {
+  background: #4e6fae;
+  color: #ffffff;
+}
+
+.barSaps {
+  background-color: #8db4ff;
+  color: #1e293b;
+}
+
+.barHosp {
+  background-color: #cae1ff;
+  color: #1e293b;
+}
+
+/* 2. Histograma de Semanas de Gestación sin recorte superior */
+.egHistogramWrapper {
+  overflow-x: auto;
+  padding-top: 85px; /* Espacio superior para que el tooltip nunca se recorte */
+  margin-top: -35px;
+  position: relative;
+}
+
+.egHistogramTrack {
+  width: 100%;
+  min-width: 580px; /* Ancho ajustado para que entren las 10 barras sin desborde */
+  height: 220px;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 8px;
+}
+
+.egBarCol {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 100%;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 1px 0;
+  transition: background-color 0.15s ease;
+}
+
+.egBarCol:hover {
+  background-color: #f1f5f9;
+}
+
+/* Tooltip posicionado de forma visible */
+.egTooltipActive {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  background: #1e293b;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.egTooltipActive::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #1e293b transparent transparent transparent;
+}
+
+.egBarTrack {
+  width: 100%;
+  max-width: 42px;
+  background-color: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.egBarFill {
+  background-color: #8fb25a;
+  width: 100%;
+  border-radius: 0;
+  transition: height 0.3s ease;
+}
+
+/* Tooltip flotante al hacer hover */
+.egTooltip {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 8px;
+  background: #ffffff;
+  border: 1px solid #ededed;
+  color: #2e2d2c;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.egBarCol:hover .egTooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Barra gris (total) con relleno verde (controladas) */
+.egBarTrack {
+  width: 70%;
+  max-width: 44px;
+  background-color: #ededed;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.egBarFill {
+  background-color: #8fb25a;
+  width: 100%;
+  border-radius: 0;
+  transition: height 0.3s ease;
+}
+
+.egLabelPct {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2e2d2c;
+  line-height: 1;
+}
+
+.egLabelCount {
+  font-size: 11px;
+  color: #5e5d5b;
+  line-height: 1;
+}
+
+.egLabelRango {
+  font-size: 12px;
+  color: #2e2d2c;
+  white-space: nowrap;
+  font-weight: 500;
+  margin-top: 4px;
+}

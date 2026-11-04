@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from "next-auth/react";
-import { Activity, BarChart3, ShieldCheck, HeartHandshake, LogOut } from 'lucide-react';
+import { Activity, BarChart3, ShieldCheck, HeartHandshake, LogOut, Sparkles } from 'lucide-react';
 import styles from "./Navbar.module.css";
 
 import Image from "next/image";
-import logoColorImg from "../../public/logo_color.png";
-import logoSaludImg from "../../public/Logo_Salud_Publica_colorH.png";
+import logoSalud from "../../public/logo_nuevo.png";
+
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -44,12 +44,18 @@ export default function Navbar() {
       userRole?.toLowerCase() === 'lectura')
     ) {
       menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });
+      // 🌟 Acceso directo temporal a la nueva vista
+      menuItems.push({ name: 'v2', href: '/dashboard/stats-v2', icon: Sparkles });
     }
 
     // ✅ AHORA: Solo Administrador (o usuario admin)
     const isAdmin = userRole === 'Administrador' || session?.user?.name === 'admin' || session?.user?.username === 'admin1';
 
     if (isAdmin) {
+
+      // 🌟 Acceso directo temporal a la nueva vista (SOLO ADMIN)
+      menuItems.push({ name: 'v2', href: '/dashboard/stats-v2', icon: Sparkles });
+      
       menuItems.push({
         name: 'Primeros Latidos',
         href: '/dashboard/primeros-latidos',
@@ -90,16 +96,11 @@ export default function Navbar() {
 
       <div className={styles.rightSection}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginRight: '1rem' }}>
+          
           <Image 
-            src={logoColorImg} 
-            alt="Modernización" 
-            style={{ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
-          />
-          <div style={{ width: '1px', height: '20px', backgroundColor: '#cbd5e1' }}></div>
-          <Image 
-            src={logoSaludImg} 
+            src={logoSalud} 
             alt="Salud Pública" 
-            style={{ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
+            style={{ height: '42px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
           />
         </div>
 
