@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from "next-auth/react";
-import { Activity, BarChart3, ShieldCheck, HeartHandshake, LogOut, Sparkles } from 'lucide-react';
+import { Activity, BarChart3, ShieldCheck, HeartHandshake, LogOut } from 'lucide-react';
 import styles from "./Navbar.module.css";
 import Image from "next/image";
 import logoColorImg from "../../public/logo_color.png";
@@ -17,33 +17,35 @@ export default function Navbar() {
   const isSupervisora = userRole === 'Supervisora';
   const isPrimerosLatidos = userRole === 'Primeros Latidos';
   
-  // 🛡️ REGLA ESTRICTA DE ADMIN: Solo el rol Administrador o cuentas admin oficiales
-  const isAdmin = userRole === 'Administrador' || username === 'admin' || username === 'admin1';
-  
-  // Roles autorizados para Auditoría
-  const isAdminOrCoord = isAdmin || userRole === 'Coordinador';
+  // 🛡️ Perfiles con privilegios de gestión
+  const isAdmin = userRole === 'Administrador';
+  const isCoordinador = userRole === 'Coordinador';
+  const esAdminOCoord = isAdmin || isCoordinador;
 
   // 1. Construcción dinámica del menú según el rol
   const menuItems: { name: string; href: string; icon: any }[] = [];
 
   if (isPrimerosLatidos) {
-    // 🌟 Rol exclusivo Primeros Latidos: solo ve su módulo
     menuItems.push({
       name: 'Primeros Latidos',
       href: '/dashboard/primeros-latidos',
       icon: HeartHandshake
     });
   } else {
-    // 🌟 Roles operativos de SegEm (Admin, Coord, Efectores)
     menuItems.push({ name: 'Seguimiento', href: '/dashboard', icon: Activity });
 
+    // 📊 Estadísticas: Admin ha Coordinador oho V2-pe, ambue katu V1-pe
     if (!isSupervisora) {
-      menuItems.push({ name: 'Estadísticas', href: '/dashboard/stats', icon: BarChart3 });
+      menuItems.push({
+        name: 'Estadísticas',
+        href: esAdminOCoord ? '/dashboard/stats-v2' : '/dashboard/stats',
+        icon: BarChart3
+      });
     }
 
     if (
       !isSupervisora &&
-      (isAdminOrCoord || 
+      (esAdminOCoord || 
       userRole === 'Centro de Salud' || 
       userRole === 'Maternidad' || 
       userRole?.toLowerCase() === 'lectura')
@@ -51,14 +53,7 @@ export default function Navbar() {
       menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });
     }
 
-    // 🔒 ACCESO EXCLUSIVO ADMINISTRADOR: "v2" y "Primeros Latidos"
     if (isAdmin) {
-      menuItems.push({
-        name: 'v2',
-        href: '/dashboard/stats-v2',
-        icon: Sparkles
-      });
-
       menuItems.push({
         name: 'Primeros Latidos',
         href: '/dashboard/primeros-latidos',
@@ -67,10 +62,7 @@ export default function Navbar() {
     }
   }
 
-  // Identificamos si el rol requiere desagregar el ID de usuario abajo
   const esRolEfector = userRole === 'Centro de Salud' || userRole === 'Maternidad';
-
-  // URL del logo principal
   const homeHref = isPrimerosLatidos ? '/dashboard/primeros-latidos' : '/dashboard';
 
   return (
@@ -84,16 +76,20 @@ export default function Navbar() {
         </Link>
 
         <div className={styles.navLinks}>
-          {menuItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${styles.link} ${pathname === item.href ? styles.activeLink : ''}`}
-            >
-              <item.icon size={18} />
-              {item.name}
-            </Link>
-          ))}
+          {menuItems.map((item) => {
+            // Se mantiene activa si coincide exactamente o si es la sección de estadísticas
+            const isActive = pathname === item.href || (item.name === 'Estadísticas' && pathname.startsWith('/dashboard/stats'));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`${styles.link} ${isActive ? styles.activeLink : ''}`}
+              >
+                <item.icon size={18} />
+                {item.name}
+              </Link>
+            );
+          })}
         </div>
       </div>
 

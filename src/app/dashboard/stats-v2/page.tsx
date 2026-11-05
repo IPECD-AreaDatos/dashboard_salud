@@ -20,17 +20,21 @@ export default function StatsV2Page() {
   const router = useRouter();
 
   const userRole = session?.user?.role;
+  const esAutorizadoV2 = userRole === "Administrador" || userRole === "Coordinador";
   const username = (session?.user as any)?.username || session?.user?.name;
   const isAdmin = userRole === "Administrador" || username === "admin" || username === "admin1";
 
-  // 🛡️ Redirigir a cualquier usuario que no sea Administrador
   useEffect(() => {
-    if (status === "authenticated" && !isAdmin) {
+    if (status === "authenticated" && !esAutorizadoV2) {
       const basePath = window.location.pathname.startsWith("/salud-dashboard") ? "/salud-dashboard" : "";
-      router.replace(`${basePath}/dashboard`);
+      router.replace(`${basePath}/dashboard/stats`);
     }
-  }, [status, isAdmin, router]);
+  }, [status, esAutorizadoV2, router]);
 
+  if (status === "loading" || !esAutorizadoV2) {
+    return null;
+  }
+  
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
