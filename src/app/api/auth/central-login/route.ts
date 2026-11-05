@@ -7,7 +7,9 @@ const centralBaseUrl = (process.env.IMI_SSO_BASE_URL || 'http://127.0.0.1:39001'
 const centralOrigin = process.env.IMI_SSO_ORIGIN || 'https://appimi.corrientes.gob.ar';
 
 export async function POST(request: NextRequest) {
-  if (request.headers.get('origin') !== request.nextUrl.origin) {
+  const browserOrigin = request.headers.get('origin');
+  const localOriginAllowed = process.env.NODE_ENV !== 'production' && browserOrigin === request.nextUrl.origin;
+  if (browserOrigin !== centralOrigin && !localOriginAllowed) {
     return NextResponse.json({ error: 'Solicitud no válida.' }, { status: 403 });
   }
 

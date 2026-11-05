@@ -39,3 +39,10 @@ La primera etapa no borra `public.usuarios`, hashes locales, ni los datos de act
 - Los 56 marcadores locales quedaron activos y sin referencias huérfanas. Salud ya no aceptará la contraseña local de una cuenta migrada; la pantalla y dirección de ingreso de Salud se conservan.
 - Para volver atrás, restaurar la versión anterior del tablero y desactivar los marcadores de las cuentas migradas en `public.imi_sso_vinculos`. No borrar usuarios, hashes locales ni datos de actividad.
 - `caps13` debe recibir un enlace de «alta con contraseña» desde Administración de usuarios; el enlace se comparte con la persona por el canal habitual.
+
+## Recuperación del ingreso — 2026-11-05
+
+- La primera versión publicada rechazaba las peticiones del formulario de Salud con HTTP 403 porque comparaba el origen público del navegador con la URL interna que Next.js veía detrás de Nginx.
+- Se corrigió la validación para aceptar el origen público fijo de IMI en producción y el origen local de desarrollo. Una solicitud pública válida con cuerpo vacío debe devolver HTTP 400, nunca HTTP 403.
+- Los 56 vínculos de `public.imi_sso_vinculos` quedaron temporalmente inactivos. Así, Salud vuelve a aceptar las claves locales previas mientras se comprueba el ingreso central con usuarios reales. La base central y sus accesos siguen disponibles.
+- Reactivar esos vínculos solo después de confirmar que una cuenta heredada y `mzalazar` ingresan correctamente desde Salud.
