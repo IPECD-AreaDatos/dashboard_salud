@@ -23,6 +23,8 @@ export async function GET(request: Request) {
   const establecimiento = searchParams.get("establecimiento");
   const riesgo = searchParams.get("riesgo") || "Todas";
   
+  const tipoGrupo = searchParams.get("tipoGrupo"); // 'CAPS' o 'SAPS'
+  const porVencerParam = searchParams.get("porVencer") === "true";
   // 👈 NUEVO: Reemplazamos fppDesde/Hasta por el parámetro único de trimestre
   const trimestre = searchParams.get("trimestre") || "Todos"; 
   
@@ -128,6 +130,30 @@ export async function GET(request: Request) {
         if (dni) {
           params.push(`${dni}%`);
           whereClause += ` AND dni LIKE $${params.length}`;
+        }
+
+        // 🌟 Filtro especial invisible para Estadísticas V2 (CAPS o SAPS)
+        if (tipoGrupo === "CAPS") {
+          whereClause += ` AND p.sisa_centro_salud IN (
+            SELECT codigo_sisa FROM efectores_sisa 
+            WHERE (LOWER(nombre) LIKE '%caps%' OR LOWER(nombre) LIKE '%c.a.p.s.%')
+              AND LOWER(TRIM(COALESCE(departamento, 'CAPITAL'))) = 'capital'
+          )`;
+        } else if (tipoGrupo === "SAPS") {
+          whereClause += ` AND p.sisa_centro_salud IN (
+            SELECT codigo_sisa FROM efectores_sisa 
+            WHERE (LOWER(nombre) LIKE '%saps%' OR LOWER(nombre) LIKE '%s.a.p.s.%')
+              AND LOWER(TRIM(COALESCE(departamento, 'CAPITAL'))) = 'capital'
+          )`;
+        }
+
+        // 🌟 Filtro para "Por vencer sin turno" (control vence en <= 10 días y sin turno futuro)
+        if (porVencerParam) {
+          whereClause += ` AND (CURRENT_DATE - p.fecha_ultimo_control) BETWEEN 30 AND 40 
+            AND NOT EXISTS (
+              SELECT 1 FROM seguimientos sec 
+              WHERE sec.paciente_id = p.id AND sec.proxima_cita >= CURRENT_DATE
+            )`;
         }
 
         // 🌟 3. Filtro por establecimiento para Coordinador / Admin ampliado (SISA y Derivaciones)

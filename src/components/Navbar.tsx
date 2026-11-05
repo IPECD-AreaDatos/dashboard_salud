@@ -1,35 +1,40 @@
-/*src/components/Navbar.tsx*/ 
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from "next-auth/react";
 import { Activity, BarChart3, ShieldCheck, HeartHandshake, LogOut, Sparkles } from 'lucide-react';
 import styles from "./Navbar.module.css";
-
 import Image from "next/image";
-import logoSalud from "../../public/logo_nuevo.png";
-
+import logoColorImg from "../../public/logo_color.png";
+import logoSaludImg from "../../public/Logo_Salud_Publica_colorH.png";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const userRole = session?.user?.role;
+  const username = (session?.user as any)?.username || session?.user?.name;
+
   const isSupervisora = userRole === 'Supervisora';
   const isPrimerosLatidos = userRole === 'Primeros Latidos';
-  const isAdminOrCoord = userRole === 'Administrador' || userRole === 'Coordinador' || session?.user?.name === 'admin';
+  
+  // 🛡️ REGLA ESTRICTA DE ADMIN: Solo el rol Administrador o cuentas admin oficiales
+  const isAdmin = userRole === 'Administrador' || username === 'admin' || username === 'admin1';
+  
+  // Roles autorizados para Auditoría
+  const isAdminOrCoord = isAdmin || userRole === 'Coordinador';
 
   // 1. Construcción dinámica del menú según el rol
   const menuItems: { name: string; href: string; icon: any }[] = [];
 
   if (isPrimerosLatidos) {
-    // 🌟 Rol exclusivo: solo accede a su panel de gestión de bonos y corte de días
+    // 🌟 Rol exclusivo Primeros Latidos: solo ve su módulo
     menuItems.push({
       name: 'Primeros Latidos',
       href: '/dashboard/primeros-latidos',
       icon: HeartHandshake
     });
   } else {
-    // 🌟 Roles habituales de SegEm
+    // 🌟 Roles operativos de SegEm (Admin, Coord, Efectores)
     menuItems.push({ name: 'Seguimiento', href: '/dashboard', icon: Activity });
 
     if (!isSupervisora) {
@@ -44,18 +49,16 @@ export default function Navbar() {
       userRole?.toLowerCase() === 'lectura')
     ) {
       menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });
-      // 🌟 Acceso directo temporal a la nueva vista
-      menuItems.push({ name: 'v2', href: '/dashboard/stats-v2', icon: Sparkles });
     }
 
-    // ✅ AHORA: Solo Administrador (o usuario admin)
-    const isAdmin = userRole === 'Administrador' || session?.user?.name === 'admin' || session?.user?.username === 'admin1';
-
+    // 🔒 ACCESO EXCLUSIVO ADMINISTRADOR: "v2" y "Primeros Latidos"
     if (isAdmin) {
+      menuItems.push({
+        name: 'v2',
+        href: '/dashboard/stats-v2',
+        icon: Sparkles
+      });
 
-      // 🌟 Acceso directo temporal a la nueva vista (SOLO ADMIN)
-      menuItems.push({ name: 'v2', href: '/dashboard/stats-v2', icon: Sparkles });
-      
       menuItems.push({
         name: 'Primeros Latidos',
         href: '/dashboard/primeros-latidos',
@@ -67,7 +70,7 @@ export default function Navbar() {
   // Identificamos si el rol requiere desagregar el ID de usuario abajo
   const esRolEfector = userRole === 'Centro de Salud' || userRole === 'Maternidad';
 
-  // URL del logo principal (si es Primeros Latidos lo lleva a su sección)
+  // URL del logo principal
   const homeHref = isPrimerosLatidos ? '/dashboard/primeros-latidos' : '/dashboard';
 
   return (
@@ -96,11 +99,16 @@ export default function Navbar() {
 
       <div className={styles.rightSection}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginRight: '1rem' }}>
-          
           <Image 
-            src={logoSalud} 
+            src={logoColorImg} 
+            alt="Modernización" 
+            style={{ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
+          />
+          <div style={{ width: '1px', height: '20px', backgroundColor: '#cbd5e1' }} />
+          <Image 
+            src={logoSaludImg} 
             alt="Salud Pública" 
-            style={{ height: '42px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
+            style={{ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
           />
         </div>
 
@@ -108,23 +116,23 @@ export default function Navbar() {
           <span className={styles.userRole}>{userRole || 'Personal'}</span>
           <span className={styles.userName}>{session?.user?.name || 'Usuario'}</span>
           
-          {esRolEfector && session?.user?.username && (
+          {esRolEfector && (session?.user as any)?.username && (
             <span 
               style={{ 
                 fontSize: '0.85rem', 
                 color: '#64748b', 
-                fontWeight: 550,
-                marginTop: '1px',
-                textAlign: 'right'
+                fontWeight: 550, 
+                marginTop: '1px', 
+                textAlign: 'right' 
               }}
             >
-              Usuario: {session.user.username}
+              Usuario: {(session?.user as any)?.username}
             </span>
           )}
         </div>
 
         <button
-          onClick={async () => { if (session?.origin === 'central') { const result = await fetch('/sso/logout', { method: 'POST' }); if (!result.ok) return; } await signOut({ callbackUrl: '/salud-dashboard' }); }}
+          onClick={() => signOut({ callbackUrl: '/salud-dashboard' })}
           className={styles.logoutBtn}
           title="Cerrar Sesión"
         >

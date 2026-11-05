@@ -1232,70 +1232,7 @@ export default function StatsPage() {
               </div>
             </div>
             
-            {/* Los gráficos de TOPs solo se muestran para Admin, Coord y Maternidad */}
-            {(isAdminOrCoord || isMaternidad) && (
-              <div className={styles.chartsGrid}>
-                <div className={styles.chartCard}>
-                  <h3 className={styles.chartTitle}>
-                    {isMaternidad ? "Top 15 — Centros de Salud que derivaron pacientes" : "Top 15 — Establecimientos con más embarazadas"}
-                  </h3>
-                  <div className={styles.chartWrapper}>
-                    <ResponsiveContainer width="100%" height="100%" minHeight={350}>
-                      {/* 🌟 AJUSTE: Aumentamos margen izquierdo y inferior para dar espacio a las etiquetas */}
-                      <BarChart data={topGeneral} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        {/* 🌟 AJUSTE: Añadimos la etiqueta al eje X */}
-                        <XAxis type="number">
-                          <Label value="Cantidad de Embarazadas" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
-                        </XAxis>
-                        <YAxis 
-                          dataKey="name" 
-                          type="category" 
-                          width={220} // Un poco menos de ancho para compensar el margen
-                          tick={{ fill: '#475569', fontSize: 11 }} 
-                          tickFormatter={(value) => value.length > 35 ? `${value.substring(0, 35)}...` : value} // Trunca texto largo
-                        />
-                        <Tooltip 
-                          cursor={{ fill: '#f1f5f9' }} 
-                          formatter={(value: number) => [value, "Cantidad"]} 
-                        />
-                        <Bar dataKey="value" fill="#608bc4" radius={[0, 7, 7, 0]} barSize={16} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className={styles.chartCard}>
-                  <h3 className={styles.chartTitle}>
-                    {isMaternidad ? "Top 15 — Riesgo y sin control (>40 días) por centro de origen" : "Top 15 — Embarazadas de riesgo con control atrasado (>40 días)"}
-                  </h3>
-                  <div className={styles.chartWrapper}>
-                    <ResponsiveContainer width="100%" height="100%" minHeight={350}>
-                      {/* 🌟 AJUSTE: Aumentamos margen izquierdo y inferior para dar espacio a las etiquetas */}
-                      <BarChart data={topRiesgo} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        {/* 🌟 AJUSTE: Añadimos la etiqueta al eje X */}
-                        <XAxis type="number">
-                          <Label value="Cantidad de Embarazadas" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 13 }} />
-                        </XAxis>
-                        <YAxis 
-                          dataKey="name" 
-                          type="category" 
-                          width={220} // Un poco menos de ancho para compensar el margen
-                          tick={{ fill: '#475569', fontSize: 11 }} 
-                          tickFormatter={(value) => value.length > 35 ? `${value.substring(0, 35)}...` : value} // Trunca texto largo
-                        />
-                        <Tooltip 
-                          cursor={{ fill: '#f1f5f9' }} 
-                          formatter={(value: number) => [value, "Cantidad"]} 
-                        />
-                        <Bar dataKey="value" fill="#ef4444" radius={[0, 7, 7, 0]} barSize={16} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            )}
+            
 
           </div>
         )}

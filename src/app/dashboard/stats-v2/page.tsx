@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { 
@@ -14,6 +16,21 @@ import {
 import styles from "./StatsV2.module.css";
 
 export default function StatsV2Page() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  const userRole = session?.user?.role;
+  const username = (session?.user as any)?.username || session?.user?.name;
+  const isAdmin = userRole === "Administrador" || username === "admin" || username === "admin1";
+
+  // 🛡️ Redirigir a cualquier usuario que no sea Administrador
+  useEffect(() => {
+    if (status === "authenticated" && !isAdmin) {
+      const basePath = window.location.pathname.startsWith("/salud-dashboard") ? "/salud-dashboard" : "";
+      router.replace(`${basePath}/dashboard`);
+    }
+  }, [status, isAdmin, router]);
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -449,7 +466,8 @@ export default function StatsV2Page() {
               <span style={{ fontSize: 13, color: "#5E5D5B" }}>Control en los últimos 40 días</span>
             </div>
 
-            <Link href="/dashboard" className={styles.indicadorCardAtraso}>
+            <Link href={`/dashboard?tipoGrupo=${tipoEfector}&controlesAtrasados=true`}
+             className={styles.indicadorCardAtraso}>
               <div className={styles.cardHeaderRow}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: "#6F0603" }}>Controles atrasados</span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#3F5F9E", display: "flex", alignItems: "center", gap: 4 }}>
@@ -474,7 +492,8 @@ export default function StatsV2Page() {
           </div>
 
           <div className={styles.kpiRowGrid}>
-            <Link href="/dashboard" className={styles.indicadorCardSmall}>
+            <Link href={`/dashboard?tipoGrupo=${tipoEfector}&porVencer=true`}
+             className={styles.indicadorCardSmall}>
               <div className={styles.cardHeaderRow}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#2E2D2C" }}>Por vencer sin turno</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#3F5F9E" }}>Ver →</span>
@@ -761,7 +780,7 @@ export default function StatsV2Page() {
             </span>
           </div>
 
-          {/* Histograma Interactivo con Tooltip Flotante */}
+          {/* Histograma Sencillo y Robusto */}
           <div className={styles.egHistogramWrapper}>
             <div className={styles.egHistogramTrack}>
               {egList.map((g: any, idx: number) => {
@@ -770,33 +789,19 @@ export default function StatsV2Page() {
                 const sinControl = Math.max(0, total - controladas);
                 const pct = total > 0 ? Math.round((controladas * 100) / total) : 0;
                 const trackHeight = Math.max(14, Math.round((total / maxEg) * 150));
-                const isHovered = hoveredEgIdx === idx;
 
-                // Alineación dinámica para que nunca se corte en los costados
-                const tooltipPosStyle: React.CSSProperties = idx <= 1 
-                  ? { left: "0", transform: "none" } 
-                  : idx >= 8 
-                    ? { right: "0", transform: "none" } 
-                    : { left: "50%", transform: "translateX(-50%)" };
+                const tooltipTexto = 
+                  `${g.rango} semanas\n` +
+                  `• Embarazos activos: ${total}\n` +
+                  `• Controladas (al día): ${controladas} (${pct}%)\n` +
+                  `• Sin control al día: ${sinControl}`;
 
                 return (
                   <div 
                     key={idx} 
                     className={styles.egBarCol}
-                    onMouseEnter={() => setHoveredEgIdx(idx)}
-                    onMouseLeave={() => setHoveredEgIdx(null)}
+                    title={tooltipTexto}
                   >
-                    {isHovered && (
-                      <div className={styles.egTooltipActive} style={tooltipPosStyle}>
-                        <div style={{ fontWeight: 700, borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: 2, marginBottom: 4 }}>
-                          {g.rango} semanas
-                        </div>
-                        <div>Embarazos activos: <b>{total}</b></div>
-                        <div style={{ color: '#86efac' }}>Al día: <b>{controladas}</b> ({pct}%)</div>
-                        <div style={{ color: '#cbd5e1' }}>Sin control: <b>{sinControl}</b></div>
-                      </div>
-                    )}
-
                     <span className={styles.egLabelPct}>{total > 0 ? `${pct}%` : "-"}</span>
                     <span className={styles.egLabelCount}>{total}</span>
 

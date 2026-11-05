@@ -9,6 +9,7 @@ import RegistroContactoModal from "@/components/RegistroContactoModal";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import logoColorImg from "../../../public/logo_color.png";
 import logoSaludImg from "../../../public/Logo_Salud_Publica_colorH.png";
@@ -114,6 +115,8 @@ export default function SeguimientoPage() {
   const verColumnasAmpliadas = !isSupervisora && (userRole === 'Administrador' || userRole === 'Coordinador' || userRole?.toLowerCase() === 'lectura' || userRole === 'Maternidad');
   const tableColumnCount = verColumnasAmpliadas ? 18 : 9;
 
+
+
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<{ value: string, label: string, sisa?: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,6 +165,44 @@ export default function SeguimientoPage() {
 
   // Solo activo para Centro de Salud, por defecto excluye derivadas
   const [excluirDerivadas, setExcluirDerivadas] = useState(true);
+
+  const searchParams = useSearchParams();
+  const [filterTipoGrupo, setFilterTipoGrupo] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 1. Leemos los parámetros que puedan venir de Estadísticas V2
+    const grupoParam = searchParams.get("tipoGrupo");
+    const atrasadasParam = searchParams.get("controlesAtrasados");
+    const porVencerParam = searchParams.get("porVencer");
+
+    // 2. Si viene de V2, ajustamos estados y ejecutamos SOLO esa búsqueda
+    if (grupoParam || atrasadasParam === "true" || porVencerParam === "true") {
+      if (grupoParam) setFilterTipoGrupo(grupoParam);
+
+      if (atrasadasParam === "true") {
+        setFilterAtrasados("Si");
+        setAplicadoAtrasados("Si");
+      }
+
+      // Llamamos a la API con los parámetros directos y permitirFallback=false
+      fetchPacientes(
+        undefined, // dni
+        false,     // exacto
+        undefined, // establecimiento
+        undefined, // trimestre
+        undefined, // riesgo
+        atrasadasParam === "true" ? "Si" : undefined, // atrasados
+        undefined, // excluirDerivadas
+        false,     // esCargaInicial = false para que no se pise ni haga fallback
+        grupoParam || undefined,
+        porVencerParam === "true"
+      );
+      return; // 👈 Salimos para NO ejecutar la carga inicial por defecto
+    }
+
+    // 3. Carga normal por defecto del Dashboard si no viene de ningún link externo
+    fetchPacientes(undefined, false, undefined, undefined, undefined, "Si", undefined, true);
+  }, [searchParams]);
 
   // Carga inicial
   useEffect(() => {
@@ -267,78 +308,63 @@ export default function SeguimientoPage() {
     esExacto: boolean = false,
     estDirecto?: string,
     trimestreDirecto?: string,
-    riesgoDirecto?: string,    // ← nuevo
+    riesgoDirecto?: string,
     atrasadosDirecto?: string,
     excluirDerivadasDirecto?: boolean,
-    esCargaInicial: boolean = false       // ← nuevo
+    esCargaInicial: boolean = false,
+    tipoGrupoDirecto?: string,
+    porVencerDirecto?: boolean // 👈 Nuevo argumento
   ) => {
     setLoading(true);
     try {
       const dniABuscar = dniDirecto !== undefined ? dniDirecto : filterDni;
       const estABuscar = estDirecto !== undefined ? estDirecto : filterEst;
-      const trimestreABuscar = trimestreDirecto !== undefined ? trimestreDirecto : filterTrimestre; // 👈 Nuevo
-      const riesgoABuscar = riesgoDirecto !== undefined ? riesgoDirecto : filterRiesgo;  // ← nuevo
+      const trimestreABuscar = trimestreDirecto !== undefined ? trimestreDirecto : filterTrimestre;
+      const riesgoABuscar = riesgoDirecto !== undefined ? riesgoDirecto : filterRiesgo;
       const atrasadosABuscar = atrasadosDirecto !== undefined ? atrasadosDirecto : filterAtrasados;
       const excluirDerivadasABuscar = excluirDerivadasDirecto !== undefined 
         ? excluirDerivadasDirecto 
-        : excluirDerivadas;          // ← nuevo
+        : excluirDerivadas;
+      
+      const grupoABuscar = tipoGrupoDirecto !== undefined ? tipoGrupoDirecto : filterTipoGrupo;
+
       const queryParams: any = {
         dni: dniABuscar,
         establecimiento: estABuscar,
-        riesgo: riesgoABuscar,   // ← cambiado
+        riesgo: riesgoABuscar,
         controlesAtrasados: atrasadosABuscar === "Si" ? "true" : (atrasadosABuscar === "No" ? "false" : "todos"),
-        trimestre: trimestreABuscar, // 👈 Nuevo
-        excluirDerivadas: excluirDerivadasABuscar ? "true" : "false"        // ← cambiado
+        trimestre: trimestreABuscar,
+        excluirDerivadas: excluirDerivadasABuscar ? "true" : "false"
       };
 
-      // 👈 LA REGLA DE ORO DE UX CORREGIDA:
-      // El fallback solo se permite si es la carga inicial automática del sistema. 
-      // Si el usuario gatilló la función mediante un evento manual, lo inhabilitamos.
+      if (grupoABuscar) {
+        queryParams.tipoGrupo = grupoABuscar;
+      }
+
+      if (porVencerDirecto) {
+        queryParams.porVencer = "true";
+      }
+
       if (esCargaInicial) {
         queryParams.permitirFallback = "true";
       } else {
         queryParams.permitirFallback = "false";
       }
 
-      // Si es una búsqueda exacta por DNI, agregamos el flag para el backend
       if (esExacto || (dniABuscar && dniABuscar.length > 7)) {
         queryParams.exact = "true";
       }
-  
+
       const query = new URLSearchParams(queryParams);
       const res = await apiFetch(`/pacientes?${query}`);
       const data = await res.json();
 
       const pacientesObtenidos = data.data || [];
 
-      // 👈 FALLBACK INTELIGENTE: Si al cargar la página por primera vez pedimos "Atrasadas" y no hay ninguna, cambiamos automáticamente a "Todas"
-      if (esCargaInicial && atrasadosABuscar === "Si" && !data.fallbackActivo) {
-        const atrasadasReales = pacientesObtenidos.filter((p: Paciente) => {
-          const clase = getSemaforoControlClass(p.dias);
-          return clase === styles.semaforoRojo || clase === styles.semaforoAmarillo;
-        });
-
-        if (atrasadasReales.length === 0) {
-          setFilterAtrasados("Todas");
-          setAplicadoAtrasados("Todas");
-          await fetchPacientes(dniABuscar, esExacto, estABuscar, trimestreABuscar, riesgoABuscar, "Todas", excluirDerivadasABuscar, false);
-          return; // Finalizamos el ciclo para que la función recursiva de arriba tome el control
-        }
-      }
-
       setUltimaActualizacion(data.ultimaActualizacion || null);
       setPacientes(pacientesObtenidos);
       setTotalGlobal(data.totalGlobal || 0);
-    
-      // Si el backend activó la contención, actualizamos la botonera lateral
-      if (data.fallbackActivo) {
-        setFilterRiesgo("Todas");
-        setFilterAtrasados("Todas");
-        // Sincronizamos también las etiquetas del resumen para evitar desajustes visuales
-        setAplicadoRiesgo("Todas");
-        setAplicadoAtrasados("Todas");
-      }
-    
+
     } catch (error) {
       console.error("Error al obtener pacientes:", error);
     } finally {

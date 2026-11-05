@@ -176,7 +176,7 @@ export async function GET(request: Request) {
       ? "(s.coordinador ILIKE '%saps%' OR LOWER(s.nombre) LIKE '%saps%' OR LOWER(s.nombre) LIKE '%s.a.p.s.%')"
       : "(s.coordinador ILIKE '%caps%' OR LOWER(s.nombre) LIKE '%caps%' OR LOWER(s.nombre) LIKE '%c.a.p.s.%')";
 
-    // 🌟 7. QUERY DE TABLA EVOLUTIVA DINÁMICA (con último acceso cruzado de logs_actividad_dashboard)
+    // Tabla evolutiva de efectores
     const capsUnificadaSql = `
       WITH fecha_actual_cte AS (
         SELECT MAX(fecha_corte) as fecha_t1
@@ -298,8 +298,73 @@ export async function GET(request: Request) {
       ORDER BY padron_act DESC;
     `;
 
-    // 🌟 NUEVAS CONSULTAS DINÁMICAS PARA LA VERSIÓN 2
-    // A) Desglose de Padrón Provincial real: Capital vs Interior (CAPS, SAPS, Hospitales)
+    // 🌟 5. GRÁFICO 1 DE LA VERSIÓN VIEJA: Distribución por Semanas de Embarazo (EG)
+    const edadGestacionalV1Sql = `
+      SELECT 
+        rango_eg,
+        orden_num,
+        COUNT(DISTINCT id) as total_embarazos,
+        COUNT(DISTINCT id_controlada) as total_controladas
+      FROM (
+        SELECT 
+          p.id,
+          CASE 
+            WHEN p.eg_actual BETWEEN 0 AND 4   THEN '0 a 4'
+            WHEN p.eg_actual BETWEEN 5 AND 8   THEN '5 a 8'
+            WHEN p.eg_actual BETWEEN 9 AND 12  THEN '9 a 12'
+            WHEN p.eg_actual BETWEEN 13 AND 16 THEN '13 a 16'
+            WHEN p.eg_actual BETWEEN 17 AND 20 THEN '17 a 20'
+            WHEN p.eg_actual BETWEEN 21 AND 24 THEN '21 a 24'
+            WHEN p.eg_actual BETWEEN 25 AND 28 THEN '25 a 28'
+            WHEN p.eg_actual BETWEEN 29 AND 32 THEN '29 a 32'
+            WHEN p.eg_actual BETWEEN 33 AND 36 THEN '33 a 36'
+            ELSE '37 a 40+'
+          END as rango_eg,
+          CASE 
+            WHEN p.eg_actual BETWEEN 0 AND 4   THEN 1
+            WHEN p.eg_actual BETWEEN 5 AND 8   THEN 2
+            WHEN p.eg_actual BETWEEN 9 AND 12  THEN 3
+            WHEN p.eg_actual BETWEEN 13 AND 16 THEN 4
+            WHEN p.eg_actual BETWEEN 17 AND 20 THEN 5
+            WHEN p.eg_actual BETWEEN 21 AND 24 THEN 6
+            WHEN p.eg_actual BETWEEN 25 AND 28 THEN 7
+            WHEN p.eg_actual BETWEEN 29 AND 32 THEN 8
+            WHEN p.eg_actual BETWEEN 33 AND 36 THEN 9
+            ELSE 10
+          END as orden_num,
+          CASE WHEN p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40 THEN p.id ELSE NULL END as id_controlada
+        FROM public.pacientes_gold p
+        WHERE p.embarazo_en_curso = true 
+          AND p.fecha_probable_parto >= ${fechaUmbral} 
+          AND p.fecha_nacimiento IS NOT NULL
+          AND COALESCE(p.en_red_perinatal_msp, true) = true
+          ${securityClause}
+          ${centroFilterClause}
+          ${derivacionClause}
+          ${zonaGlobalClause}
+      ) sub
+      GROUP BY rango_eg, orden_num
+      ORDER BY orden_num ASC;
+    `;
+
+    // 🌟 6. GRÁFICO 2 DE LA VERSIÓN VIEJA: Distribución de Coberturas de Salud
+    const coberturaV1Sql = `
+      SELECT
+        SUM(CASE WHEN p.fuente_principal = 'sumar' OR (p.fuente_principal IN ('pof', 'v_embarazosdw') AND (p.cobertura_salud ILIKE '%plan nacer%' OR p.cobertura_salud ILIKE '%sumar%')) THEN 1 ELSE 0 END) as sin_obra_social,
+        SUM(CASE WHEN p.fuente_principal NOT IN ('sumar') AND p.fuente_principal IN ('pof', 'v_embarazosdw') AND p.cobertura_salud NOT ILIKE '%plan nacer%' AND p.cobertura_salud NOT ILIKE '%sumar%' AND p.cobertura_salud IS NOT NULL THEN 1 ELSE 0 END) as con_obra_social,
+        SUM(CASE WHEN p.fuente_principal NOT IN ('sumar') AND (p.fuente_principal NOT IN ('pof', 'v_embarazosdw') OR p.cobertura_salud IS NULL) THEN 1 ELSE 0 END) as sin_datos
+      FROM public.pacientes_gold p
+      WHERE p.embarazo_en_curso = true 
+        AND p.fecha_probable_parto >= ${fechaUmbral} 
+        AND p.fecha_nacimiento IS NOT NULL
+        AND COALESCE(p.en_red_perinatal_msp, true) = true
+        ${securityClause}
+        ${centroFilterClause}
+        ${derivacionClause}
+        ${zonaGlobalClause};
+    `;
+
+    // 🌟 Consultas específicas para V2
     const desgloseProvincialV2Sql = `
       SELECT 
         CASE 
@@ -321,7 +386,6 @@ export async function GET(request: Request) {
       GROUP BY 1, 2;
     `;
 
-    // B) Por vencer sin turno (Control vence en 10 días, sin turno cargado)
     const porVencerV2Sql = `
       SELECT 
         COUNT(CASE WHEN (CURRENT_DATE - p.fecha_ultimo_control) BETWEEN 30 AND 40 AND (p.proxima_cita IS NULL OR p.proxima_cita < CURRENT_DATE) THEN 1 END) as por_vencer_caps,
@@ -333,7 +397,6 @@ export async function GET(request: Request) {
         AND p.fecha_ultimo_control IS NOT NULL;
     `;
 
-    // C) Uso del Tablero según tabla logs_actividad_dashboard
     const usoTableroV2Sql = `
       WITH efectores_tipo AS (
         SELECT s.codigo_sisa, s.nombre
@@ -356,76 +419,16 @@ export async function GET(request: Request) {
       ORDER BY dias_sin_uso DESC;
     `;
 
-    // D) Edad Gestacional completa (10 rangos + captación temprana)
-    const edadGestacionalV2Sql = `
-      SELECT 
-        sub.orden_num,
-        sub.rango_eg,
-        COUNT(DISTINCT sub.id) as total_embarazos,
-        COUNT(DISTINCT CASE WHEN sub.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - sub.fecha_ultimo_control) <= 40 THEN sub.id END) as total_controladas
-      FROM (
-        SELECT 
-          p.id,
-          p.fecha_ultimo_control,
-          CASE 
-            WHEN p.eg_actual BETWEEN 0 AND 4   THEN 1
-            WHEN p.eg_actual BETWEEN 5 AND 8   THEN 2
-            WHEN p.eg_actual BETWEEN 9 AND 12  THEN 3
-            WHEN p.eg_actual BETWEEN 13 AND 16 THEN 4
-            WHEN p.eg_actual BETWEEN 17 AND 20 THEN 5
-            WHEN p.eg_actual BETWEEN 21 AND 24 THEN 6
-            WHEN p.eg_actual BETWEEN 25 AND 28 THEN 7
-            WHEN p.eg_actual BETWEEN 29 AND 32 THEN 8
-            WHEN p.eg_actual BETWEEN 33 AND 36 THEN 9
-            ELSE 10
-          END as orden_num,
-          CASE 
-            WHEN p.eg_actual BETWEEN 0 AND 4   THEN '0 a 4'
-            WHEN p.eg_actual BETWEEN 5 AND 8   THEN '5 a 8'
-            WHEN p.eg_actual BETWEEN 9 AND 12  THEN '9 a 12'
-            WHEN p.eg_actual BETWEEN 13 AND 16 THEN '13 a 16'
-            WHEN p.eg_actual BETWEEN 17 AND 20 THEN '17 a 20'
-            WHEN p.eg_actual BETWEEN 21 AND 24 THEN '21 a 24'
-            WHEN p.eg_actual BETWEEN 25 AND 28 THEN '25 a 28'
-            WHEN p.eg_actual BETWEEN 29 AND 32 THEN '29 a 32'
-            WHEN p.eg_actual BETWEEN 33 AND 36 THEN '33 a 36'
-            ELSE '37 a 40+'
-          END as rango_eg
-        FROM public.pacientes_gold p
-        LEFT JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
-        WHERE p.embarazo_en_curso = true 
-          AND p.fecha_probable_parto >= ${fechaUmbral} 
-          AND p.fecha_nacimiento IS NOT NULL
-          AND COALESCE(p.en_red_perinatal_msp, true) = true
-          AND ${filtroEfectoresSql}
-      ) sub
-      GROUP BY sub.orden_num, sub.rango_eg
-      ORDER BY sub.orden_num ASC;
-    `;
-
-    // E) Cobertura de salud
-    const coberturaSql = `
-      SELECT
-        SUM(CASE WHEN p.fuente_principal = 'sumar' OR (p.fuente_principal IN ('pof', 'v_embarazosdw') AND (p.cobertura_salud ILIKE '%plan nacer%' OR p.cobertura_salud ILIKE '%sumar%')) THEN 1 ELSE 0 END) as sin_obra_social,
-        SUM(CASE WHEN p.fuente_principal NOT IN ('sumar') AND p.fuente_principal IN ('pof', 'v_embarazosdw') AND p.cobertura_salud NOT ILIKE '%plan nacer%' AND p.cobertura_salud NOT ILIKE '%sumar%' AND p.cobertura_salud IS NOT NULL THEN 1 ELSE 0 END) as con_obra_social,
-        SUM(CASE WHEN p.fuente_principal NOT IN ('sumar') AND (p.fuente_principal NOT IN ('pof', 'v_embarazosdw') OR p.cobertura_salud IS NULL) THEN 1 ELSE 0 END) as sin_datos
-      FROM public.pacientes_gold p
-      WHERE p.embarazo_en_curso = true 
-        AND p.fecha_probable_parto >= ${fechaUmbral} 
-        AND p.fecha_nacimiento IS NOT NULL
-        AND COALESCE(p.en_red_perinatal_msp, true) = true;
-    `;
-
     const promises = [
       query(chartsKpiSql, statsParams),
       query(cardsKpiSql, statsParams),
       query(capsUnificadaSql),
       query(`SELECT MAX(ingestion_at) as fecha FROM pacientes_gold`),
+      query(edadGestacionalV1Sql, statsParams),
+      query(coberturaV1Sql, statsParams),
       query(desgloseProvincialV2Sql),
       query(porVencerV2Sql),
-      query(usoTableroV2Sql),
-      query(edadGestacionalV2Sql),
-      query(coberturaSql)
+      query(usoTableroV2Sql)
     ];
 
     const [
@@ -433,16 +436,85 @@ export async function GET(request: Request) {
       cardsKpiRes,
       capsRes,
       ultimaActualizacionRes,
+      egV1Res,
+      cobV1Res,
       desgloseProvRes,
       porVencerRes,
-      usoTableroRes,
-      egV2Res,
-      cobRes
+      usoTableroRes
     ] = await Promise.all(promises);
 
     const chartsKpis = chartsKpiRes.rows[0];
     const cardsKpis = cardsKpiRes.rows[0];
 
+    // 📊 Gráfico 1 V1 (EG)
+    const distribucionEGMapped = egV1Res.rows.map((r: any) => ({
+      rango: r.rango_eg,
+      "Embarazos Activos": parseInt(r.total_embarazos) || 0,
+      "Controladas (Al día)": parseInt(r.total_controladas) || 0
+    }));
+
+    // 📊 Gráfico 2 V1 (Cobertura)
+    const cobRow = cobV1Res.rows[0];
+    const coberturaStats = [
+      { name: "Pública Exclusiva", value: parseInt(cobRow?.sin_obra_social) || 0 },
+      { name: "Con Obra Social", value: parseInt(cobRow?.con_obra_social) || 0 },
+      { name: "Sin Registro", value: parseInt(cobRow?.sin_datos) || 0 }
+    ];
+
+    // 🌟 ESTRUTURAS DE KPIS DA VERSÃO 1 (resolvendo os erros generalData / riesgoData)
+    const generalData = {
+      total: parseInt(cardsKpis.total) || 0,
+      sub15: parseInt(chartsKpis.gen_15) || 0,
+      age15_19: parseInt(chartsKpis.gen_15_19) || 0,
+      age20_34: parseInt(chartsKpis.gen_20_34) || 0,
+      age34plus: parseInt(chartsKpis.gen_34_plus) || 0,
+      desgloseZona: {
+        capital: parseInt(cardsKpis.total_capital) || 0,
+        interior: parseInt(cardsKpis.total_interior) || 0,
+      }
+    };
+
+    const riesgoData = {
+      total: parseInt(cardsKpis.total_riesgo) || 0,
+      sub15: parseInt(chartsKpis.rsg_15) || 0,
+      age15_19: parseInt(chartsKpis.rsg_15_19) || 0,
+      age20_34: parseInt(chartsKpis.rsg_20_34) || 0,
+      age34plus: parseInt(chartsKpis.rsg_34_plus) || 0,
+      desgloseZona: {
+        capital: parseInt(cardsKpis.total_riesgo_capital) || 0,
+        interior: parseInt(cardsKpis.total_riesgo_interior) || 0,
+      }
+    };
+
+    const gestionData = {
+      controlesPendientes: parseInt(chartsKpis.controles_pendientes) || 0,
+      proximosPartos: parseInt(chartsKpis.proximos_partos) || 0,
+      sinTelefono: parseInt(chartsKpis.sin_telefono) || 0,
+      derivadas: parseInt(cardsKpis.derivadas) || 0,
+      sinContactoReciente: parseInt(chartsKpis.sin_contacto_reciente) || 0,
+      controladas: parseInt(cardsKpis.total_controladas) || 0,
+      seguimientoAdecuado: parseInt(cardsKpis.total_seguimiento_adecuado) || 0,
+      riesgoControladas: parseInt(cardsKpis.total_riesgo_controladas) || 0,
+      desgloseZona: {
+        seguimientoAdecuadoCaps: parseInt(chartsKpis.seguimiento_adecuado_caps) || 0,
+        riesgoSinControl: parseInt(chartsKpis.riesgo_sin_control) || 0,
+        turnosAsignadosCaps: parseInt(chartsKpis.turnos_asignados_caps) || 0,
+        captacionPrecozCaps: parseInt(chartsKpis.captacion_precoz_caps) || 0,
+        contactosConTurnoCaps: parseInt(chartsKpis.contactos_con_turno_caps) || 0,
+        contactosTotalesCaps: parseInt(chartsKpis.contactos_totales_caps) || 0,
+        controladas: { capital: parseInt(cardsKpis.total_controladas_capital) || 0, interior: parseInt(cardsKpis.total_controladas_interior) || 0 },
+        riesgoControladas: { capital: parseInt(cardsKpis.total_riesgo_controladas_capital) || 0, interior: parseInt(cardsKpis.total_riesgo_controladas_interior) || 0 },
+        seguimientoAdecuado: { capital: parseInt(cardsKpis.total_seguimiento_adecuado_capital) || 0, interior: parseInt(cardsKpis.total_seguimiento_adecuado_interior) || 0 },
+      }
+    };
+
+    const actividadData = {
+      hoy: parseInt(chartsKpis.controles_hoy) || 0,
+      semana: parseInt(chartsKpis.controles_semana) || 0,
+      mes: parseInt(chartsKpis.controles_mes) || 0
+    };
+
+    // Tabela resumida
     const resumenCaps = capsRes.rows.map((r: any) => {
       const padronAct = parseInt(r.padron_act) || 0;
       const padronAnt = parseInt(r.padron_ant) || 0;
@@ -457,7 +529,6 @@ export async function GET(request: Request) {
       const pctGestion = ctrlAct > 0 ? (ctrlContacto * 100.0) / ctrlAct : 0;
       const pctSegAdecuado = padronAct > 0 ? (segAdecuado * 100.0) / padronAct : 0;
 
-      // 🕒 Cálculo dinámico del último uso desde los logs
       const ultimoAcceso = r.ultimo_acceso ? new Date(r.ultimo_acceso) : null;
       let diasSinUso = 999;
       let ultimoUsoTexto = "Sin dato";
@@ -496,14 +567,13 @@ export async function GET(request: Request) {
         controladasEspontaneas: Math.max(0, ctrlAct - ctrlContacto),
         pctGestion: parseFloat(pctGestion.toFixed(1)),
         turnosAsignadosCaps: parseInt(r.turnos_act) || 0,
-        // 🌟 Campos que usa la V2 para la columna "Último Uso":
         ultimoAcceso: r.ultimo_acceso,
         diasSinUso,
         ultimoUsoTexto
       };
     });
 
-    // Procesar desglose V2 (Capital vs Interior: CAPS, SAPS, Hosp)
+    // Desdobramento V2
     const desgloseMap: Record<string, Record<string, number>> = {
       CAPITAL: { CAPS: 0, SAPS: 0, HOSPITAL: 0, TOTAL: 0 },
       INTERIOR: { CAPS: 0, SAPS: 0, HOSPITAL: 0, TOTAL: 0 }
@@ -519,7 +589,6 @@ export async function GET(request: Request) {
       }
     });
 
-    // Procesar uso de tablero V2
     const totalEfectoresUso = usoTableroRes.rows.length;
     const activosUso = usoTableroRes.rows.filter((r: any) => parseInt(r.dias_sin_uso) <= 7).length;
     const chipsSinUso = usoTableroRes.rows
@@ -530,70 +599,26 @@ export async function GET(request: Request) {
         dias: r.dias_sin_uso === 999 ? "S/D" : `${r.dias_sin_uso} días`
       }));
 
-    // Procesar cobertura de salud V2
-    const cobRow = cobRes.rows[0];
-    const totCob = (parseInt(cobRow.sin_obra_social) || 0) + (parseInt(cobRow.con_obra_social) || 0) + (parseInt(cobRow.sin_datos) || 0);
+    const totCob = (parseInt(cobRow?.sin_obra_social) || 0) + (parseInt(cobRow?.con_obra_social) || 0) + (parseInt(cobRow?.sin_datos) || 0);
     const coberturaSaludV2 = {
-      publica: totCob > 0 ? Math.round(((parseInt(cobRow.sin_obra_social) || 0) * 100) / totCob) : 85,
-      obraSocial: totCob > 0 ? Math.round(((parseInt(cobRow.con_obra_social) || 0) * 100) / totCob) : 3,
-      sinRegistro: totCob > 0 ? Math.round(((parseInt(cobRow.sin_datos) || 0) * 100) / totCob) : 12
+      publica: totCob > 0 ? Math.round(((parseInt(cobRow?.sin_obra_social) || 0) * 100) / totCob) : 85,
+      obraSocial: totCob > 0 ? Math.round(((parseInt(cobRow?.con_obra_social) || 0) * 100) / totCob) : 3,
+      sinRegistro: totCob > 0 ? Math.round(((parseInt(cobRow?.sin_datos) || 0) * 100) / totCob) : 12
     };
 
     return NextResponse.json({
-      // 🌟 ESTRUCTURA ORIGINAL (Compatible con versión vieja)
+      // ✅ RETORNO COMPATÍVEL COM A VERSÃO 1 (/dashboard/stats)
       ultimaActualizacion: ultimaActualizacionRes.rows[0]?.fecha || new Date().toISOString(),
-      general: {
-        total: parseInt(cardsKpis.total) || 0,
-        sub15: parseInt(chartsKpis.gen_15) || 0,
-        age15_19: parseInt(chartsKpis.gen_15_19) || 0,
-        age20_34: parseInt(chartsKpis.gen_20_34) || 0,
-        age34plus: parseInt(chartsKpis.gen_34_plus) || 0,
-        desgloseZona: {
-          capital: parseInt(cardsKpis.total_capital) || 0,
-          interior: parseInt(cardsKpis.total_interior) || 0,
-        }
-      },
-      riesgo: {
-        total: parseInt(cardsKpis.total_riesgo) || 0,
-        sub15: parseInt(chartsKpis.rsg_15) || 0,
-        age15_19: parseInt(chartsKpis.rsg_15_19) || 0,
-        age20_34: parseInt(chartsKpis.rsg_20_34) || 0,
-        age34plus: parseInt(chartsKpis.rsg_34_plus) || 0,
-        desgloseZona: {
-          capital: parseInt(cardsKpis.total_riesgo_capital) || 0,
-          interior: parseInt(cardsKpis.total_riesgo_interior) || 0,
-        }
-      },
-      gestion: {
-        controlesPendientes: parseInt(chartsKpis.controles_pendientes) || 0,
-        proximosPartos: parseInt(chartsKpis.proximos_partos) || 0,
-        sinTelefono: parseInt(chartsKpis.sin_telefono) || 0,
-        derivadas: parseInt(cardsKpis.derivadas) || 0,
-        sinContactoReciente: parseInt(chartsKpis.sin_contacto_reciente) || 0,
-        controladas: parseInt(cardsKpis.total_controladas) || 0,
-        seguimientoAdecuado: parseInt(cardsKpis.total_seguimiento_adecuado) || 0,
-        riesgoControladas: parseInt(cardsKpis.total_riesgo_controladas) || 0,
-        desgloseZona: {
-          seguimientoAdecuadoCaps: parseInt(chartsKpis.seguimiento_adecuado_caps) || 0,
-          riesgoSinControl: parseInt(chartsKpis.riesgo_sin_control) || 0,
-          turnosAsignadosCaps: parseInt(chartsKpis.turnos_asignados_caps) || 0,
-          captacionPrecozCaps: parseInt(chartsKpis.captacion_precoz_caps) || 0,
-          contactosConTurnoCaps: parseInt(chartsKpis.contactos_con_turno_caps) || 0,
-          contactosTotalesCaps: parseInt(chartsKpis.contactos_totales_caps) || 0,
-          controladas: { capital: parseInt(cardsKpis.total_controladas_capital) || 0, interior: parseInt(cardsKpis.total_controladas_interior) || 0 },
-          riesgoControladas: { capital: parseInt(cardsKpis.total_riesgo_controladas_capital) || 0, interior: parseInt(cardsKpis.total_riesgo_controladas_interior) || 0 },
-          seguimientoAdecuado: { capital: parseInt(cardsKpis.total_seguimiento_adecuado_capital) || 0, interior: parseInt(cardsKpis.total_seguimiento_adecuado_interior) || 0 },
-        }
-      },
-      actividad: {
-        hoy: parseInt(chartsKpis.controles_hoy) || 0,
-        semana: parseInt(chartsKpis.controles_semana) || 0,
-        mes: parseInt(chartsKpis.controles_mes) || 0
-      },
+      general: generalData,
+      riesgo: riesgoData,
+      gestion: gestionData,
+      actividad: actividadData,
       resumenCaps,
+      distribucionEG: distribucionEGMapped,
+      coberturaStats,
       tipoEfector,
 
-      // 🌟 PROPIEDADES ADICIONALES PARA LA VERSIÓN 2
+      // ✅ BLOCO PARA A VERSÃO 2 (/dashboard/stats-v2)
       statsV2: {
         padronProvincial: {
           total: desgloseMap.CAPITAL.TOTAL + desgloseMap.INTERIOR.TOTAL,
@@ -609,8 +634,12 @@ export async function GET(request: Request) {
           activos: activosUso,
           sinUso: chipsSinUso
         },
-        coberturaSalud: coberturaSaludV2,
-        edadGestacional: egV2Res.rows.map((r: any) => ({
+        coberturaSalud: {
+          publica: coberturaStats[0].value,
+          obraSocial: coberturaStats[1].value,
+          sinRegistro: coberturaStats[2].value
+        },
+        edadGestacional: egV1Res.rows.map((r: any) => ({
           rango: r.rango_eg,
           total: parseInt(r.total_embarazos) || 0,
           controladas: parseInt(r.total_controladas) || 0
