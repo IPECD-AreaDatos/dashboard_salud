@@ -99,6 +99,7 @@ DATABASE_URL=postgresql+psycopg2://USUARIO:PASSWORD@HOST:5432/salud
 # Configuración de NextAuth (Imprescindibles para que el Login funcione)
 NEXTAUTH_SECRET=un_string_super_seguro
 NEXTAUTH_URL=http://localhost:3000   # (O el dominio de producción)
+IMI_SSO_BASE_URL=https://appimi.corrientes.gob.ar # En local, usa identidad central de producción
 \`\`\`
 
 ### 2. Instalación de Dependencias

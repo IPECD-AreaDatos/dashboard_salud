@@ -2,10 +2,10 @@
 import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { query } from "@/lib/db";
 import { cookies } from "next/headers";
 import { centralHealthUser } from "@/lib/centralSso";
-import bcrypt from "bcrypt"; // Volvemos a bcrypt nativo
+import { query } from "@/lib/db";
+import bcrypt from "bcrypt";
 
 // 1. Extraemos la configuración para que sea exportable
 export const authOptions: NextAuthOptions = {
@@ -21,50 +21,37 @@ export const authOptions: NextAuthOptions = {
       }
     }),
     CredentialsProvider({
-      name: "Credentials",
+      id: "credentials",
+      name: "Credenciales locales pendientes de migración",
       credentials: {
         usuario: { label: "Usuario", type: "text" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
         if (!credentials?.usuario || !credentials?.password) return null;
-
         try {
-          const res = await query(
-            `SELECT u.*, 
-                    COALESCE(m.nombre, e.nombre) as nombre_oficial
+          const result = await query(
+            `SELECT u.*, COALESCE(m.nombre,e.nombre) AS nombre_oficial
              FROM usuarios u
-             LEFT JOIN maternidades m ON u.maternidad_id = m.id
-             LEFT JOIN efectores_sisa e ON (u.sisa_code = e.codigo_sisa OR u.cuie_code = e.cuie)
-             WHERE u.username = $1`,
+             LEFT JOIN maternidades m ON u.maternidad_id=m.id
+             LEFT JOIN efectores_sisa e ON (u.sisa_code=e.codigo_sisa OR u.cuie_code=e.cuie)
+             WHERE u.username=$1
+               AND NOT EXISTS (SELECT 1 FROM imi_sso_vinculos v WHERE v.usuario_salud_id=u.id AND v.activo)`,
             [credentials.usuario.trim()]
           );
-
-          const user = res.rows[0];
-          if (!user) return null;
-
-          const storedHash = user.password_hash.trim();
-          const providedPassword = credentials.password.trim();
-
-
-          const match = await bcrypt.compare(providedPassword, storedHash);
-
-          if (match) {
-            // Retornamos el objeto usuario con el rol incluido
-            return {
-              id: user.id.toString(),
-              name: user.nombre_oficial || user.username,
-              username: user.username,
-              role: user.role,
-              sisa_code: user.sisa_code,
-              cuie_code: user.cuie_code,
-              maternidad_id: user.maternidad_id
-            };
-          }
-
-          return null;
+          const user = result.rows[0];
+          if (!user || !(await bcrypt.compare(credentials.password.trim(), user.password_hash.trim()))) return null;
+          return {
+            id: String(user.id),
+            name: user.nombre_oficial || user.username,
+            username: user.username,
+            role: user.role,
+            sisa_code: user.sisa_code,
+            cuie_code: user.cuie_code,
+            maternidad_id: user.maternidad_id
+          };
         } catch (error) {
-          console.error("Error en authorize:", error);
+          console.error("Error en autenticación local pendiente:", error);
           return null;
         }
       }
@@ -79,6 +66,11 @@ export const authOptions: NextAuthOptions = {
         const verified = await centralHealthUser(jar.get('imi_sso')?.value);
         if (!verified || verified.centralUsername !== token.centralUsername || (token.id && String(verified.id) !== String(token.id))) throw new Error('Sesión central no válida');
         user = verified;
+      } else {
+        const localId = user?.id || token.id;
+        if (!localId) throw new Error('La sesión de Salud no es válida');
+        const migrated = await query('SELECT 1 FROM imi_sso_vinculos WHERE usuario_salud_id=$1 AND activo LIMIT 1', [localId]);
+        if (migrated.rowCount) throw new Error('La cuenta ya utiliza identidad central');
       }
       if (user) {
         token.id = user.id; // 👈 SOLUCIÓN: Guardamos el ID en el JWT mapeado

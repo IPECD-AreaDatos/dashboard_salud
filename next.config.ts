@@ -20,9 +20,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true, // Para que el deploy no se frene por tipos
   },
-  eslint: {
-    ignoreDuringBuilds: true, // Evita que fallos de estilo frenen el deploy
-  }
 };
 
 export default nextConfig;
