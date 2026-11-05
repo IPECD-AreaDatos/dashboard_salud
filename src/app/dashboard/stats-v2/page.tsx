@@ -31,10 +31,7 @@ export default function StatsV2Page() {
     }
   }, [status, esAutorizadoV2, router]);
 
-  if (status === "loading" || !esAutorizadoV2) {
-    return null;
-  }
-  
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -265,6 +262,10 @@ export default function StatsV2Page() {
     };
   }, [pctCoberturaTotal, selectedEfectorIdx, resumenEfectores, tipoEfector]);
 
+  if (status === "loading" || !esAutorizadoV2) {
+    return null;
+  }
+
   return (
     <div className={styles.container}>
       <Navbar />
@@ -353,24 +354,24 @@ export default function StatsV2Page() {
                     {pctCapital}%
                   </span>
                 </div>
-                <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "13px", fontWeight: 600 }}>
+                <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 }}>
                   <div 
-                    style={{ width: `${(capital.CAPS * 100) / capital.TOTAL}%`, background: "#4E6FAE", color: "#FFFFFF", display: "flex", alignItems: "center", paddingLeft: "10px", whiteSpace: "nowrap" }}
+                    style={{ width: `${(capital.CAPS * 100) / capital.TOTAL}%`, background: "#4E6FAE", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`CAPS: ${capital.CAPS}`}
                   >
                     CAPS {capital.CAPS}
                   </div>
                   <div 
-                    style={{ width: `${(capital.SAPS * 100) / capital.TOTAL}%`, backgroundColor: "#8DB4FF", color: "#2E2D2C", display: "flex", alignItems: "center", paddingLeft: "10px", whiteSpace: "nowrap" }}
+                    style={{ width: `${(capital.SAPS * 100) / capital.TOTAL}%`, backgroundColor: "#8DB4FF", color: "#2E2D2C", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`SAPS: ${capital.SAPS}`}
                   >
                     SAPS {capital.SAPS}
                   </div>
                   <div 
-                    style={{ width: `${(capital.HOSPITAL * 100) / capital.TOTAL}%`, backgroundColor: "#CAE1FF", color: "#2E2D2C", display: "flex", alignItems: "center", paddingLeft: "8px", whiteSpace: "nowrap" }}
+                    style={{ width: `${(capital.HOSPITAL * 100) / capital.TOTAL}%`, backgroundColor: "#CAE1FF", color: "#2E2D2C", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`Hospitales: ${capital.HOSPITAL}`}
                   >
-                    {capital.HOSPITAL > 50 ? `Hosp. ${capital.HOSPITAL}` : capital.HOSPITAL}
+                    {(capital.HOSPITAL * 100) / capital.TOTAL > 8 ? `Hosp. ${capital.HOSPITAL}` : capital.HOSPITAL}
                   </div>
                 </div>
               </div>
@@ -386,21 +387,21 @@ export default function StatsV2Page() {
                     {pctInterior}%
                   </span>
                 </div>
-                <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "13px", fontWeight: 600 }}>
+                <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 }}>
                   <div 
-                    style={{ width: `${(interior.CAPS * 100) / interior.TOTAL}%`, background: "#4E6FAE", color: "#FFFFFF", display: "flex", alignItems: "center", paddingLeft: "10px", whiteSpace: "nowrap" }}
+                    style={{ width: `${(interior.CAPS * 100) / interior.TOTAL}%`, background: "#4E6FAE", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`CAPS: ${interior.CAPS}`}
                   >
                     CAPS {interior.CAPS}
                   </div>
                   <div 
-                    style={{ width: `${(interior.SAPS * 100) / interior.TOTAL}%`, backgroundColor: "#8DB4FF", color: "#2E2D2C", display: "flex", alignItems: "center", paddingLeft: "8px", whiteSpace: "nowrap" }}
+                    style={{ width: `${(interior.SAPS * 100) / interior.TOTAL}%`, backgroundColor: "#8DB4FF", color: "#2E2D2C", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`SAPS: ${interior.SAPS}`}
                   >
-                    {interior.SAPS > 60 ? `SAPS ${interior.SAPS}` : interior.SAPS}
+                    {(interior.SAPS * 100) / interior.TOTAL > 8 ? `SAPS ${interior.SAPS}` : interior.SAPS}
                   </div>
                   <div 
-                    style={{ width: `${(interior.HOSPITAL * 100) / interior.TOTAL}%`, backgroundColor: "#CAE1FF", color: "#2E2D2C", display: "flex", alignItems: "center", paddingLeft: "10px", whiteSpace: "nowrap" }}
+                    style={{ width: `${(interior.HOSPITAL * 100) / interior.TOTAL}%`, backgroundColor: "#CAE1FF", color: "#2E2D2C", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`Hospitales: ${interior.HOSPITAL}`}
                   >
                     Hosp. {interior.HOSPITAL}
