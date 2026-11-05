@@ -8,7 +8,28 @@ export async function centralHealthUser(token: string | undefined) {
     const data: unknown=await response.json();
     if (!data || typeof data !== 'object') return null;
     const session=data as {usuario?:unknown;tableros?:unknown};
-    if (typeof session.usuario!=='string' || !Array.isArray(session.tableros) || !session.tableros.some((b: unknown)=>b && typeof b==='object' && (b as {codigo?:unknown}).codigo==='salud' && ['acceso','admin'].includes(String((b as {rango?:unknown}).rango)))) return null;
+    if (typeof session.usuario!=='string' || !Array.isArray(session.tableros)) return null;
+    const salud = session.tableros.find((board: unknown) =>
+      board && typeof board === 'object' && (board as {codigo?:unknown}).codigo === 'salud'
+    ) as { rango?: unknown } | undefined;
+    const rango = String(salud?.rango || '').toLowerCase();
+    if (!['acceso','admin'].includes(rango)) return null;
+
+    // El rango central admin ya concede el rol Administrador de Salud.
+    // No requiere una segunda cuenta ni un vínculo a public.usuarios.
+    if (rango === 'admin') {
+      return {
+        id: `central:${session.usuario}`,
+        name: session.usuario,
+        username: session.usuario,
+        role: 'Administrador',
+        sisa_code: null,
+        cuie_code: null,
+        maternidad_id: null,
+        centralUsername: session.usuario
+      };
+    }
+
     const result=await query(`SELECT u.id,u.username,u.role,u.sisa_code,u.cuie_code,u.maternidad_id, COALESCE(m.nombre,e.nombre,u.username) AS nombre_oficial
       FROM imi_sso_vinculos v JOIN usuarios u ON u.id=v.usuario_salud_id
       LEFT JOIN maternidades m ON u.maternidad_id=m.id LEFT JOIN efectores_sisa e ON (u.sisa_code=e.codigo_sisa OR u.cuie_code=e.cuie)

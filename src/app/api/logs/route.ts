@@ -56,8 +56,14 @@ export async function POST(request: Request) {
 
     // Pasamos las variables mapeando la sesión del agente actual
     // Nota: Usamos fallbacks por si algún campo de la sesión viene indefinido
+    const numericUserId = Number(u.id);
+    // La tabla histórica requiere un entero y no tiene FK a usuarios; el nombre
+    // central queda registrado en usuario_name para identificar al actor real.
+    const auditUserId = Number.isSafeInteger(numericUserId) && numericUserId > 0
+      ? numericUserId
+      : 0;
     const params = [
-      u.id || 0,
+      auditUserId,
       nombreUsuarioLogin, // El usuario de acceso (ej: ga.caps6.cap)
       u.role || "Sin Rol",
       nombreEstablecimiento, // Nombre real del centro (ej: C.A.P.S. 6...)

@@ -82,8 +82,12 @@ export async function POST(request: Request) {
       ) RETURNING id
     `;
 
-    // Usamos el ID real de la sesión de NextAuth para el usuario_id
-    const dbUsuarioId = session.user.id;
+    // Las sesiones centrales no tienen un usuario_id local de Salud.
+    // seguimientos.usuario_id admite NULL y mantiene su FK a usuarios(id).
+    const numericUserId = Number(session.user.id);
+    const dbUsuarioId = Number.isSafeInteger(numericUserId) && numericUserId > 0
+      ? numericUserId
+      : null;
     const cita = proxima_cita ? proxima_cita : null;
 
     const params = [
@@ -95,7 +99,7 @@ export async function POST(request: Request) {
       observaciones,
       cita,
       session.user.username || session.user.name || "Usuario",
-      dbUsuarioId ? parseInt(dbUsuarioId.toString(), 10) : null // $9 👈 Convertido a número estricto para evitar incompatibilidad de tipos con int4
+      dbUsuarioId
     ];
 
     const result = await query(sql, params);
