@@ -54,7 +54,9 @@ export default function LandingClient({ checkPortal }: { checkPortal: boolean })
         body: JSON.stringify({ usuario: usuario.trim(), password: password.trim() }),
       });
       if (!centralLogin.ok) {
-        if (centralLogin.status === 401) {
+        // Las cuentas anteriores conservan su ingreso local mientras se valida
+        // la migración central. Un permiso central incompleto no debe bloquearlas.
+        if ([401, 403, 503].includes(centralLogin.status)) {
           const legacy = await signIn('credentials', {
             usuario: usuario.trim(),
             password: password.trim(),
