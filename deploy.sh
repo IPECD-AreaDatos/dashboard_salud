@@ -1,32 +1,72 @@
-#!/bin/bash
-# Evitar que el build falle por falta de memoria en el EC2 de 8GB
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# Limitar el heap para el build en la EC2 de 8 GB.
 export NODE_OPTIONS="--max-old-space-size=4096"
 
-echo "?? Iniciando actualizaci髇 robusta del Dashboard de Salud..."
+repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$repo_dir"
 
-# 1. Limpiar cualquier cambio accidental en el servidor y bajar lo nuevo
-echo "?? Trayendo cambios de GitHub..."
+# Los comandos SSH no interactivos no cargan NVM desde .bashrc.
+if [[ -s /home/ubuntu/.nvm/nvm.sh ]]; then
+  # shellcheck disable=SC1091
+  source /home/ubuntu/.nvm/nvm.sh
+fi
+
+for command_name in git npm pm2 curl; do
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    printf 'No se encontr贸 %s en PATH. Abortando.\n' "$command_name" >&2
+    exit 1
+  fi
+done
+
+echo "Actualizando Dashboard de Salud en EC2..."
 git fetch origin main
 git reset --hard origin/main
 
-# 2. Instalar dependencias
-echo "?? Instalando dependencias..."
+echo "Instalando dependencias..."
 npm install --quiet
 
-# 3. Limpieza total y Build
-echo "???  Compilando aplicaci髇 (Next.js)..."
-rm -rf .next
-if npm run build; then
-    echo "? Build completado con 閤ito."
-else
-    echo "? Error en el build. Abortando deploy."
-    exit 1
+# Conservar el 煤ltimo build completo hasta comprobar el nuevo.
+backup_dir=".next.rollback.$$"
+if [[ -d .next ]]; then
+  mv .next "$backup_dir"
 fi
 
-# 4. Reinicio inteligente en PM2
-# startOrRestart asegura que si el proceso no existe, lo crea; y si existe, lo refresca.
-echo "?? Reiniciando proceso en PM2..."
-pm2 startOrRestart ecosystem.config.js --name "salud-dashboard" || pm2 restart salud-dashboard
+restore_previous_build() {
+  if [[ -d "$backup_dir" ]]; then
+    rm -rf .next
+    mv "$backup_dir" .next
+  fi
+}
 
-pm2 save
-echo "? ashboard online en http://54.94.131.196/salud-dashboard!"
+echo "Compilando Next.js..."
+if ! npm run build; then
+  restore_previous_build
+  echo "Fall贸 el build; se restaur贸 el artefacto anterior." >&2
+  exit 1
+fi
+
+echo "Reiniciando salud-dashboard en el puerto 3005..."
+if ! pm2 restart salud-dashboard; then
+  restore_previous_build
+  echo "PM2 no pudo reiniciar salud-dashboard." >&2
+  exit 1
+fi
+
+http_status=""
+for attempt in {1..30}; do
+  http_status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 2 http://127.0.0.1:3005/salud-dashboard || true)"
+  if [[ "$http_status" =~ ^[23][0-9][0-9]$ ]]; then
+    rm -rf "$backup_dir"
+    pm2 save
+    echo "Dashboard respondi贸 HTTP $http_status en EC2."
+    exit 0
+  fi
+  sleep 1
+done
+
+restore_previous_build
+pm2 restart salud-dashboard || true
+printf 'El dashboard no respondi贸 tras el reinicio (HTTP %s).\n' "$http_status" >&2
+exit 1

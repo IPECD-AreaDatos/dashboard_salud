@@ -31,10 +31,6 @@ export default function StatsV2Page() {
     }
   }, [status, esAutorizadoV2, router]);
 
-  if (status === "loading" || !esAutorizadoV2) {
-    return null;
-  }
-  
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,8 +69,9 @@ export default function StatsV2Page() {
   };
 
   useEffect(() => {
+    if (status !== "authenticated" || !esAutorizadoV2) return;
     fetchStats();
-  }, [tipoEfector, periodoDias]);
+  }, [status, esAutorizadoV2, tipoEfector, periodoDias]);
 
   const handlePeriodPick = (dias: number) => {
     setPeriodoDias(dias);
@@ -264,6 +261,10 @@ export default function StatsV2Page() {
       refEndY: evoY(totSeries[12])
     };
   }, [pctCoberturaTotal, selectedEfectorIdx, resumenEfectores, tipoEfector]);
+
+  if (status === "loading" || !esAutorizadoV2) {
+    return null;
+  }
 
   return (
     <div className={styles.container}>

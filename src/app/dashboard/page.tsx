@@ -1,6 +1,6 @@
 /*src/app/dashboard/page.tsx*/
 "use client";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { registrarLog } from "@/lib/analytics";
 import styles from "./Dashboard.module.css";
 import Navbar from "@/components/Navbar";
@@ -98,7 +98,7 @@ const romanToArabic = (text: string) => {
   return newText;
 };
 
-export default function SeguimientoPage() {
+function SeguimientoPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const userRole = session?.user?.role;
@@ -1113,5 +1113,13 @@ export default function SeguimientoPage() {
         />
       )}
     </>
+  );
+}
+
+export default function SeguimientoPage() {
+  return (
+    <Suspense fallback={<div className={styles.container} aria-busy="true">Cargando seguimiento…</div>}>
+      <SeguimientoPageContent />
+    </Suspense>
   );
 }
