@@ -31,9 +31,6 @@ export default function StatsV2Page() {
     }
   }, [status, esAutorizadoV2, router]);
 
-  if (status === "loading" || !esAutorizadoV2) {
-    return null;
-  }
   
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -265,10 +262,6 @@ export default function StatsV2Page() {
       refEndY: evoY(totSeries[12])
     };
   }, [pctCoberturaTotal, selectedEfectorIdx, resumenEfectores, tipoEfector]);
-
-  if (status === "loading" || !esAutorizadoV2) {
-    return null;
-  }
 
   if (status === "loading" || !esAutorizadoV2) {
     return null;
