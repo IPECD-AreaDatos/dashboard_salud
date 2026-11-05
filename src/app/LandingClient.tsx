@@ -44,27 +44,48 @@ export default function LandingClient({ checkPortal }: { checkPortal: boolean })
     setLoading(true);
     setError("");
 
-    const res = await signIn("credentials", {
-      usuario: usuario.trim(),
-      password: password.trim(),
-      redirect: false,
-    });
-
-    if (res?.error) {
-      setError("Credenciales incorrectas");
-      setLoading(false);
-    } else {
-      // Determinamos el prefijo base de la app
-      const basePath = window.location.pathname.startsWith('/salud-dashboard') ? '/salud-dashboard' : '';
-      
-      const sessionRes = await fetch(`${basePath}/api/auth/session`);
-      const sessionData = await sessionRes.json();
-
-      if (sessionData?.user?.role === "Primeros Latidos") {
-        router.push("/dashboard/primeros-latidos");
-      } else {
-        router.push("/dashboard");
+    const basePath = window.location.pathname.startsWith('/salud-dashboard') ? '/salud-dashboard' : '';
+    try {
+      const centralLogin = await fetch(`${basePath}/api/auth/central-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify({ usuario: usuario.trim(), password: password.trim() }),
+      });
+      if (!centralLogin.ok) {
+        if (centralLogin.status === 401) {
+          const legacy = await signIn('credentials', {
+            usuario: usuario.trim(),
+            password: password.trim(),
+            redirect: false,
+          });
+          if (legacy?.ok) {
+            const sessionRes = await fetch(`${basePath}/api/auth/session`, { cache: 'no-store' });
+            const sessionData = await sessionRes.json();
+            router.replace(sessionData?.user?.role === 'Primeros Latidos' ? '/dashboard/primeros-latidos' : '/dashboard');
+            return;
+          }
+        }
+        const data = await centralLogin.json().catch(() => null);
+        setError(data?.error || 'No se pudo iniciar sesión. Revisá tus credenciales e intentá de nuevo.');
+        setLoading(false);
+        return;
       }
+
+      const res = await signIn('imi-central', { redirect: false });
+      if (!res?.ok) {
+        setError('La cuenta no tiene un acceso activo a Salud.');
+        setLoading(false);
+        return;
+      }
+
+      const sessionRes = await fetch(`${basePath}/api/auth/session`, { cache: 'no-store' });
+      const sessionData = await sessionRes.json();
+      router.replace(sessionData?.user?.role === 'Primeros Latidos' ? '/dashboard/primeros-latidos' : '/dashboard');
+    } catch {
+      setError('No se pudo conectar con el servicio de identidad. Intentá de nuevo en unos minutos.');
+      setLoading(false);
     }
   };
 
