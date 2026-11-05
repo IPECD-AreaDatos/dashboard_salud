@@ -58,7 +58,6 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
     setSaving(true);
     
     const identificadorUsuario = session.user.username || session.user.name || "Anonimo";
-    const usuarioId = session.user.id ? parseInt(session.user.id, 10) : null;
     
     try {
       const res = await apiFetch("/seguimientos", {
@@ -67,8 +66,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
         body: JSON.stringify({
           paciente_id: paciente.id,
           ...formData,
-          personal_salud: identificadorUsuario, 
-          usuario_id: usuarioId                  
+          personal_salud: identificadorUsuario
         })
       });
       
