@@ -209,6 +209,9 @@ JOIN identidad.rangos r ON r.id=a.rango_id AND r.tablero_id=t.id AND r.codigo<>'
 WHERE NOT u.es_admin_global
 ON CONFLICT (acceso_id,tipo,valor) DO NOTHING;
 
+-- El servicio de identidad consulta estos alcances al responder /sso/me.
+GRANT SELECT ON TABLE identidad.alcances TO imi_sso_production_login;
+
 INSERT INTO identidad.identidades_origen(usuario_id,sistema,entidad,id_origen)
 SELECT u.id,'salud','usuarios',i.source_id
 FROM _salud_import i

@@ -16,7 +16,7 @@ Las contraseñas bcrypt existentes se importan como `bcrypt-legacy` y se cambian
 
 ## Procedimiento
 
-1. Actualizar y verificar el servicio de identidad central con soporte `bcrypt-legacy` y entrega de alcances en `/sso/me`.
+1. Actualizar y verificar el servicio de identidad central con soporte `bcrypt-legacy`, entrega de alcances en `/sso/me` y permiso `SELECT` sobre `identidad.alcances` para `imi_sso_production_login`.
 2. Ejecutar `python ops/migrar_usuarios_central.py` para simular la migración. La operación termina con `ROLLBACK` y no guarda usuarios ni permisos.
 3. Si la simulación no detecta conflictos, ejecutar `python ops/migrar_usuarios_central.py --apply`. El programa agrega usuarios, credenciales válidas, rangos, accesos, alcances y vínculos de origen; luego bloquea las credenciales locales de esas cuentas.
 4. Desplegar Salud. No desplegar si el script informa que aplicó la base central pero no pudo registrar los marcadores locales.
@@ -36,7 +36,7 @@ La primera etapa no borra `public.usuarios`, hashes locales, ni los datos de act
 - La carga central se aplicó después de validar un respaldo PostgreSQL con `pg_restore --list`: `/var/backups/imi/imi_identidad_pre_salud_20261105.dump`.
 - Se procesaron 56 cuentas: 55 identidades nuevas, 54 credenciales bcrypt válidas y una cuenta pendiente de contraseña (`caps13`). No se sobrescribieron credenciales centrales existentes.
 - Se registraron los 56 vínculos de origen, 55 accesos individuales nuevos y 93 alcances. La base contiene 57 accesos activos a Salud contando dos accesos administrativos que ya existían.
-- Los 56 marcadores locales quedaron activos y sin referencias huérfanas. Salud ya no aceptará la contraseña local de una cuenta migrada; la pantalla y dirección de ingreso de Salud se conservan.
+- Inicialmente los 56 marcadores locales quedaron activos y sin referencias huérfanas. Su estado actual se indica en «Recuperación del ingreso».
 - Para volver atrás, restaurar la versión anterior del tablero y desactivar los marcadores de las cuentas migradas en `public.imi_sso_vinculos`. No borrar usuarios, hashes locales ni datos de actividad.
 - `caps13` debe recibir un enlace de «alta con contraseña» desde Administración de usuarios; el enlace se comparte con la persona por el canal habitual.
 
@@ -46,3 +46,5 @@ La primera etapa no borra `public.usuarios`, hashes locales, ni los datos de act
 - Se corrigió la validación para aceptar el origen público fijo de IMI en producción y el origen local de desarrollo. Una solicitud pública válida con cuerpo vacío debe devolver HTTP 400, nunca HTTP 403.
 - Los 56 vínculos de `public.imi_sso_vinculos` quedaron temporalmente inactivos. Así, Salud vuelve a aceptar las claves locales previas mientras se comprueba el ingreso central con usuarios reales. La base central y sus accesos siguen disponibles.
 - Reactivar esos vínculos solo después de confirmar que una cuenta heredada y `mzalazar` ingresan correctamente desde Salud.
+- El servicio central devolvía HTTP 503 al consultar `/sso/me`: su usuario PostgreSQL `imi_sso_production_login` carecía de `SELECT` sobre `identidad.alcances`. Se concedió únicamente ese permiso y se verificó la misma consulta con el rol del servicio.
+- El formulario ahora acepta las credenciales locales anteriores si la validación central devuelve 401, 403 o 503. Tras la concesión, un usuario confirmó que pudo volver a ingresar y el diagnóstico ya no registró nuevas respuestas 503.
