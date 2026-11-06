@@ -177,19 +177,24 @@ function SeguimientoPageContent() {
   }, []);
 
   // 2. Sincronización con los parámetros de la URL (cuando venís de Estadísticas V2)
+  // 2. Sincronización con los parámetros de la URL (cuando venís de Estadísticas V2)
   useEffect(() => {
-    const estParam = searchParams.get("establecimiento") || searchParams.get("tipoGrupo");
+    const grupoParam = searchParams.get("tipoGrupo") || (
+      searchParams.get("establecimiento") === "CAPS" || searchParams.get("establecimiento") === "SAPS"
+        ? searchParams.get("establecimiento")
+        : null
+    );
+    const estParam = searchParams.get("establecimiento");
     const atrasadasParam = searchParams.get("controlesAtrasados");
     const porVencerParam = searchParams.get("porVencer");
 
-    const esDesdeV2 = Boolean(estParam || atrasadasParam !== null || porVencerParam !== null);
+    const esDesdeV2 = Boolean(grupoParam || atrasadasParam !== null || porVencerParam !== null);
 
     if (esDesdeV2) {
-      // 1. Setea efector (CAPS / SAPS)
-      if (estParam) {
-        setFilterTipoGrupo(estParam);
-        setFilterEst(estParam);
-        setSearchTerm(estParam);
+      if (grupoParam) {
+        setFilterTipoGrupo(grupoParam);
+        setFilterEst(grupoParam);
+        setSearchTerm(grupoParam);
       }
 
       const esPorVencer = porVencerParam === "true";
@@ -198,10 +203,9 @@ function SeguimientoPageContent() {
       let atrasadosVal: string | undefined = undefined;
 
       if (esPorVencer) {
-        // 🌟 SI ES POR VENCER: Apagamos el filtro de atrasadas tanto en la UI como en el filtro local
         setFilterAtrasados("Todas");
         setAplicadoAtrasados("Todas");
-        atrasadosVal = undefined;
+        atrasadosVal = "Todas"; // 👈 Forzar explícitamente "Todas" (no dejar undefined)
       } else if (atrasadasParam === "true") {
         setFilterAtrasados("Si");
         setAplicadoAtrasados("Si");
@@ -212,21 +216,19 @@ function SeguimientoPageContent() {
         atrasadosVal = "No";
       }
 
-      // 2. Dispara la consulta limpia
       fetchPacientes(
         undefined,                                     // dni
         false,                                         // exacto
-        estParam || "Todos",                           // establecimiento
+        grupoParam ? "Todos" : (estParam || "Todos"),  // establecimiento
         undefined,                                     // trimestre
         undefined,                                     // riesgo
-        atrasadosVal,                                  // atrasados (undefined si es porVencer)
+        atrasadosVal,                                  // atrasados
         undefined,                                     // excluirDerivadas
-        false,                                         // esCargaInicial = false
-        estParam || undefined,                         // tipoGrupo
+        false,                                         // esCargaInicial
+        grupoParam || undefined,                       // tipoGrupo
         esPorVencer                                    // porVencer
       );
     } else {
-      // Carga habitual por defecto si se entró directamente a /dashboard
       setFilterTipoGrupo(null);
       setSoloPorVencer(false);
       fetchPacientes(undefined, false, "Todos", "Todos", "Todas", "Si", undefined, true);
@@ -432,21 +434,26 @@ function SeguimientoPageContent() {
     return 0;
   });
 
-  // Generar el texto dinámico de filtros
   const getFiltrosAplicadosTexto = () => {
     const partes = [];
+
+    if (filterTipoGrupo) {
+      partes.push(`Centros: ${filterTipoGrupo}`);
+    }
 
     if (aplicadoRiesgo === "Si") {
       partes.push("Embarazadas de Riesgo");
     }
 
-    if (aplicadoAtrasados === "Si") {
+    if (soloPorVencer) {
+      partes.push("Por Vencer (sin turno)");
+    } else if (aplicadoAtrasados === "Si") {
       partes.push("Controles Atrasados");
     } else if (aplicadoAtrasados === "No") {
       partes.push("Controles al día");
     }
 
-    if (filterEst !== "Todos") {
+    if (filterEst !== "Todos" && filterEst !== "CAPS" && filterEst !== "SAPS") {
       const estNombre = establecimientos.find(e => e.value === filterEst)?.label;
       if (estNombre) partes.push(estNombre);
     }
@@ -455,7 +462,6 @@ function SeguimientoPageContent() {
       partes.push(`${aplicadoTrimestre}° Trimestre`);
     }
 
-    // 👈 AGREGADO: Ahora también mostramos si se están incluyendo las derivadas
     if (!excluirDerivadas) {
       partes.push("Incluyendo Derivadas");
     }
@@ -600,6 +606,8 @@ function SeguimientoPageContent() {
                       isOpen 
                         ? searchTerm 
                         : (() => {
+                            if (filterTipoGrupo === "CAPS") return "Todos los CAPS";
+                            if (filterTipoGrupo === "SAPS") return "Todos los SAPS";
                             const est = establecimientos.find((e: any) => e.value === filterEst);
                             if (!est || est.value === "Todos") return "Todos los establecimientos";
                             const loc = est.localidad ? ` (${est.localidad})` : '';

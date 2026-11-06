@@ -43,6 +43,17 @@ export default function StatsV2Page() {
   const [sortKey, setSortKey] = useState<"name" | "pad" | "cov" | "seg">("cov");
   const [sortAsc, setSortAsc] = useState<boolean>(true);
 
+  const handleSort = (key: "name" | "pad" | "cov" | "seg") => {
+    if (sortKey === key) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortKey(key);
+      // Por defecto orden descendente para métricas numéricas (mayor a menor)
+      // y ascendente para el nombre del centro
+      setSortAsc(key === "name");
+    }
+  };
+
   // --- MANEJO DE FECHAS Y PERÍODOS SINCRONIZADO ---
   const fechaHoy = new Date().toISOString().split("T")[0];
   const [fechaHasta, setFechaHasta] = useState(fechaHoy);
@@ -406,7 +417,7 @@ export default function StatsV2Page() {
               
               {/* Bloque Capital (proporción 40.7%) */}
               <div style={{ flex: "40.7 1 280px", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #4E6FAE", paddingBottom: "6px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #2B4C7E", paddingBottom: "6px" }}>
                   <span style={{ fontSize: "15px", fontWeight: 700, color: "#2E2D2C" }}>Capital</span>
                   <span style={{ fontSize: "14px", color: "#5E5D5B", display: "flex", alignItems: "baseline", gap: "8px" }}>
                     <b style={{ fontSize: "22px", color: "#2E2D2C", fontVariantNumeric: "tabular-nums" }}>
@@ -417,29 +428,29 @@ export default function StatsV2Page() {
                 </div>
                 <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 }}>
                   <div 
-                    style={{ width: `${(capital.CAPS * 100) / capital.TOTAL}%`, background: "#4E6FAE", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
+                    style={{ width: `${(capital.CAPS * 100) / capital.TOTAL}%`, background: "#2B4C7E", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`CAPS: ${capital.CAPS}`}
                   >
                     CAPS {capital.CAPS}
                   </div>
                   <div 
-                    style={{ width: `${(capital.SAPS * 100) / capital.TOTAL}%`, backgroundColor: "#8DB4FF", color: "#2E2D2C", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
+                    style={{ width: `${(capital.SAPS * 100) / capital.TOTAL}%`, background: "#4E79B5", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`SAPS: ${capital.SAPS}`}
                   >
                     SAPS {capital.SAPS}
                   </div>
                   <div 
-                    style={{ width: `${(capital.HOSPITAL * 100) / capital.TOTAL}%`, backgroundColor: "#CAE1FF", color: "#2E2D2C", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
+                    style={{ width: `${(capital.HOSPITAL * 100) / capital.TOTAL}%`, background: "#719AD4", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`Hospitales: ${capital.HOSPITAL}`}
                   >
-                    {(capital.HOSPITAL * 100) / capital.TOTAL > 8 ? `Hosp. ${capital.HOSPITAL}` : capital.HOSPITAL}
+                    Hosp. {capital.HOSPITAL}
                   </div>
                 </div>
               </div>
 
               {/* Bloque Interior (Unificando CAPS/SAPS y luego Hospitales) */}
               <div style={{ flex: "59.3 1 360px", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #4E6FAE", paddingBottom: "6px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #2B4C7E", paddingBottom: "6px" }}>
                   <span style={{ fontSize: "15px", fontWeight: 700, color: "#2E2D2C" }}>Interior</span>
                   <span style={{ fontSize: "14px", color: "#5E5D5B", display: "flex", alignItems: "baseline", gap: "8px" }}>
                     <b style={{ fontSize: "22px", color: "#2E2D2C", fontVariantNumeric: "tabular-nums" }}>
@@ -453,7 +464,7 @@ export default function StatsV2Page() {
                   <div 
                     style={{ 
                       width: `${((interior.CAPS + interior.SAPS) * 100) / interior.TOTAL}%`, 
-                      background: "#4E6FAE", 
+                      background: "#2B4C7E", 
                       color: "#FFFFFF", 
                       display: "flex", 
                       alignItems: "center", 
@@ -462,7 +473,7 @@ export default function StatsV2Page() {
                       whiteSpace: "nowrap", 
                       overflow: "hidden" 
                     }}
-                    title={`CAPS/SAPS Interior: ${interior.CAPS + interior.SAPS} (CAPS: ${interior.CAPS}, SAPS: ${interior.SAPS})`}
+                    title={`CAPS/SAPS Interior: ${interior.CAPS + interior.SAPS}`}
                   >
                     CAPS/SAPS {interior.CAPS + interior.SAPS}
                   </div>
@@ -471,8 +482,8 @@ export default function StatsV2Page() {
                   <div 
                     style={{ 
                       width: `${(interior.HOSPITAL * 100) / interior.TOTAL}%`, 
-                      backgroundColor: "#8DB4FF", 
-                      color: "#1e293b", 
+                      background: "#719AD4", 
+                      color: "#FFFFFF", 
                       display: "flex", 
                       alignItems: "center", 
                       justifyContent: "center", 
@@ -550,7 +561,7 @@ export default function StatsV2Page() {
             </div>
 
             <Link 
-              href={`/dashboard?establecimiento=${tipoEfector}&tipoGrupo=${tipoEfector}&controlesAtrasados=true`}
+              href={`/dashboard?tipoGrupo=${tipoEfector}&controlesAtrasados=true`}
               className={styles.indicadorCardAtraso}
             >
               <div className={styles.cardHeaderRow}>
@@ -578,7 +589,7 @@ export default function StatsV2Page() {
 
           <div className={styles.kpiRowGrid}>
             <Link 
-              href={`/dashboard?establecimiento=${tipoEfector}&tipoGrupo=${tipoEfector}&porVencer=true`}
+              href={`/dashboard?tipoGrupo=${tipoEfector}&porVencer=true`}
               className={styles.indicadorCardSmall}
             >
               <div className={styles.cardHeaderRow}>
