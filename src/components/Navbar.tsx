@@ -129,12 +129,19 @@ export default function Navbar() {
 
         <button
           onClick={async () => {
-            await signOut({ redirect: false });
-            // Redirige directamente al inicio (donde está el formulario de login)
             const basePath = window.location.pathname.startsWith('/salud-dashboard') 
               ? '/salud-dashboard' 
               : '';
-            window.location.href = `${basePath}/`;
+            try {
+              await fetch(`${basePath}/api/auth/logout-central`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                cache: 'no-store',
+              });
+            } finally {
+              await signOut({ redirect: false });
+              window.location.replace(`${basePath}/?salir=1`);
+            }
           }}
           className={styles.logoutBtn}
           title="Cerrar Sesión"
