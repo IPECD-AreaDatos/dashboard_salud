@@ -1,18 +1,23 @@
 "use client";
 
-import { generarReporteStatsPDF } from "@/lib/pdfReporteStats";
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import { generarReporteStatsPDF } from "@/lib/pdfReporteStats";
+import { exportarReporteStatsExcel } from "@/lib/excelReporteStats";
 import { 
   Download, 
   ArrowRight, 
   AlertTriangle, 
   Building2, 
   BarChart2, 
-  Loader2 
+  Loader2,
+  ChevronDown, 
+  FileText, 
+  Sheet, 
+  FileSpreadsheet 
 } from "lucide-react";
 import styles from "./StatsV2.module.css";
 
@@ -301,32 +306,50 @@ export default function StatsV2Page() {
     };
   }, [pctCoberturaTotal, selectedEfectorIdx, resumenEfectores, tipoEfector]);
 
-  const handleDescargarReporte = () => {
-    // Calculamos el total de cobertura para sacar los % exactos
-    const totCob = (cobSalud.publica || 0) + (cobSalud.obraSocial || 0) + (cobSalud.sinRegistro || 0);
-    const coberturaPorcentajes = {
-      publica: totCob > 0 ? Math.round(((cobSalud.publica || 0) * 100) / totCob) : 85,
-      obraSocial: totCob > 0 ? Math.round(((cobSalud.obraSocial || 0) * 100) / totCob) : 3,
-      sinRegistro: totCob > 0 ? Math.round(((cobSalud.sinRegistro || 0) * 100) / totCob) : 12,
-    };
+  const [menuDescargaAbierto, setMenuDescargaAbierto] = useState(false);
 
-    generarReporteStatsPDF({
+  // Función unificada de descarga (PDF o Excel)
+  const handleDescargar = async (formato: "pdf" | "xlsx") => {
+    setMenuDescargaAbierto(false);
+
+    const segAdecuadoActual = tipoEfector === "CAPS" ? "31,4%" : "13,6%";
+
+    const propsReporte = {
       tipoEfector,
-      rangoTexto: `${fechaDesde} al ${fechaHasta} (${periodoDias} días)`,
-      padronProvincial,
-      capital,
-      interior,
+      rangoTexto: `${periodoDias} días (${fechaDesde} al ${fechaHasta})`,
+      padronProvincial: padronProvincial || 2751,
+      capital: {
+        TOTAL: capital?.TOTAL || 1136,
+        CAPS: capital?.CAPS || 610,
+        SAPS: capital?.SAPS || 282,
+        HOSPITAL: capital?.HOSPITAL || 244,
+      },
+      interior: {
+        TOTAL: interior?.TOTAL || 1615,
+        CAPS_SAPS: (interior?.CAPS || 0) + (interior?.SAPS || 0) || 754,
+        CAPS: interior?.CAPS || 0,
+        SAPS: interior?.SAPS || 0,
+        HOSPITAL: interior?.HOSPITAL || 861,
+      },
       totalBase,
       totalCtrl,
       pctCobertura: pctCoberturaTotal,
       totalAtrasadas,
       pctAtrasadas,
       porVencerCount,
-      pctSegAdecuado: tipoEfector === "CAPS" ? "31,4%" : "13,6%",
-      coberturaSalud: coberturaPorcentajes,
-      efectores: sortedRows,
-      usuarioGenerador: session?.user?.name || "Administrador"
-    });
+      pctSegAdecuado: segAdecuadoActual,
+      coberturaSalud: cobSalud || { publica: 85, obraSocial: 3, sinRegistro: 12 },
+      usoTablero: v2?.usoTablero, // 👈 Se suma auditoría de uso del tablero
+      egList: egList,             // 👈 Se suma distribución de edad gestacional
+      efectores: sortedRows || [],
+      usuarioGenerador: session?.user?.name || "Administrador",
+    };
+
+    if (formato === "pdf") {
+      await generarReporteStatsPDF(propsReporte);
+    } else {
+      exportarReporteStatsExcel(propsReporte);
+    }
   };
 
   if (status === "loading" || !esAutorizadoV2) {
@@ -381,14 +404,144 @@ export default function StatsV2Page() {
               ))}
             </div>
 
-            <button 
-              type="button" 
-              onClick={handleDescargarReporte} 
-              className={styles.btnReporte}
-            >
-              <Download size={18} />
-              Descargar reporte
-            </button>
+            {/* Botón Desplegable Multiformato Estilizado */}
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setMenuDescargaAbierto(!menuDescargaAbierto)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  backgroundColor: "#456A9D",
+                  color: "#FFFFFF",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "8px 14px",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.08)",
+                  transition: "background-color 0.2s ease, transform 0.1s ease",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#35537F")}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#456A9D")}
+              >
+                <Download size={16} strokeWidth={2.2} />
+                <span>Descargar reporte</span>
+                <ChevronDown
+                  size={15}
+                  strokeWidth={2.2}
+                  style={{
+                    transform: menuDescargaAbierto ? "rotate(180deg)" : "none",
+                    transition: "transform 0.2s ease",
+                  }}
+                />
+              </button>
+
+              {menuDescargaAbierto && (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                    onClick={() => setMenuDescargaAbierto(false)}
+                  />
+
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: "calc(100% + 6px)",
+                      backgroundColor: "#FFFFFF",
+                      border: "1px solid #E2E8F0",
+                      borderRadius: "10px",
+                      boxShadow: "0 12px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04)",
+                      zIndex: 50,
+                      minWidth: "210px",
+                      padding: "4px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "2px",
+                    }}
+                  >
+                    {/* Opción PDF */}
+                    <button
+                      type="button"
+                      onClick={() => handleDescargar("pdf")}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "9px 12px",
+                        backgroundColor: "transparent",
+                        border: "none",
+                        borderRadius: "6px",
+                        textAlign: "left",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: "#1E293B",
+                        cursor: "pointer",
+                        transition: "background-color 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "26px",
+                          height: "26px",
+                          borderRadius: "6px",
+                          backgroundColor: "#FEE2E2",
+                        }}
+                      >
+                        <FileText size={15} color="#DC2626" />
+                      </div>
+                      <span>Documento PDF (.pdf)</span>
+                    </button>
+
+                    {/* Opción Excel */}
+                    <button
+                      type="button"
+                      onClick={() => handleDescargar("xlsx")}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "9px 12px",
+                        backgroundColor: "transparent",
+                        border: "none",
+                        borderRadius: "6px",
+                        textAlign: "left",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: "#1E293B",
+                        cursor: "pointer",
+                        transition: "background-color 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "26px",
+                          height: "26px",
+                          borderRadius: "6px",
+                          backgroundColor: "#DCFCE7",
+                        }}
+                      >
+                        <Sheet size={15} color="#16A34A" />
+                      </div>
+                      <span>Planilla Excel (.xlsx)</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </section>
 
