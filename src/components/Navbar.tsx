@@ -128,7 +128,14 @@ export default function Navbar() {
         </div>
 
         <button
-          onClick={() => signOut({ callbackUrl: window.location.pathname.startsWith('/salud-dashboard') ? '/salud-dashboard?salir=1' : '/?salir=1' })}
+          onClick={async () => {
+            await signOut({ redirect: false });
+            // Redirige directamente al inicio (donde está el formulario de login)
+            const basePath = window.location.pathname.startsWith('/salud-dashboard') 
+              ? '/salud-dashboard' 
+              : '';
+            window.location.href = `${basePath}/`;
+          }}
           className={styles.logoutBtn}
           title="Cerrar Sesión"
         >

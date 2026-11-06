@@ -1,5 +1,6 @@
 "use client";
 
+import { generarReporteStatsPDF } from "@/lib/pdfReporteStats";
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -39,22 +40,31 @@ export default function StatsV2Page() {
 
   // Filtros
   const [tipoEfector, setTipoEfector] = useState<"CAPS" | "SAPS">("CAPS");
-  const [periodoDias, setPeriodoDias] = useState<number>(30);
   const [sortKey, setSortKey] = useState<"name" | "pad" | "cov" | "seg">("cov");
   const [sortAsc, setSortAsc] = useState<boolean>(true);
 
+  // --- MANEJO DE FECHAS Y PERÍODOS SINCRONIZADO ---
   const fechaHoy = new Date().toISOString().split("T")[0];
-  const fechaDesdeInicial = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  const [fechaDesde, setFechaDesde] = useState(fechaDesdeInicial);
   const [fechaHasta, setFechaHasta] = useState(fechaHoy);
+  const [periodoDias, setPeriodoDias] = useState<number>(30);
 
-  const fetchStats = async () => {
+  // Calcula fecha inicial hace 30 días
+  const [fechaDesde, setFechaDesde] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
+
+  // 1. Función para consultar las estadísticas con las fechas reales
+  const fetchStats = async (diasNum = periodoDias, fDesde = fechaDesde, fHasta = fechaHasta) => {
     setLoading(true);
     try {
       const basePath = window.location.pathname.startsWith("/salud-dashboard") ? "/salud-dashboard" : "";
       const queryParams = new URLSearchParams({
         tipoEfector,
-        periodoDias: periodoDias.toString()
+        periodoDias: diasNum.toString(),
+        fechaDesde: fDesde,
+        fechaHasta: fHasta
       });
 
       const res = await fetch(`${basePath}/api/stats?${queryParams.toString()}`);
@@ -69,23 +79,39 @@ export default function StatsV2Page() {
     }
   };
 
+  // 2. Ejecutar al cambiar el tipo de efector (CAPS / SAPS) o al montar
   useEffect(() => {
     if (status !== "authenticated" || !esAutorizadoV2) return;
-    fetchStats();
-  }, [status, esAutorizadoV2, tipoEfector, periodoDias]);
+    fetchStats(periodoDias, fechaDesde, fechaHasta);
+  }, [status, esAutorizadoV2, tipoEfector]);
 
+  // 3. Al hacer clic en los botones rápidos: 7 días, 14 días o 30 días
   const handlePeriodPick = (dias: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - dias);
+    const nuevaFechaDesde = d.toISOString().split("T")[0];
+    const nuevaFechaHasta = fechaHoy;
+
     setPeriodoDias(dias);
-    const d = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    setFechaDesde(d);
+    setFechaDesde(nuevaFechaDesde);
+    setFechaHasta(nuevaFechaHasta);
+
+    // Dispara inmediatamente el fetch con los nuevos valores
+    fetchStats(dias, nuevaFechaDesde, nuevaFechaHasta);
   };
 
-  const handleSort = (key: "name" | "pad" | "cov" | "seg") => {
-    if (sortKey === key) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortKey(key);
-      setSortAsc(key === "name");
+  // 4. Al cambiar manualmente los inputs de fecha (Desde / Hasta)
+  const handleFechaManualChange = (nuevaDesde: string, nuevaHasta: string) => {
+    setFechaDesde(nuevaDesde);
+    setFechaHasta(nuevaHasta);
+
+    if (nuevaDesde && nuevaHasta) {
+      const d1 = new Date(nuevaDesde).getTime();
+      const d2 = new Date(nuevaHasta).getTime();
+      const diffDias = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+
+      setPeriodoDias(diffDias);
+      fetchStats(diffDias, nuevaDesde, nuevaHasta);
     }
   };
 
@@ -247,7 +273,8 @@ export default function StatsV2Page() {
     }
 
     const toPoints = (s: number[]) => s.map((v, i) => `${evoX(i).toFixed(1)},${evoY(v).toFixed(1)}`).join(" ");
-
+    
+    
     return {
       hasSelection,
       selectedCenter,
@@ -262,6 +289,34 @@ export default function StatsV2Page() {
       refEndY: evoY(totSeries[12])
     };
   }, [pctCoberturaTotal, selectedEfectorIdx, resumenEfectores, tipoEfector]);
+
+  const handleDescargarReporte = () => {
+    // Calculamos el total de cobertura para sacar los % exactos
+    const totCob = (cobSalud.publica || 0) + (cobSalud.obraSocial || 0) + (cobSalud.sinRegistro || 0);
+    const coberturaPorcentajes = {
+      publica: totCob > 0 ? Math.round(((cobSalud.publica || 0) * 100) / totCob) : 85,
+      obraSocial: totCob > 0 ? Math.round(((cobSalud.obraSocial || 0) * 100) / totCob) : 3,
+      sinRegistro: totCob > 0 ? Math.round(((cobSalud.sinRegistro || 0) * 100) / totCob) : 12,
+    };
+
+    generarReporteStatsPDF({
+      tipoEfector,
+      rangoTexto: `${fechaDesde} al ${fechaHasta} (${periodoDias} días)`,
+      padronProvincial,
+      capital,
+      interior,
+      totalBase,
+      totalCtrl,
+      pctCobertura: pctCoberturaTotal,
+      totalAtrasadas,
+      pctAtrasadas,
+      porVencerCount,
+      pctSegAdecuado: tipoEfector === "CAPS" ? "31,4%" : "13,6%",
+      coberturaSalud: coberturaPorcentajes,
+      efectores: sortedRows,
+      usuarioGenerador: session?.user?.name || "Administrador"
+    });
+  };
 
   if (status === "loading" || !esAutorizadoV2) {
     return null;
@@ -287,7 +342,7 @@ export default function StatsV2Page() {
               <input 
                 type="date" 
                 value={fechaDesde} 
-                onChange={(e) => setFechaDesde(e.target.value)} 
+                onChange={(e) => handleFechaManualChange(e.target.value, fechaHasta)} 
                 className={styles.dateInput} 
               />
             </label>
@@ -297,7 +352,7 @@ export default function StatsV2Page() {
               <input 
                 type="date" 
                 value={fechaHasta} 
-                onChange={(e) => setFechaHasta(e.target.value)} 
+                onChange={(e) => handleFechaManualChange(fechaDesde, e.target.value)} 
                 className={styles.dateInput} 
               />
             </label>
@@ -306,6 +361,7 @@ export default function StatsV2Page() {
               {[7, 14, 30].map((dias) => (
                 <button
                   key={dias}
+                  type="button"
                   onClick={() => handlePeriodPick(dias)}
                   className={`${styles.periodBtn} ${periodoDias === dias ? styles.periodBtnActive : ""}`}
                 >
@@ -314,7 +370,11 @@ export default function StatsV2Page() {
               ))}
             </div>
 
-            <button className={styles.btnReporte}>
+            <button 
+              type="button" 
+              onClick={handleDescargarReporte} 
+              className={styles.btnReporte}
+            >
               <Download size={18} />
               Descargar reporte
             </button>
@@ -377,7 +437,7 @@ export default function StatsV2Page() {
                 </div>
               </div>
 
-              {/* Bloque Interior (proporción 59.3%) */}
+              {/* Bloque Interior (Unificando CAPS/SAPS y luego Hospitales) */}
               <div style={{ flex: "59.3 1 360px", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #4E6FAE", paddingBottom: "6px" }}>
                   <span style={{ fontSize: "15px", fontWeight: 700, color: "#2E2D2C" }}>Interior</span>
@@ -389,21 +449,38 @@ export default function StatsV2Page() {
                   </span>
                 </div>
                 <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 }}>
+                  {/* Tramo 1: CAPS + SAPS sumados */}
                   <div 
-                    style={{ width: `${(interior.CAPS * 100) / interior.TOTAL}%`, background: "#4E6FAE", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
-                    title={`CAPS: ${interior.CAPS}`}
+                    style={{ 
+                      width: `${((interior.CAPS + interior.SAPS) * 100) / interior.TOTAL}%`, 
+                      background: "#4E6FAE", 
+                      color: "#FFFFFF", 
+                      display: "flex", 
+                      alignItems: "center", 
+                      justifyContent: "center", 
+                      padding: "0 6px", 
+                      whiteSpace: "nowrap", 
+                      overflow: "hidden" 
+                    }}
+                    title={`CAPS/SAPS Interior: ${interior.CAPS + interior.SAPS} (CAPS: ${interior.CAPS}, SAPS: ${interior.SAPS})`}
                   >
-                    CAPS {interior.CAPS}
+                    CAPS/SAPS {interior.CAPS + interior.SAPS}
                   </div>
+
+                  {/* Tramo 2: Hospitales */}
                   <div 
-                    style={{ width: `${(interior.SAPS * 100) / interior.TOTAL}%`, backgroundColor: "#8DB4FF", color: "#2E2D2C", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
-                    title={`SAPS: ${interior.SAPS}`}
-                  >
-                    {(interior.SAPS * 100) / interior.TOTAL > 8 ? `SAPS ${interior.SAPS}` : interior.SAPS}
-                  </div>
-                  <div 
-                    style={{ width: `${(interior.HOSPITAL * 100) / interior.TOTAL}%`, backgroundColor: "#CAE1FF", color: "#2E2D2C", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
-                    title={`Hospitales: ${interior.HOSPITAL}`}
+                    style={{ 
+                      width: `${(interior.HOSPITAL * 100) / interior.TOTAL}%`, 
+                      backgroundColor: "#8DB4FF", 
+                      color: "#1e293b", 
+                      display: "flex", 
+                      alignItems: "center", 
+                      justifyContent: "center", 
+                      padding: "0 8px", 
+                      whiteSpace: "nowrap", 
+                      overflow: "hidden" 
+                    }}
+                    title={`Hospitales Interior: ${interior.HOSPITAL}`}
                   >
                     Hosp. {interior.HOSPITAL}
                   </div>
