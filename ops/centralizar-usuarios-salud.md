@@ -6,7 +6,7 @@
 - Se conserva la pantalla y la URL de ingreso de Salud, pero las credenciales se validan en la base central de IMI.
 - Las cuentas que solo tienen Salud pueden ingresar desde el portal y ven únicamente los tableros que tengan asignados.
 - Los rangos y alcances de Salud se leen desde la base central; el login en la página de Salud no implica acceso a otros tableros.
-- La tabla local se conserva temporalmente para guardar las referencias históricas y permitir una reversión controlada; no interviene en el ingreso normal.
+- La tabla local se conserva solo durante la migración de referencias históricas; no interviene en el ingreso normal.
 
 ## Rangos y alcances
 
@@ -48,7 +48,7 @@ La primera etapa no borra `public.usuarios`, hashes locales, ni los datos de act
 - Se activaron los vínculos de origen de las 55 cuentas listas. El código de Salud ya no ofrece autenticación ni asignación de rangos desde `public.usuarios`; la cuenta pendiente requiere establecer una contraseña central.
 - Para volver atrás, desplegar el commit anterior y dejar inactivos los vínculos centrales locales. Las contraseñas y usuarios locales se conservan hasta retirar las relaciones históricas.
 
-## Retiro futuro de `public.usuarios`
+## Retiro de `public.usuarios`
 
-- El código de autenticación y permisos de Salud ya consulta la identidad central. La tabla local sigue referenciada por `seguimientos.usuario_id` (2.010 filas con ID local), `contactos_audit.usuario_id` (sin filas) e `imi_sso_vinculos.usuario_salud_id` (56 filas de trazabilidad).
-- Antes de borrar la tabla, agregar y completar un identificador textual central en los seguimientos, mantener los nombres de usuario históricos y retirar estas claves foráneas en una migración respaldada. La tabla local no debe borrarse hasta verificar esos valores y todas las referencias del esquema.
+- El código de autenticación y permisos de Salud consulta la identidad central. Los seguimientos nuevos guardan el nombre central en `seguimientos.usuario_central`.
+- Se identificaron los seguimientos históricos vinculados a la tabla local y los registros sin ID local, y se creó un respaldo completo verificable antes de retirar la tabla.

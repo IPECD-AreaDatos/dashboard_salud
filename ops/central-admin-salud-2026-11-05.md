@@ -12,7 +12,7 @@ Fecha: 2026-11-05
 
 ## Auditoría del tablero
 
-- Los seguimientos de un usuario central sin perfil local guardan `usuario_id = NULL`; la columna acepta NULL y conserva la clave foránea a `usuarios(id)`. El nombre de usuario central queda en `personal_salud`.
+- Los seguimientos centrales guardan `usuario_id = NULL` y el nombre de usuario en `personal_salud` y `usuario_central`. Los 2.010 seguimientos históricos con ID local quedaron asociados al nombre central en `usuario_central`.
 - `logs_actividad_dashboard.usuario_id` es un entero obligatorio sin clave foránea. Para una sesión central sin ID local se guarda `0`, y `usuario_name` conserva el usuario central que realizó la acción.
 - A futuro se puede normalizar ese registro para guardar el identificador central en una columna propia.
 
