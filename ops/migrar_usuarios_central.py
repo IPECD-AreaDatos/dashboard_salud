@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Copia usuarios, hashes bcrypt, rangos y alcances de Salud a identidad.
+"""Migración de una sola vez de usuarios, hashes, rangos y alcances de Salud.
 
 Por defecto hace una simulación transaccional y termina con ROLLBACK. Usar
 --apply únicamente para confirmar la misma operación en la base central.
-No imprime usuarios ni hashes.
+No imprime usuarios ni hashes. No ejecutar después de retirar public.usuarios.
 """
 
 from __future__ import annotations

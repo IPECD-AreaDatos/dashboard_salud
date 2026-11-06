@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
 /**
  * POST: Registra un nuevo contacto.
- * El campo personal_salud se recibe automáticamente desde el modal (session.user.name).
+ * La identidad del operador se toma exclusivamente de la sesión central.
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         observaciones,
         proxima_cita,
         personal_salud,
-        usuario_id, /* 👈 Tipo int4 */
+        usuario_central,
         created_at,
         updated_at
       ) VALUES (
@@ -82,12 +82,6 @@ export async function POST(request: Request) {
       ) RETURNING id
     `;
 
-    // Las sesiones centrales no tienen un usuario_id local de Salud.
-    // seguimientos.usuario_id admite NULL y mantiene su FK a usuarios(id).
-    const numericUserId = Number(session.user.id);
-    const dbUsuarioId = Number.isSafeInteger(numericUserId) && numericUserId > 0
-      ? numericUserId
-      : null;
     const cita = proxima_cita ? proxima_cita : null;
 
     const params = [
@@ -99,7 +93,7 @@ export async function POST(request: Request) {
       observaciones,
       cita,
       session.user.username || session.user.name || "Usuario",
-      dbUsuarioId
+      session.user.username || null
     ];
 
     const result = await query(sql, params);
