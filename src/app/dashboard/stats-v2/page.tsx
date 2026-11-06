@@ -126,12 +126,12 @@ export default function StatsV2Page() {
   // 1. Datos de Padrón Provincial y Distribución Panorámica
   const v2 = data?.statsV2;
   const pcia = v2?.padronProvincial;
-  const padronProvincial = pcia?.total || data?.general?.total || 2764;
-  const capital = pcia?.capital || { TOTAL: 1144, CAPS: 628, SAPS: 294, HOSPITAL: 222 };
-  const interior = pcia?.interior || { TOTAL: 1620, CAPS: 742, SAPS: 488, HOSPITAL: 390 };
+  const padronProvincial = pcia?.total || 0;
+  const capital = pcia?.capital || { TOTAL: 0, CAPS: 0, SAPS: 0, HOSPITAL: 0 };
+  const interior = pcia?.interior || { TOTAL: 0, CAPS: 0, SAPS: 0, HOSPITAL: 0 };
 
-  const pctCapital = padronProvincial > 0 ? ((capital.TOTAL * 100) / padronProvincial).toFixed(1).replace(".", ",") : "41,4";
-  const pctInterior = padronProvincial > 0 ? ((interior.TOTAL * 100) / padronProvincial).toFixed(1).replace(".", ",") : "58,6";
+  const pctCapital = padronProvincial > 0 ? ((capital.TOTAL * 100) / padronProvincial).toFixed(1).replace(".", ",") : "0,0";
+  const pctInterior = padronProvincial > 0 ? ((interior.TOTAL * 100) / padronProvincial).toFixed(1).replace(".", ",") : "0,0";
 
   // 2. Procesamiento de filas de la tabla
   const resumenEfectores = useMemo(() => {
@@ -549,8 +549,10 @@ export default function StatsV2Page() {
               <span style={{ fontSize: 13, color: "#5E5D5B" }}>Control en los últimos 40 días</span>
             </div>
 
-            <Link href={`/dashboard?tipoGrupo=${tipoEfector}&controlesAtrasados=true`}
-             className={styles.indicadorCardAtraso}>
+            <Link 
+              href={`/dashboard?establecimiento=${tipoEfector}&tipoGrupo=${tipoEfector}&controlesAtrasados=true`}
+              className={styles.indicadorCardAtraso}
+            >
               <div className={styles.cardHeaderRow}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: "#6F0603" }}>Controles atrasados</span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#3F5F9E", display: "flex", alignItems: "center", gap: 4 }}>
@@ -575,8 +577,10 @@ export default function StatsV2Page() {
           </div>
 
           <div className={styles.kpiRowGrid}>
-            <Link href={`/dashboard?tipoGrupo=${tipoEfector}&porVencer=true`}
-             className={styles.indicadorCardSmall}>
+            <Link 
+              href={`/dashboard?establecimiento=${tipoEfector}&tipoGrupo=${tipoEfector}&porVencer=true`}
+              className={styles.indicadorCardSmall}
+            >
               <div className={styles.cardHeaderRow}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#2E2D2C" }}>Por vencer sin turno</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#3F5F9E" }}>Ver →</span>

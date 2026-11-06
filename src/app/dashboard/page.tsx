@@ -168,49 +168,70 @@ function SeguimientoPageContent() {
 
   const searchParams = useSearchParams();
   const [filterTipoGrupo, setFilterTipoGrupo] = useState<string | null>(null);
+  const [soloPorVencer, setSoloPorVencer] = useState(false);
 
+  // 1. Carga inicial de filtros y logs del sistema
   useEffect(() => {
-    // 1. Leemos los parámetros que puedan venir de Estadísticas V2
-    const grupoParam = searchParams.get("tipoGrupo");
+    fetchFiltros();
+    registrarLog({ modulo: "Seguimiento", accion: "VISUALIZAR_LISTADO" });
+  }, []);
+
+  // 2. Sincronización con los parámetros de la URL (cuando venís de Estadísticas V2)
+  useEffect(() => {
+    const estParam = searchParams.get("establecimiento") || searchParams.get("tipoGrupo");
     const atrasadasParam = searchParams.get("controlesAtrasados");
     const porVencerParam = searchParams.get("porVencer");
 
-    // 2. Si viene de V2, ajustamos estados y ejecutamos SOLO esa búsqueda
-    if (grupoParam || atrasadasParam === "true" || porVencerParam === "true") {
-      if (grupoParam) setFilterTipoGrupo(grupoParam);
+    const esDesdeV2 = Boolean(estParam || atrasadasParam !== null || porVencerParam !== null);
 
-      if (atrasadasParam === "true") {
-        setFilterAtrasados("Si");
-        setAplicadoAtrasados("Si");
+    if (esDesdeV2) {
+      // 1. Setea efector (CAPS / SAPS)
+      if (estParam) {
+        setFilterTipoGrupo(estParam);
+        setFilterEst(estParam);
+        setSearchTerm(estParam);
       }
 
-      // Llamamos a la API con los parámetros directos y permitirFallback=false
+      const esPorVencer = porVencerParam === "true";
+      setSoloPorVencer(esPorVencer);
+
+      let atrasadosVal: string | undefined = undefined;
+
+      if (esPorVencer) {
+        // 🌟 SI ES POR VENCER: Apagamos el filtro de atrasadas tanto en la UI como en el filtro local
+        setFilterAtrasados("Todas");
+        setAplicadoAtrasados("Todas");
+        atrasadosVal = undefined;
+      } else if (atrasadasParam === "true") {
+        setFilterAtrasados("Si");
+        setAplicadoAtrasados("Si");
+        atrasadosVal = "Si";
+      } else if (atrasadasParam === "false") {
+        setFilterAtrasados("No");
+        setAplicadoAtrasados("No");
+        atrasadosVal = "No";
+      }
+
+      // 2. Dispara la consulta limpia
       fetchPacientes(
-        undefined, // dni
-        false,     // exacto
-        undefined, // establecimiento
-        undefined, // trimestre
-        undefined, // riesgo
-        atrasadasParam === "true" ? "Si" : undefined, // atrasados
-        undefined, // excluirDerivadas
-        false,     // esCargaInicial = false para que no se pise ni haga fallback
-        grupoParam || undefined,
-        porVencerParam === "true"
+        undefined,                                     // dni
+        false,                                         // exacto
+        estParam || "Todos",                           // establecimiento
+        undefined,                                     // trimestre
+        undefined,                                     // riesgo
+        atrasadosVal,                                  // atrasados (undefined si es porVencer)
+        undefined,                                     // excluirDerivadas
+        false,                                         // esCargaInicial = false
+        estParam || undefined,                         // tipoGrupo
+        esPorVencer                                    // porVencer
       );
-      return; // 👈 Salimos para NO ejecutar la carga inicial por defecto
+    } else {
+      // Carga habitual por defecto si se entró directamente a /dashboard
+      setFilterTipoGrupo(null);
+      setSoloPorVencer(false);
+      fetchPacientes(undefined, false, "Todos", "Todos", "Todas", "Si", undefined, true);
     }
-
-    // 3. Carga normal por defecto del Dashboard si no viene de ningún link externo
-    fetchPacientes(undefined, false, undefined, undefined, undefined, "Si", undefined, true);
   }, [searchParams]);
-
-  // Carga inicial
-  useEffect(() => {
-    fetchFiltros();
-    fetchPacientes(undefined, false, undefined, "Todos", "Todas", "Si", undefined, true);
-    // 👈 NUEVO: Logea que el centro o el administrador entró a la grilla de seguimiento
-    registrarLog({ modulo: "Seguimiento", accion: "VISUALIZAR_LISTADO" });
-  }, []);
 
   // Nuevos estados para el Autocomplete
   const [sugerencias, setSugerencias] = useState<any[]>([]);

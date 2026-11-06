@@ -3,6 +3,8 @@ import { query } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role === 'Centro de Salud' && !session.user.sisa_code && !session.user.cuie_code) {
@@ -27,8 +29,6 @@ export async function GET(request: Request) {
 
   try {
     const fechaUmbral = "CURRENT_DATE";
-    const diasAtrasoCorte = 40;
-
     const sisa = session.user?.sisa_code;
     const cuie = session.user?.cuie_code;
 
@@ -142,7 +142,7 @@ export async function GET(request: Request) {
           JOIN public.seguimientos s ON p.id = s.paciente_id 
           WHERE s.contacto_logrado = true 
             AND s.fecha_contacto >= CURRENT_DATE - INTERVAL '30 days') as contactos_totales_caps
-    `;
+      `;
 
     // 4.1 Métricas para las TARJETAS (Versión 1)
     const cardsKpiSql = `
@@ -298,7 +298,7 @@ export async function GET(request: Request) {
       ORDER BY padron_act DESC;
     `;
 
-    // 🌟 5. GRÁFICO 1 DE LA VERSIÓN VIEJA: Distribución por Semanas de Embarazo (EG)
+    // 5. Gráfico 1 de la versión V1: Distribución por Semanas de Embarazo (EG)
     const edadGestacionalV1Sql = `
       SELECT 
         rango_eg,
@@ -347,7 +347,7 @@ export async function GET(request: Request) {
       ORDER BY orden_num ASC;
     `;
 
-    // 🌟 6. GRÁFICO 2 DE LA VERSIÓN VIEJA: Distribución de Coberturas de Salud
+    // 6. Gráfico 2 de la versión V1: Distribución de Coberturas de Salud
     const coberturaV1Sql = `
       SELECT
         SUM(CASE WHEN p.fuente_principal = 'sumar' OR (p.fuente_principal IN ('pof', 'v_embarazosdw') AND (p.cobertura_salud ILIKE '%plan nacer%' OR p.cobertura_salud ILIKE '%sumar%')) THEN 1 ELSE 0 END) as sin_obra_social,
@@ -364,7 +364,7 @@ export async function GET(request: Request) {
         ${zonaGlobalClause};
     `;
 
-    // 🌟 Consultas específicas para V2
+    // 🌟 Padrón Provincial V2 con regla de derivaciones oficial (las derivadas computan en HOSPITAL)
     const desgloseProvincialV2Sql = `
       SELECT 
         CASE 
@@ -372,9 +372,32 @@ export async function GET(request: Request) {
           ELSE 'INTERIOR'
         END AS zona,
         CASE 
-          WHEN LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%caps%' OR LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%c.a.p.s.%' THEN 'CAPS'
-          WHEN LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%saps%' OR LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%s.a.p.s.%' THEN 'SAPS'
-          ELSE 'HOSPITAL'
+          -- Si tiene derivación a hospital/maternidad o el efector es un hospital -> HOSPITAL
+          WHEN (p.nombre_centro_derivado IS NOT NULL AND TRIM(p.nombre_centro_derivado) != '')
+            OR p.derivacion_maternidad_id IS NOT NULL 
+            OR LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%hosp%'
+            OR LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%matern%'
+          THEN 'HOSPITAL'
+
+          -- Si es Capital sin derivar: se discrimina CAPS vs SAPS
+          WHEN UPPER(TRIM(COALESCE(e.departamento, p.departamento_domicilio))) = 'CAPITAL' THEN
+            CASE 
+              WHEN LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%caps%' 
+                OR LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%c.a.p.s.%' 
+                OR LOWER(COALESCE(e.coordinador, '')) LIKE '%caps%' THEN 'CAPS'
+              WHEN LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%saps%' 
+                OR LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%s.a.p.s.%' 
+                OR LOWER(COALESCE(e.coordinador, '')) LIKE '%saps%' THEN 'SAPS'
+              ELSE 'CAPS'
+            END
+
+          -- En el Interior sin hospital: se clasifica como CAPS o SAPS para sumar el Primer Nivel
+          ELSE 
+            CASE 
+              WHEN LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%saps%' 
+                OR LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%s.a.p.s.%' THEN 'SAPS'
+              ELSE 'CAPS'
+            END
         END AS tipo_efector,
         COUNT(DISTINCT p.id) AS total
       FROM public.pacientes_gold p
@@ -388,13 +411,32 @@ export async function GET(request: Request) {
 
     const porVencerV2Sql = `
       SELECT 
-        COUNT(CASE WHEN (CURRENT_DATE - p.fecha_ultimo_control) BETWEEN 30 AND 40 AND (p.proxima_cita IS NULL OR p.proxima_cita < CURRENT_DATE) THEN 1 END) as por_vencer_caps,
-        COUNT(CASE WHEN (CURRENT_DATE - p.fecha_ultimo_control) BETWEEN 30 AND 40 AND (p.proxima_cita IS NULL OR p.proxima_cita < CURRENT_DATE) AND LOWER(COALESCE(e.nombre, p.nombre_establecimiento)) LIKE '%saps%' THEN 1 END) as por_vencer_saps
+        COUNT(CASE 
+          WHEN (s.coordinador ILIKE '%caps%' OR LOWER(s.nombre) LIKE '%caps%' OR LOWER(s.nombre) LIKE '%c.a.p.s.%') 
+          THEN 1 
+        END) AS por_vencer_caps,
+        COUNT(CASE 
+          WHEN (s.coordinador ILIKE '%saps%' OR LOWER(s.nombre) LIKE '%saps%' OR LOWER(s.nombre) LIKE '%s.a.p.s.%') 
+          THEN 1 
+        END) AS por_vencer_saps
       FROM public.pacientes_gold p
-      LEFT JOIN public.efectores_sisa e ON e.codigo_sisa = p.sisa_centro_salud
+      JOIN public.efectores_sisa s ON p.sisa_centro_salud = s.codigo_sisa
       WHERE p.embarazo_en_curso = true 
         AND p.fecha_probable_parto >= ${fechaUmbral}
-        AND p.fecha_ultimo_control IS NOT NULL;
+        AND p.fecha_nacimiento IS NOT NULL
+        AND COALESCE(p.en_red_perinatal_msp, true) = true
+        AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital'
+        AND (p.nombre_centro_derivado IS NULL OR TRIM(p.nombre_centro_derivado) = '')
+        AND p.derivacion_maternidad_id IS NULL
+        AND p.fecha_ultimo_control IS NOT NULL
+        AND (CURRENT_DATE - p.fecha_ultimo_control) BETWEEN 31 AND 40
+        AND (p.proxima_cita IS NULL OR p.proxima_cita < CURRENT_DATE)
+        AND NOT EXISTS (
+          SELECT 1 
+          FROM public.seguimientos sec 
+          WHERE sec.paciente_id = p.id 
+            AND sec.proxima_cita >= CURRENT_DATE
+        );
     `;
 
     const usoTableroV2Sql = `
@@ -446,14 +488,14 @@ export async function GET(request: Request) {
     const chartsKpis = chartsKpiRes.rows[0];
     const cardsKpis = cardsKpiRes.rows[0];
 
-    // 📊 Gráfico 1 V1 (EG)
+    // Gráfico 1 V1 (EG)
     const distribucionEGMapped = egV1Res.rows.map((r: any) => ({
       rango: r.rango_eg,
       "Embarazos Activos": parseInt(r.total_embarazos) || 0,
       "Controladas (Al día)": parseInt(r.total_controladas) || 0
     }));
 
-    // 📊 Gráfico 2 V1 (Cobertura)
+    // Gráfico 2 V1 (Cobertura)
     const cobRow = cobV1Res.rows[0];
     const coberturaStats = [
       { name: "Pública Exclusiva", value: parseInt(cobRow?.sin_obra_social) || 0 },
@@ -461,7 +503,7 @@ export async function GET(request: Request) {
       { name: "Sin Registro", value: parseInt(cobRow?.sin_datos) || 0 }
     ];
 
-    // 🌟 ESTRUTURAS DE KPIS DA VERSÃO 1 (resolvendo os erros generalData / riesgoData)
+    // Estructuras de KPIs de la Versión 1
     const generalData = {
       total: parseInt(cardsKpis.total) || 0,
       sub15: parseInt(chartsKpis.gen_15) || 0,
@@ -514,7 +556,7 @@ export async function GET(request: Request) {
       mes: parseInt(chartsKpis.controles_mes) || 0
     };
 
-    // Tabela resumida
+    // Tabla de desempeño de efectores
     const resumenCaps = capsRes.rows.map((r: any) => {
       const padronAct = parseInt(r.padron_act) || 0;
       const padronAnt = parseInt(r.padron_ant) || 0;
@@ -573,7 +615,7 @@ export async function GET(request: Request) {
       };
     });
 
-    // Desdobramento V2
+    // Desglose Provincial V2
     const desgloseMap: Record<string, Record<string, number>> = {
       CAPITAL: { CAPS: 0, SAPS: 0, HOSPITAL: 0, TOTAL: 0 },
       INTERIOR: { CAPS: 0, SAPS: 0, HOSPITAL: 0, TOTAL: 0 }
@@ -599,15 +641,8 @@ export async function GET(request: Request) {
         dias: r.dias_sin_uso === 999 ? "S/D" : `${r.dias_sin_uso} días`
       }));
 
-    const totCob = (parseInt(cobRow?.sin_obra_social) || 0) + (parseInt(cobRow?.con_obra_social) || 0) + (parseInt(cobRow?.sin_datos) || 0);
-    const coberturaSaludV2 = {
-      publica: totCob > 0 ? Math.round(((parseInt(cobRow?.sin_obra_social) || 0) * 100) / totCob) : 85,
-      obraSocial: totCob > 0 ? Math.round(((parseInt(cobRow?.con_obra_social) || 0) * 100) / totCob) : 3,
-      sinRegistro: totCob > 0 ? Math.round(((parseInt(cobRow?.sin_datos) || 0) * 100) / totCob) : 12
-    };
-
     return NextResponse.json({
-      // ✅ RETORNO COMPATÍVEL COM A VERSÃO 1 (/dashboard/stats)
+      // Retorno compatible con la Versión 1 (/dashboard/stats)
       ultimaActualizacion: ultimaActualizacionRes.rows[0]?.fecha || new Date().toISOString(),
       general: generalData,
       riesgo: riesgoData,
@@ -618,7 +653,7 @@ export async function GET(request: Request) {
       coberturaStats,
       tipoEfector,
 
-      // ✅ BLOCO PARA A VERSÃO 2 (/dashboard/stats-v2)
+      // Bloque para la Versión 2 (/dashboard/stats-v2)
       statsV2: {
         padronProvincial: {
           total: desgloseMap.CAPITAL.TOTAL + desgloseMap.INTERIOR.TOTAL,
