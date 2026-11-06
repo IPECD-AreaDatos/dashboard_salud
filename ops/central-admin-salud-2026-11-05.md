@@ -5,7 +5,7 @@ Fecha: 2026-11-05
 ## Cambio aplicado
 
 - `602934b` permite que el rango central `admin` inicie sesión en Salud como `Administrador`, sin buscar ni crear una fila en `public.usuarios`.
-- El ingreso local de Salud sigue disponible para las cuentas heredadas.
+- La pantalla de ingreso de Salud se conserva, pero las cuentas migradas se autentican en la identidad central.
 - El rango central `acceso` conserva el vínculo individual de Salud para resolver roles con alcance por centro o maternidad.
 - En la base central `imi_identidad` se agregó el rango `admin` al tablero `salud`.
 - `asalinas` y `mmarder` quedaron con acceso activo y rango `admin` en Salud. Se incrementó su `version_sesion` para invalidar sesiones previas y se registraron los dos cambios en `identidad.sso_cambios` y `identidad.auditoria`.

@@ -54,21 +54,6 @@ export default function LandingClient({ checkPortal }: { checkPortal: boolean })
         body: JSON.stringify({ usuario: usuario.trim(), password: password.trim() }),
       });
       if (!centralLogin.ok) {
-        // Las cuentas anteriores conservan su ingreso local mientras se valida
-        // la migración central. Un permiso central incompleto no debe bloquearlas.
-        if ([401, 403, 503].includes(centralLogin.status)) {
-          const legacy = await signIn('credentials', {
-            usuario: usuario.trim(),
-            password: password.trim(),
-            redirect: false,
-          });
-          if (legacy?.ok) {
-            const sessionRes = await fetch(`${basePath}/api/auth/session`, { cache: 'no-store' });
-            const sessionData = await sessionRes.json();
-            router.replace(sessionData?.user?.role === 'Primeros Latidos' ? '/dashboard/primeros-latidos' : '/dashboard');
-            return;
-          }
-        }
         const data = await centralLogin.json().catch(() => null);
         setError(data?.error || 'No se pudo iniciar sesión. Revisá tus credenciales e intentá de nuevo.');
         setLoading(false);
