@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     sameSite: 'lax',
     secure: request.nextUrl.protocol === 'https:' || process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: 60 * 60,
+    maxAge: 12 * 60 * 60,
   });
   return response;
 }
