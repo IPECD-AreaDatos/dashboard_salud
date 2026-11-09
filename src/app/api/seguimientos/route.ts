@@ -1,16 +1,16 @@
 /*src/app/api/seguimientos/route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getServerSession } from "next-auth";
 import { patientScope } from "@/lib/patientScope";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { requireHealthSession } from "@/lib/healthAuth";
 
 /**
  * GET: Obtiene el historial de contactos de una paciente específica.
  */
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const auth = await requireHealthSession();
+  if (!auth.ok) return auth.response;
+  const session = auth.session;
 
   const { searchParams } = new URL(request.url);
   const pacienteId = searchParams.get("pacienteId");
@@ -35,8 +35,9 @@ export async function GET(request: Request) {
  * La identidad del operador se toma exclusivamente de la sesión central.
  */
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const auth = await requireHealthSession();
+  if (!auth.ok) return auth.response;
+  const session = auth.session;
 
   // 🛡️ Bloqueo estricto para perfiles de sólo lectura
   if (session.user?.role?.toLowerCase() === 'lectura') {

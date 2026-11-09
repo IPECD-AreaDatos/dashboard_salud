@@ -1,16 +1,14 @@
 /*src\app\api\logs\route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route"; // Ajustá esta ruta si tus authOptions están en otro lado
+import { requireHealthSession } from "@/lib/healthAuth";
 
 export async function POST(request: Request) {
   try {
     // 1. Validamos que haya una sesión activa en el Dashboard
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "No autorizado para registrar logs" }, { status: 401 });
-    }
+    const auth = await requireHealthSession();
+    if (!auth.ok) return auth.response;
+    const session = auth.session;
 
     // 2. Extraemos los datos de la acción que nos manda el Frontend
     const { modulo, accion, detalles, paciente_dni, contacto_exitoso, fecha_turno_asignado } = await request.json();

@@ -118,8 +118,15 @@ function SeguimientoPageContent() {
 
 
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
-  const [establecimientos, setEstablecimientos] = useState<{ value: string, label: string, sisa?: string }[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<{
+    value: string;
+    label: string;
+    sisa?: string;
+    nombre?: string;
+    localidad?: string;
+  }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<{ message: string; sessionExpired: boolean } | null>(null);
 
   const [sortConfig, setSortConfig] = useState<{ key: keyof Paciente | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
 
@@ -312,6 +319,16 @@ function SeguimientoPageContent() {
   const fetchFiltros = async () => {
     try {
       const res = await apiFetch("/filtros");
+      if (!res.ok) {
+        const sessionExpired = res.status === 401;
+        setLoadError({
+          message: sessionExpired
+            ? 'Tu sesión de Salud venció o dejó de estar habilitada. Volvé al ingreso para iniciar sesión.'
+            : 'No se pudo verificar tu sesión con Salud. Los datos permanecen ocultos; reintentá en unos minutos.',
+          sessionExpired,
+        });
+        return;
+      }
       const data = await res.json();
 
       // Mapeamos los establecimientos para unificar sus nombres
@@ -380,16 +397,36 @@ function SeguimientoPageContent() {
 
       const query = new URLSearchParams(queryParams);
       const res = await apiFetch(`/pacientes?${query}`);
+      if (!res.ok) {
+        const sessionExpired = res.status === 401;
+        setPacientes([]);
+        setTotalGlobal(0);
+        setUltimaActualizacion(null);
+        setLoadError({
+          message: sessionExpired
+            ? 'Tu sesión de Salud venció o dejó de estar habilitada. Volvé al ingreso para iniciar sesión.'
+            : res.status === 503
+              ? 'No se pudo verificar tu sesión con Salud. Los datos permanecen ocultos; reintentá en unos minutos.'
+              : 'No se pudo cargar el seguimiento. Reintentá la consulta.',
+          sessionExpired,
+        });
+        return;
+      }
       const data = await res.json();
 
       const pacientesObtenidos = data.data || [];
 
+      setLoadError(null);
       setUltimaActualizacion(data.ultimaActualizacion || null);
       setPacientes(pacientesObtenidos);
       setTotalGlobal(data.totalGlobal || 0);
 
     } catch (error) {
       console.error("Error al obtener pacientes:", error);
+      setPacientes([]);
+      setTotalGlobal(0);
+      setUltimaActualizacion(null);
+      setLoadError({ message: 'No se pudo conectar con Salud. Reintentá la consulta.', sessionExpired: false });
     } finally {
       setLoading(false);
     }
@@ -985,6 +1022,22 @@ function SeguimientoPageContent() {
                     <tr>
                       <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                         Cargando base de datos Gold...
+                      </td>
+                    </tr>
+                  ) : loadError ? (
+                    <tr>
+                      <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: '3rem', color: '#475569' }}>
+                        <AlertCircle className="w-8 h-8 text-orange-400 mx-auto mb-2" />
+                        <p role="alert" style={{ marginBottom: '1rem' }}>{loadError.message}</p>
+                        {loadError.sessionExpired ? (
+                          <button className={styles.btnRefresh} onClick={() => router.replace('/')}>
+                            Volver al ingreso
+                          </button>
+                        ) : (
+                          <button className={styles.btnRefresh} onClick={() => fetchPacientes()}>
+                            <RefreshCcw className="w-4 h-4" /> Reintentar
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : sortedPacientes.length > 0 ? (

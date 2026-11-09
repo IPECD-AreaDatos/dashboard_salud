@@ -1,19 +1,43 @@
 const IMI_SSO_BASE_URL = (process.env.IMI_SSO_BASE_URL || 'http://127.0.0.1:39001').replace(/\/$/, '');
 
-export async function centralHealthUser(token: string | undefined) {
-  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
+export type CentralHealthUser = {
+  id: string;
+  name: string;
+  username: string;
+  role: string;
+  sisa_code: string | null;
+  cuie_code: string | null;
+  maternidad_id: string | null;
+  centralUsername: string;
+};
+
+export type CentralHealthVerification =
+  | { status: 'verified'; user: CentralHealthUser }
+  | { status: 'unauthorized' }
+  | { status: 'unavailable' };
+
+export async function verifyCentralHealthUser(token: string | undefined): Promise<CentralHealthVerification> {
+  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return { status: 'unauthorized' };
   try {
     const response=await fetch(`${IMI_SSO_BASE_URL}/sso/me`,{headers:{cookie:`imi_sso=${token}`},cache:'no-store',redirect:'error',signal:AbortSignal.timeout(2500)});
     if (!response.ok) {
       console.warn('Salud SSO: consulta de sesión central rechazada', response.status);
-      return null;
+      return response.status === 401 || response.status === 403
+        ? { status: 'unauthorized' }
+        : { status: 'unavailable' };
     }
-    const data: unknown=await response.json();
-    if (!data || typeof data !== 'object') return null;
+    let data: unknown;
+    try {
+      data=await response.json();
+    } catch {
+      console.warn('Salud SSO: respuesta central inválida');
+      return { status: 'unavailable' };
+    }
+    if (!data || typeof data !== 'object') return { status: 'unavailable' };
     const session=data as {usuario?:unknown;nombres?:unknown;apellidos?:unknown;tableros?:unknown};
     if (typeof session.usuario!=='string' || !Array.isArray(session.tableros)) {
       console.warn('Salud SSO: formato de sesión central inesperado');
-      return null;
+      return { status: 'unavailable' };
     }
     const salud = session.tableros.find((board: unknown) =>
       board && typeof board === 'object' && (board as {codigo?:unknown}).codigo === 'salud'
@@ -25,13 +49,13 @@ export async function centralHealthUser(token: string | undefined) {
     const rango = String(salud?.rango || '').toLowerCase();
     if (!['admin','coordinador','centro-salud','maternidad','lectura','supervisora','primeros-latidos'].includes(rango)) {
       console.warn('Salud SSO: sin rango de Salud compatible');
-      return null;
+      return { status: 'unauthorized' };
     }
 
     // El rango central admin ya concede el rol Administrador de Salud.
     // No requiere una segunda cuenta ni un vínculo a public.usuarios.
     if (rango === 'admin') {
-      return {
+      return { status: 'verified', user: {
         id: `central:${session.usuario}`,
         name: displayName,
         username: session.usuario,
@@ -40,7 +64,7 @@ export async function centralHealthUser(token: string | undefined) {
         cuie_code: null,
         maternidad_id: null,
         centralUsername: session.usuario
-      };
+      } };
     }
 
     const roleByRange: Record<string, string> = {
@@ -67,13 +91,13 @@ export async function centralHealthUser(token: string | undefined) {
       const maternidad_id = values.get('maternidad') || null;
       if (centralRole === 'Centro de Salud' && !sisa_code && !cuie_code) {
         console.warn('Salud SSO: faltan alcances de centro de salud');
-        return null;
+        return { status: 'unauthorized' };
       }
       if (centralRole === 'Maternidad' && !sisa_code && !cuie_code && !maternidad_id) {
         console.warn('Salud SSO: faltan alcances de maternidad');
-        return null;
+        return { status: 'unauthorized' };
       }
-      return {
+      return { status: 'verified', user: {
         id: `central:${session.usuario}`,
         name: displayName,
         username: session.usuario,
@@ -82,11 +106,17 @@ export async function centralHealthUser(token: string | undefined) {
         cuie_code,
         maternidad_id,
         centralUsername: session.usuario
-      };
+      } };
     }
 
+    return { status: 'unauthorized' };
   } catch {
     console.warn('Salud SSO: no se pudo completar la consulta central');
-    return null;
+    return { status: 'unavailable' };
   }
+}
+
+export async function centralHealthUser(token: string | undefined) {
+  const verification = await verifyCentralHealthUser(token);
+  return verification.status === 'verified' ? verification.user : null;
 }

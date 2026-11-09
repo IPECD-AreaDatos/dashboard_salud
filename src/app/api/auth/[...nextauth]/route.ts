@@ -3,7 +3,7 @@ import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { cookies } from "next/headers";
-import { centralHealthUser } from "@/lib/centralSso";
+import { centralHealthUser, verifyCentralHealthUser } from "@/lib/centralSso";
 
 // 1. Extraemos la configuración para que sea exportable
 export const authOptions: NextAuthOptions = {
@@ -22,12 +22,31 @@ export const authOptions: NextAuthOptions = {
   // 2. Callbacks: Pasan el rol de la DB al Token y luego a la Sesión
   callbacks: {
     async jwt({ token, user }: any) {
-      if (user?.centralUsername) token.centralUsername = user.centralUsername;
+      if (user?.centralUsername) {
+        token.centralUsername = user.centralUsername;
+        token.id = user.id;
+        token.role = user.role;
+        token.username = user.username;
+        token.sisa_code = user.sisa_code;
+        token.cuie_code = user.cuie_code;
+        token.maternidad_id = user.maternidad_id;
+        token.centralVerification = 'verified';
+        return token;
+      }
       if (!token.centralUsername) throw new Error('La sesión de Salud no es válida');
       const jar = await cookies();
-      const verified = await centralHealthUser(jar.get('imi_sso')?.value);
-      if (!verified || verified.centralUsername !== token.centralUsername || (token.id && String(verified.id) !== String(token.id))) throw new Error('Sesión central no válida');
-      user = verified;
+      const verification = await verifyCentralHealthUser(jar.get('imi_sso')?.value);
+      if (verification.status === 'unavailable') {
+        // Conservamos la sesión local para poder recuperarla cuando vuelva el servicio.
+        // Las APIs protegidas bloquean el acceso mientras la validación esté pendiente.
+        token.centralVerification = 'unavailable';
+        return token;
+      }
+      if (verification.status !== 'verified' || verification.user.centralUsername !== token.centralUsername || (token.id && String(verification.user.id) !== String(token.id))) {
+        throw new Error('Sesión central no válida');
+      }
+      user = verification.user;
+      token.centralVerification = 'verified';
       if (user) {
         token.id = user.id; // 👈 SOLUCIÓN: Guardamos el ID en el JWT mapeado
         token.role = user.role;
@@ -41,6 +60,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }: any) {
       if (session.user) {
         session.origin = token.centralUsername ? 'central' : 'local';
+        session.authStatus = token.centralVerification === 'unavailable' ? 'unavailable' : 'verified';
         session.user.id = token.id; // 👈 SOLUCIÓN: Exponemos el ID en la sesión activa para el Frontend/Backend
         session.user.role = token.role;
         session.user.username = token.username; // Lo exponemos en la sesión

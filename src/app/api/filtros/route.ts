@@ -1,13 +1,13 @@
 /*src/app/api/filtros/route.ts*/ 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { requireHealthSession } from "@/lib/healthAuth";
 import { patientScope } from "@/lib/patientScope";
 import { query } from "@/lib/db";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const auth = await requireHealthSession();
+  if (!auth.ok) return auth.response;
+  const session = auth.session;
   const scope = patientScope(session.user, 0);
   try {
     const sql = `

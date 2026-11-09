@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { requireHealthSession } from "@/lib/healthAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+  const auth = await requireHealthSession();
+  if (!auth.ok) return auth.response;
+  const session = auth.session;
   if (session?.user?.role === 'Centro de Salud' && !session.user.sisa_code && !session.user.cuie_code) {
     return NextResponse.json({ error: 'La cuenta no tiene centro asignado' }, { status: 403 });
   }
   if (session?.user?.role === 'Maternidad' && !session.user.sisa_code && !session.user.cuie_code && !session.user.maternidad_id) {
     return NextResponse.json({ error: 'La cuenta no tiene maternidad asignada' }, { status: 403 });
-  }
-
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   if (session.user?.role === 'Supervisora') {

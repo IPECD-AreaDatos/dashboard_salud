@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { requireHealthSession } from "@/lib/healthAuth";
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  const auth = await requireHealthSession();
+  if (!auth.ok) return auth.response;
+  const session = auth.session;
 
   // Permiso para Primeros Latidos, Admin y Coordinadores
   const allowedRoles = ["Administrador", "Primeros Latidos"];

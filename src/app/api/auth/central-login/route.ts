@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { centralHealthUser } from '@/lib/centralSso';
+import { verifyCentralHealthUser } from '@/lib/centralSso';
 
 export const runtime = 'nodejs';
 
@@ -59,12 +59,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'El servicio de identidad devolvió una sesión inválida.' }, { status: 502 });
   }
 
-  const healthUser = await centralHealthUser(token);
-  if (!healthUser) {
+  const verification = await verifyCentralHealthUser(token);
+  if (verification.status === 'unavailable') {
+    return NextResponse.json({ error: 'El servicio de identidad está temporalmente fuera de servicio. Intentá de nuevo.' }, { status: 503 });
+  }
+  if (verification.status !== 'verified') {
     return NextResponse.json({ error: 'La cuenta no tiene un acceso activo a Salud.' }, { status: 403 });
   }
 
-  const response = NextResponse.json({ usuario: healthUser.username }, { headers: { 'Cache-Control': 'no-store' } });
+  const response = NextResponse.json({ usuario: verification.user.username }, { headers: { 'Cache-Control': 'no-store' } });
   response.cookies.set('imi_sso', token, {
     httpOnly: true,
     sameSite: 'lax',
