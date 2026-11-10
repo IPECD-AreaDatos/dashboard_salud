@@ -5,8 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import { Activity, BarChart3, ShieldCheck, HeartHandshake, LogOut } from 'lucide-react';
 import styles from "./Navbar.module.css";
 import Image from "next/image";
-import logoColorImg from "../../public/logo_color.png";
-import logoSaludImg from "../../public/Logo_Salud_Publica_colorH.png";
+import logoColorImg from "../../public/logo_nuevo.png";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -100,12 +99,7 @@ export default function Navbar() {
             alt="Modernización" 
             style={{ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
           />
-          <div style={{ width: '1px', height: '20px', backgroundColor: '#cbd5e1' }} />
-          <Image 
-            src={logoSaludImg} 
-            alt="Salud Pública" 
-            style={{ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
-          />
+          
         </div>
 
         <div className={styles.userInfo}>

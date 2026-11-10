@@ -7,8 +7,7 @@ import * as XLSX from "xlsx";
 import { Download, Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Image from "next/image";
-import logoColorImg from "../../../../public/logo_color.png";
-import logoSaludImg from "../../../../public/Logo_Salud_Publica_colorH.png";
+import logoColorImg from "../../../../public/logo_nuevo.png";
 import styles from "./PrimerosLatidos.module.css";
 
 export default function PrimerosLatidosPage() {
@@ -448,15 +447,10 @@ export default function PrimerosLatidosPage() {
             alt="Modernización" 
             style={{ height: '32px', width: 'auto', objectFit: 'contain', opacity: 0.85 }}
           />
-          <div className={styles.footerDivider}></div>
-          <Image 
-            src={logoSaludImg} 
-            alt="Salud Pública" 
-            style={{ height: '32px', width: 'auto', objectFit: 'contain', opacity: 0.85 }}
-          />
+          
         </div>
         <p className={styles.footerText}>
-          Provincia de Corrientes — Ministerio de Salud Pública © 2026
+          Provincia de Corrientes - Ministerio de Salud Pública © 2026
         </p>
       </footer>
     </div>

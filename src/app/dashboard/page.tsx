@@ -11,8 +11,7 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import logoColorImg from "../../../public/logo_color.png";
-import logoSaludImg from "../../../public/Logo_Salud_Publica_colorH.png";
+import logoColorImg from "../../../public/logo_nuevo.png";
 
 import * as XLSX from 'xlsx';
 
@@ -1179,6 +1178,8 @@ function SeguimientoPageContent() {
               </table>
             </div>
           </main>
+
+          
         </div>
         
       </div>
