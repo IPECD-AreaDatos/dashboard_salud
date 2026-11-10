@@ -18,7 +18,8 @@ import {
   Cell,
   Legend
 } from "recharts";
-import { Loader2, Download, Info } from "lucide-react";
+import { Loader2, Download, Info, FileText, Sheet, ChevronDown } from "lucide-react";
+import { generarReporteEstadisticasPDF } from "@/lib/pdfEstadisticasCen";
 import { apiFetch } from "@/lib/api";
 import * as XLSX from 'xlsx';
 
@@ -151,6 +152,8 @@ export default function StatsPage() {
       .replace(/\s+/g, ' ') // 9. Colapsar múltiples espacios a uno solo
       .trim(); // 10. Limpiar espacios al inicio y final
   };
+
+  
 
   const [periodoComparativa, setPeriodoComparativa] = useState<7 | 14 | 30>(30);
 
@@ -289,116 +292,197 @@ export default function StatsPage() {
     return ((value / totalPadronCapital) * 100).toFixed(1) + "%";
   };
 
-  const exportarAExcel = () => {
-    if (!sortedCaps || sortedCaps.length === 0) {
-      alert("No hay datos en la tabla para exportar.");
+  const [menuDescargaAbierto, setMenuDescargaAbierto] = useState(false);
+
+  const handleDescargar = async (formato: "pdf" | "xlsx") => {
+    setMenuDescargaAbierto(false);
+
+    if (formato === "xlsx") {
+      exportarAExcel();
       return;
     }
 
-    // 🌟 Etiqueta dinámica: "CAPS" o "SAPS"
-    const redSaludLabel = tipoEfectorTabla === 'SAPS' ? 'SAPS' : 'CAPS';
-    const tipoCentroTexto = tipoEfectorTabla === 'SAPS' 
-      ? 'CENTROS MUNICIPALES (SAPS)' 
-      : 'CENTROS PROVINCIALES (CAPS)';
+    const tituloCentro = isCAPS
+      ? `Estadísticas del Centro: ${session?.user?.name}`
+      : isMaternidad
+      ? `Estadísticas de la Maternidad: ${session?.user?.name}`
+      : "Estadísticas e Indicadores Provinciales";
 
-    const fechaHoraDescarga = new Date().toLocaleDateString('es-AR') + " " + new Date().toLocaleTimeString('es-AR');
-    const fechaT0 = sortedCaps[0]?.fechaT0 ? new Date(sortedCaps[0].fechaT0).toLocaleDateString('es-AR') : `Hace ${periodoComparativa} días`;
-    const fechaT1 = sortedCaps[0]?.fechaT1 ? new Date(sortedCaps[0].fechaT1).toLocaleDateString('es-AR') : 'Actual';
+    const subtituloCentro = isCAPS
+      ? "Datos sobre embarazadas activas en su centro, excluyendo pacientes derivadas."
+      : isMaternidad
+      ? "Datos sobre embarazadas bajo su seguimiento y pacientes derivadas."
+      : "Panel de control clínico y auditoría de gestión de efectores.";
 
-    // 🌟 Cálculo de porcentajes para riesgo controladas con denominador de embarazadas de riesgo
-    const totalRiesgoPcia = data?.riesgo?.total || 0;
-    const riesgoControladasPcia = data?.gestion?.riesgoControladas || 0;
-    const pctRiesgoCtrlPcia = totalRiesgoPcia > 0 
-      ? `(${((riesgoControladasPcia * 100) / totalRiesgoPcia).toFixed(1)}%)` 
-      : '(0.0%)';
+    await generarReporteEstadisticasPDF({
+      tituloCentro,
+      subtituloCentro,
+      fechaDatos: ultimaActualizacion ? new Date(ultimaActualizacion).toLocaleDateString("es-AR") : "Actual",
+      esAdminOrCoord: Boolean(isAdminOrCoord),
+      esCAPS: Boolean(isCAPS),
+      isMaternidad: Boolean(isMaternidad),
+      data,
+      periodoComparativa,
+      sortedCaps,
+      totalCaps,
+      tipoEfectorTabla,
+      usuarioGenerador: `${session?.user?.username || session?.user?.name} (${userRole || ""})`,
+    });
+  };
 
-    const totalRiesgoCap = data?.riesgo?.desgloseZona?.capital || 0;
-    const riesgoControladasCap = data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0;
-    const pctRiesgoCtrlCap = totalRiesgoCap > 0 
-      ? `(${((riesgoControladasCap * 100) / totalRiesgoCap).toFixed(1)}%)` 
-      : '(0.0%)';
-
-    const encabezado = [
-      [`REPORTE INTEGRAL DE GESTIÓN Y COBERTURA POR ${redSaludLabel} (CAPITAL)`],
-      [`Período analizado: Últimos ${periodoComparativa} días (${fechaT0} → ${fechaT1})`],
-      [`Fecha de descarga: ${fechaHoraDescarga}`],
-      [],
-      ["MÉTRICAS GENERALES PROVINCIALES"],
-      ["Padrón Provincial Activo", "Total en Alto Riesgo", "Total en Riesgo Controladas", "Total Controladas (Al Día)", "Total Seguimiento Adecuado"],
-      [
-        `${totalPadron} (100%)`,
-        `${totalRiesgoPcia} (${getPct(totalRiesgoPcia)})`, 
-        `${riesgoControladasPcia} ${pctRiesgoCtrlPcia}`,
-        `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`, 
-        `${data?.gestion?.seguimientoAdecuado || 0} (${getPct(data?.gestion?.seguimientoAdecuado || 0)})`
-      ],
-      [],
-      ["MÉTRICAS DEPARTAMENTO CAPITAL"],
-      ["Padrón Capital", "Riesgo Capital", "Riesgo Controlado Capital", "Controladas Capital", "Seguimiento Adecuado Capital"],
-      [
-        `${data?.general?.desgloseZona?.capital || 0} (${getPct(data?.general?.desgloseZona?.capital || 0)})`,
-        `${totalRiesgoCap} (${getPctCapital(totalRiesgoCap)})`,
-        `${riesgoControladasCap} ${pctRiesgoCtrlCap}`,
-        `${data?.gestion?.desgloseZona?.controladas?.capital || 0} (${getPctCapital(data?.gestion?.desgloseZona?.controladas?.capital || 0)})`,
-        `${data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0} (${getPctCapital(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)})`
-      ],
-      [],
-      [`DESEMPEÑO Y EVOLUCIÓN POR ${tipoCentroTexto}`]
-    ];
-
-    const hoja = XLSX.utils.aoa_to_sheet(encabezado);
-
-    const datosFormateados = sortedCaps.map((c: any) => ({
-      "Centro de Salud": c.displayName,
-      [`Padrón (${fechaT0})`]: c.padronAnt,
-      [`Padrón (${fechaT1})`]: c.padronAct,
-      [`Controladas (${fechaT0})`]: c.ctrlAnt,
-      [`Controladas (${fechaT1})`]: c.ctrlAct,
-      [`Cobertura (${fechaT0})`]: `${c.cobAnt}%`,
-      [`Cobertura (${fechaT1})`]: `${c.cobAct}%`,
-      "Variación Cobertura": `${c.variacionCob >= 0 ? '+' : ''}${c.variacionCob} p.p.`,
-      "% Seguimiento Adecuado": `${c.pctSeguimientoAdecuado}%`,
-      "% Gestión Proactiva": `${c.pctGestion}%`,
-      "Controladas x Gestión": c.controladasGestion,
-      "Controladas Espontáneas": c.controladasEspontaneas,
-      "Próximos Turnos": c.turnosAsignadosCaps
-    }));
-
-    if (totalCaps) {
-      datosFormateados.push({
-        "Centro de Salud": `TOTAL ${redSaludLabel} (${totalCaps.capsCount})`,
-        [`Padrón (${fechaT0})`]: totalCaps.padronAnt,
-        [`Padrón (${fechaT1})`]: totalCaps.padronAct,
-        [`Controladas (${fechaT0})`]: totalCaps.ctrlAnt,
-        [`Controladas (${fechaT1})`]: totalCaps.ctrlAct,
-        [`Cobertura (${fechaT0})`]: `${totalCaps.cobAnt}%`,
-        [`Cobertura (${fechaT1})`]: `${totalCaps.cobAct}%`,
-        "Variación Cobertura": `${totalCaps.variacionCob >= 0 ? '+' : ''}${totalCaps.variacionCob} p.p.`,
-        "% Seguimiento Adecuado": `${totalCaps.pctSeguimientoAdecuado}%`,
-        "% Gestión Proactiva": `${totalCaps.pctGestion}%`,
-        "Controladas x Gestión": totalCaps.controladasGestion,
-        "Controladas Espontáneas": totalCaps.controladasEspontaneas,
-        "Próximos Turnos": totalCaps.turnosAsignadosCaps
-      });
-    }
-
-    XLSX.utils.sheet_add_json(hoja, datosFormateados, { origin: "A14" });
-    hoja['!cols'] = [
-      { wch: 38 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 },
-      { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 24 }, { wch: 22 },
-      { wch: 22 }, { wch: 24 }, { wch: 16 }
-    ];
-
+  const exportarAExcel = () => {
     const libro = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(libro, hoja, `Reporte ${redSaludLabel} Capital`);
+    const fechaHoraDescarga = new Date().toLocaleDateString('es-AR') + " " + new Date().toLocaleTimeString('es-AR');
 
-    const fechaDescargaISO = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(libro, `Reporte_${redSaludLabel}_Capital_${fechaDescargaISO}.xlsx`);
+    if (isAdminOrCoord) {
+      if (!sortedCaps || sortedCaps.length === 0) {
+        alert("No hay datos en la tabla para exportar.");
+        return;
+      }
+
+      const redSaludLabel = tipoEfectorTabla === 'SAPS' ? 'SAPS' : 'CAPS';
+      const tipoCentroTexto = tipoEfectorTabla === 'SAPS' ? 'CENTROS MUNICIPALES (SAPS)' : 'CENTROS PROVINCIALES (CAPS)';
+
+      const fechaT0 = sortedCaps[0]?.fechaT0 ? new Date(sortedCaps[0].fechaT0).toLocaleDateString('es-AR') : `Hace ${periodoComparativa} días`;
+      const fechaT1 = sortedCaps[0]?.fechaT1 ? new Date(sortedCaps[0].fechaT1).toLocaleDateString('es-AR') : 'Actual';
+
+      const totalRiesgoPcia = data?.riesgo?.total || 0;
+      const riesgoControladasPcia = data?.gestion?.riesgoControladas || 0;
+      const pctRiesgoCtrlPcia = totalRiesgoPcia > 0 ? `(${((riesgoControladasPcia * 100) / totalRiesgoPcia).toFixed(1)}%)` : '(0.0%)';
+
+      const totalRiesgoCap = data?.riesgo?.desgloseZona?.capital || 0;
+      const riesgoControladasCap = data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0;
+      const pctRiesgoCtrlCap = totalRiesgoCap > 0 ? `(${((riesgoControladasCap * 100) / totalRiesgoCap).toFixed(1)}%)` : '(0.0%)';
+
+      const encabezado = [
+        [`REPORTE INTEGRAL DE GESTIÓN Y COBERTURA POR ${redSaludLabel} (CAPITAL)`],
+        [`Período analizado: Últimos ${periodoComparativa} días (${fechaT0} → ${fechaT1})`],
+        [`Fecha de descarga: ${fechaHoraDescarga}`],
+        [],
+        ["MÉTRICAS GENERALES PROVINCIALES"],
+        ["Padrón Provincial Activo", "Total en Alto Riesgo", "Total en Riesgo Controladas", "Total Controladas (Al Día)", "Total Seguimiento Adecuado"],
+        [
+          `${totalPadron} (100%)`,
+          `${totalRiesgoPcia} (${getPct(totalRiesgoPcia)})`, 
+          `${riesgoControladasPcia} ${pctRiesgoCtrlPcia}`,
+          `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`, 
+          `${data?.gestion?.seguimientoAdecuado || 0} (${getPct(data?.gestion?.seguimientoAdecuado || 0)})`
+        ],
+        [],
+        ["MÉTRICAS DEPARTAMENTO CAPITAL"],
+        ["Padrón Capital", "Riesgo Capital", "Riesgo Controlado Capital", "Controladas Capital", "Seguimiento Adecuado Capital"],
+        [
+          `${data?.general?.desgloseZona?.capital || 0} (${getPct(data?.general?.desgloseZona?.capital || 0)})`,
+          `${totalRiesgoCap} (${getPctCapital(totalRiesgoCap)})`,
+          `${riesgoControladasCap} ${pctRiesgoCtrlCap}`,
+          `${data?.gestion?.desgloseZona?.controladas?.capital || 0} (${getPctCapital(data?.gestion?.desgloseZona?.controladas?.capital || 0)})`,
+          `${data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0} (${getPctCapital(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)})`
+        ],
+        [],
+        [`DESEMPEÑO Y EVOLUCIÓN POR ${tipoCentroTexto}`]
+      ];
+
+      const hoja = XLSX.utils.aoa_to_sheet(encabezado);
+
+      const datosFormateados = sortedCaps.map((c: any) => ({
+        "Centro de Salud": c.displayName,
+        [`Padrón (${fechaT0})`]: c.padronAnt,
+        [`Padrón (${fechaT1})`]: c.padronAct,
+        [`Controladas (${fechaT0})`]: c.ctrlAnt,
+        [`Controladas (${fechaT1})`]: c.ctrlAct,
+        [`Cobertura (${fechaT0})`]: `${c.cobAnt}%`,
+        [`Cobertura (${fechaT1})`]: `${c.cobAct}%`,
+        "Variación Cobertura": `${c.variacionCob >= 0 ? '+' : ''}${c.variacionCob} p.p.`,
+        "% Seguimiento Adecuado": `${c.pctSeguimientoAdecuado}%`,
+        "% Gestión Proactiva": `${c.pctGestion}%`,
+        "Controladas x Gestión": c.controladasGestion,
+        "Controladas Espontáneas": c.controladasEspontaneas,
+        "Próximos Turnos": c.turnosAsignadosCaps
+      }));
+
+      if (totalCaps) {
+        datosFormateados.push({
+          "Centro de Salud": `TOTAL ${redSaludLabel} (${totalCaps.capsCount})`,
+          [`Padrón (${fechaT0})`]: totalCaps.padronAnt,
+          [`Padrón (${fechaT1})`]: totalCaps.padronAct,
+          [`Controladas (${fechaT0})`]: totalCaps.ctrlAnt,
+          [`Controladas (${fechaT1})`]: totalCaps.ctrlAct,
+          [`Cobertura (${fechaT0})`]: `${totalCaps.cobAnt}%`,
+          [`Cobertura (${fechaT1})`]: `${totalCaps.cobAct}%`,
+          "Variación Cobertura": `${totalCaps.variacionCob >= 0 ? '+' : ''}${totalCaps.variacionCob} p.p.`,
+          "% Seguimiento Adecuado": `${totalCaps.pctSeguimientoAdecuado}%`,
+          "% Gestión Proactiva": `${totalCaps.pctGestion}%`,
+          "Controladas x Gestión": totalCaps.controladasGestion,
+          "Controladas Espontáneas": totalCaps.controladasEspontaneas,
+          "Próximos Turnos": totalCaps.turnosAsignadosCaps
+        });
+      }
+
+      XLSX.utils.sheet_add_json(hoja, datosFormateados, { origin: "A14" });
+      hoja['!cols'] = [
+        { wch: 38 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 },
+        { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 24 }, { wch: 22 },
+        { wch: 22 }, { wch: 24 }, { wch: 16 }
+      ];
+
+      XLSX.utils.book_append_sheet(libro, hoja, `Reporte ${redSaludLabel} Capital`);
+      const fechaDescargaISO = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(libro, `Reporte_${redSaludLabel}_Capital_${fechaDescargaISO}.xlsx`);
+
+    } else {
+      // Si es Centro de Salud (CAPS) o Maternidad
+      const nombreCentro = session?.user?.name || "Centro";
+      const datosCentro = [
+        [`ESTADÍSTICAS DEL CENTRO: ${nombreCentro}`],
+        [`Fecha de descarga: ${fechaHoraDescarga}`],
+        [],
+        ["1. EMBARAZADAS GENERAL"],
+        ["Categoría Etaria", "Cantidad"],
+        ["Total Activas", data?.general?.total || 0],
+        ["Menores a 15 años", data?.general?.sub15 || 0],
+        ["15 a 19 años", data?.general?.age15_19 || 0],
+        ["20 a 34 años", data?.general?.age20_34 || 0],
+        ["Mayores a 34 años", data?.general?.age34plus || 0],
+        [],
+        ["2. EMBARAZADAS EN RIESGO"],
+        ["Categoría Etaria", "Cantidad"],
+        ["Total Riesgo", data?.riesgo?.total || 0],
+        ["Menores a 15 años", data?.riesgo?.sub15 || 0],
+        ["15 a 19 años", data?.riesgo?.age15_19 || 0],
+        ["20 a 34 años", data?.riesgo?.age20_34 || 0],
+        ["Mayores a 34 años", data?.riesgo?.age34plus || 0],
+      ];
+
+      if (isCAPS) {
+        datosCentro.push(
+          [],
+          ["3. GESTIÓN PRIORITARIA DEL CENTRO"],
+          ["Métrica Operativa", "Cantidad", "Descripción"],
+          ["Partos en 30 días", data?.gestion?.proximosPartos || 0, "Recta final (sem 36+ o FPP próxima)"],
+          ["Riesgo sin Control", data?.gestion?.desgloseZona?.riesgoSinControl || 0, "Riesgo alto/moderado >30d sin control"],
+          ["Controles Atrasados", data?.gestion?.controlesPendientes || 0, ">30 días desde último control"],
+          ["Requieren Contacto", data?.gestion?.sinContactoReciente || 0, ">30 días sin contacto o turno perdido"],
+          ["Sin Teléfono", data?.gestion?.sinTelefono || 0, "Sin número de contacto válido"],
+          ["Seguimiento Adecuado", data?.gestion?.desgloseZona?.seguimientoAdecuadoCaps || 0, "Controles y contactos al día en el mes"],
+          ["Turnos Asignados x Tablero", data?.gestion?.desgloseZona?.turnosAsignadosCaps || 0, "Agendadas desde acciones del tablero"],
+          ["Derivadas", data?.gestion?.derivadas || 0, "Derivadas a complejidad superior"],
+          ["Captación Precoz (<12 sem)", data?.gestion?.desgloseZona?.captacionPrecozCaps || 0, "Inicio controles en 1er trimestre"],
+          ["Efectividad de Contacto", `${efectividadContactoPct}%`, `(${contactosConTurno} de ${contactosTotales} embarazadas)`]
+        );
+      }
+
+      const hojaCentro = XLSX.utils.aoa_to_sheet(datosCentro);
+      hojaCentro['!cols'] = [{ wch: 32 }, { wch: 18 }, { wch: 45 }];
+      XLSX.utils.book_append_sheet(libro, hojaCentro, "Estadísticas Centro");
+
+      const fechaIso = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(libro, `Estadisticas_${nombreCentro.replace(/\s+/g, '_')}_${fechaIso}.xlsx`);
+    }
 
     registrarLog({
       modulo: "Estadísticas",
       accion: "EXPORTAR_EXCEL",
-      detalles: `Exportó reporte consolidado de ${redSaludLabel} (${periodoComparativa} días).`
+      detalles: `Exportó estadísticas del centro o efectores.`
     }).catch(err => console.error("Error al registrar log:", err));
   };
 
@@ -516,20 +600,132 @@ export default function StatsPage() {
                 Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
               </span>
             )}
-            {isAdminOrCoord && (
-              <button 
-                onClick={exportarAExcel}
-                style={{ 
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  backgroundColor: '#769FD3', color: 'white', 
-                  border: '1px solid #587ba8', padding: '0.6rem 1.1rem', 
-                  borderRadius: '0.8rem', fontSize: '0.875rem', 
-                  fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
-                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-                }}
-              >
-                <Download size={16} /> Descargar Reporte
-              </button>
+            {(isAdminOrCoord || isCAPS || isMaternidad) && (
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => setMenuDescargaAbierto(!menuDescargaAbierto)}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    backgroundColor: '#769FD3', color: 'white', 
+                    border: '1px solid #587ba8', padding: '0.6rem 1.1rem', 
+                    borderRadius: '0.8rem', fontSize: '0.875rem', 
+                    fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#587ba8")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#769FD3")}
+                >
+                  <Download size={16} />
+                  <span>Descargar Reporte</span>
+                  <ChevronDown
+                    size={14}
+                    style={{
+                      transform: menuDescargaAbierto ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s ease",
+                    }}
+                  />
+                </button>
+
+                {menuDescargaAbierto && (
+                  <>
+                    <div
+                      style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                      onClick={() => setMenuDescargaAbierto(false)}
+                    />
+
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        top: "calc(100% + 6px)",
+                        backgroundColor: "#FFFFFF",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "10px",
+                        boxShadow: "0 12px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04)",
+                        zIndex: 50,
+                        minWidth: "210px",
+                        padding: "4px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "2px",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleDescargar("pdf")}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "9px 12px",
+                          backgroundColor: "transparent",
+                          border: "none",
+                          borderRadius: "6px",
+                          textAlign: "left",
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          color: "#1E293B",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "26px",
+                            height: "26px",
+                            borderRadius: "6px",
+                            backgroundColor: "#FEE2E2",
+                          }}
+                        >
+                          <FileText size={15} color="#DC2626" />
+                        </div>
+                        <span>Documento PDF (.pdf)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDescargar("xlsx")}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "9px 12px",
+                          backgroundColor: "transparent",
+                          border: "none",
+                          borderRadius: "6px",
+                          textAlign: "left",
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          color: "#1E293B",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "26px",
+                            height: "26px",
+                            borderRadius: "6px",
+                            backgroundColor: "#DCFCE7",
+                          }}
+                        >
+                          <Sheet size={15} color="#16A34A" />
+                        </div>
+                        <span>Planilla Excel (.xlsx)</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
