@@ -3,9 +3,19 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { generarReportePrimerosLatidosPDF } from "@/lib/pdfPrimerosLatidos";
 import * as XLSX from "xlsx";
-import { Download, Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import { 
+  Download, 
+  Search, 
+  Loader2, 
+  ArrowUpDown, 
+  ArrowUp, 
+  ArrowDown, 
+  ChevronDown, 
+  FileText, 
+  Sheet 
+} from "lucide-react";import Navbar from "@/components/Navbar";
 import Image from "next/image";
 import logoColorImg from "../../../../public/logo_nuevo.png";
 import styles from "./PrimerosLatidos.module.css";
@@ -31,10 +41,13 @@ export default function PrimerosLatidosPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const [menuDescargaAbierto, setMenuDescargaAbierto] = useState(false);
+
   // Filtros
   const [search, setSearch] = useState("");
   const [zona, setZona] = useState("Todos");
-  const [departamento, setDepartamento] = useState("Todos");
+  const [departamentos, setDepartamentos] = useState<string[]>([]); // 👈 Array de seleccionados
+  const [menuDeptosAbierto, setMenuDeptosAbierto] = useState(false); // 👈 Controla el desplegable
   const [corteDias, setCorteDias] = useState("Todos");
 
   const fetchData = async () => {
@@ -43,7 +56,7 @@ export default function PrimerosLatidosPage() {
       const queryParams = new URLSearchParams({
         search,
         zona,
-        departamento,
+        departamento: departamentos.length > 0 ? departamentos.join(",") : "Todos",
         corteDias
       });
 
@@ -66,11 +79,10 @@ export default function PrimerosLatidosPage() {
   };
 
   useEffect(() => {
-    // Solo busca datos si el usuario tiene permiso
     if (status === "authenticated" && (isPrimerosLatidos || isAdmin)) {
       fetchData();
     }
-  }, [zona, departamento, corteDias, status, isPrimerosLatidos, isAdmin]);
+  }, [zona, departamentos, corteDias, status, isPrimerosLatidos, isAdmin]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,6 +157,42 @@ export default function PrimerosLatidosPage() {
     );
   };
 
+  // Función unificada para descargar PDF o Excel
+  const handleDescargar = async (formato: "pdf" | "xlsx") => {
+    setMenuDescargaAbierto(false);
+
+    if (formato === "xlsx") {
+      handleExportExcel();
+      return;
+    }
+
+    // Textos limpios de los filtros aplicados para la barra del PDF
+    const corteMap: Record<string, string> = {
+      Todos: "Todas las embarazadas",
+      "40": "Aptas ≤ 40 días",
+      "60": "Ventana ≤ 60 días",
+      "90": "Ventana ≤ 90 días",
+      no_aptas: "Inactivas / Sin control (>90d)",
+    };
+
+    const propsPDF = {
+      kpis: data?.kpis || {},
+      filtros: {
+        corteTexto: corteMap[corteDias] || corteDias,
+        zonaTexto: zona === "Todos" ? "Toda la Provincia" : zona,
+        deptosTexto:
+          departamentos.length === 0
+            ? "Todos los departamentos"
+            : departamentos.join(", "),
+        busquedaTexto: search || undefined,
+      },
+      pacientes: sortedPacientes,
+      totalResultados: data?.totalResultados || sortedPacientes.length,
+      usuarioGenerador: session?.user?.name || "Administrador",
+    };
+    await generarReportePrimerosLatidosPDF(propsPDF);
+  };
+
   // Descarga del reporte idéntico al Excel de Tony (13 columnas)
   const handleExportExcel = () => {
     if (!data?.pacientes || data.pacientes.length === 0) {
@@ -183,13 +231,19 @@ export default function PrimerosLatidosPage() {
     return null;
   }
 
+  const toggleDepto = (dep: string) => {
+    setDepartamentos((prev) =>
+      prev.includes(dep) ? prev.filter((d) => d !== dep) : [...prev, dep]
+    );
+  };
+
   return (
     <div className={styles.mainWrapper}>
       {/* 🌟 1. NAVBAR OFICIAL */}
       <Navbar />
 
       <main className={styles.contentContainer}>
-        {/* Cabecera de Página */}
+        {/* Cabecera de Página con Botón Desplegable Multiformato */}
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>Primeros Latidos — Padrón y Control de Prestaciones</h1>
@@ -197,10 +251,131 @@ export default function PrimerosLatidosPage() {
               Monitoreo provincial de controles prenatales para asignación, suspensión o continuidad del beneficio.
             </p>
           </div>
-          <button onClick={handleExportExcel} className={styles.btnExportar}>
-            <Download size={18} />
-            Descargar Reporte Excel
-          </button>
+
+          {/* Menú de Descarga (PDF / Excel) */}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              className={styles.btnExportar}
+              onClick={() => setMenuDescargaAbierto(!menuDescargaAbierto)}
+              style={{ display: "flex", alignItems: "center", gap: "8px" }}
+            >
+              <Download size={18} />
+              <span>Descargar Reporte</span>
+              <ChevronDown
+                size={15}
+                style={{
+                  transform: menuDescargaAbierto ? "rotate(180deg)" : "none",
+                  transition: "transform 0.2s ease",
+                }}
+              />
+            </button>
+
+            {menuDescargaAbierto && (
+              <>
+                {/* Backdrop invisible para cerrar al hacer clic afuera */}
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                  onClick={() => setMenuDescargaAbierto(false)}
+                />
+
+                {/* Dropdown flotante */}
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: "calc(100% + 6px)",
+                    backgroundColor: "#FFFFFF",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: "10px",
+                    boxShadow: "0 12px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04)",
+                    zIndex: 50,
+                    minWidth: "215px",
+                    padding: "4px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "2px",
+                  }}
+                >
+                  {/* Opción PDF */}
+                  <button
+                    type="button"
+                    onClick={() => handleDescargar("pdf")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "9px 12px",
+                      backgroundColor: "transparent",
+                      border: "none",
+                      borderRadius: "6px",
+                      textAlign: "left",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#1E293B",
+                      cursor: "pointer",
+                      transition: "background-color 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "26px",
+                        height: "26px",
+                        borderRadius: "6px",
+                        backgroundColor: "#FEE2E2",
+                      }}
+                    >
+                      <FileText size={15} color="#DC2626" />
+                    </div>
+                    <span>Documento PDF (.pdf)</span>
+                  </button>
+
+                  {/* Opción Excel */}
+                  <button
+                    type="button"
+                    onClick={() => handleDescargar("xlsx")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "9px 12px",
+                      backgroundColor: "transparent",
+                      border: "none",
+                      borderRadius: "6px",
+                      textAlign: "left",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#1E293B",
+                      cursor: "pointer",
+                      transition: "background-color 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "26px",
+                        height: "26px",
+                        borderRadius: "6px",
+                        backgroundColor: "#DCFCE7",
+                      }}
+                    >
+                      <Sheet size={15} color="#16A34A" />
+                    </div>
+                    <span>Planilla Excel (.xlsx)</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Fila de KPIs SegEm: Ventanas de Cobro para Primeros Latidos */}
@@ -292,38 +467,286 @@ export default function PrimerosLatidosPage() {
             <button type="submit" className={styles.btnBuscar}>Buscar</button>
           </form>
 
-          <div className={styles.filterControls}>
-            <div className={styles.filterItem}>
-              <label>Corte para beneficio:</label>
-              <select value={corteDias} onChange={(e) => setCorteDias(e.target.value)}>
-                <option value="Todos">Todas las embarazadas</option>
-                <option value="40">Aptas corte estricto (&le; 40 días)</option>
-                <option value="60">Aptas ventana ampliada (&le; 60 días)</option>
-                <option value="90">Aptas ventana máxima (&le; 90 días)</option>
-                <option value="no_aptas">Inactivas / Sin control (&gt; 90 días o S/D)</option>
-              </select>
+            <div className={styles.filterControls}>
+              {/* 1. Corte para beneficio */}
+              <div className={styles.filterItem}>
+                <label>Corte para beneficio:</label>
+                <select value={corteDias} onChange={(e) => setCorteDias(e.target.value)}>
+                  <option value="Todos">Todas las embarazadas</option>
+                  <option value="40">Aptas corte estricto (&le; 40 días)</option>
+                  <option value="60">Aptas ventana ampliada (&le; 60 días)</option>
+                  <option value="90">Aptas ventana máxima (&le; 90 días)</option>
+                  <option value="no_aptas">Inactivas / Sin control (&gt; 90 días o S/D)</option>
+                </select>
+              </div>
+
+              {/* 2. Zona */}
+              <div className={styles.filterItem}>
+                <label>Zona:</label>
+                <select 
+                  value={zona} 
+                  onChange={(e) => { 
+                    setZona(e.target.value); 
+                    setDepartamentos([]); 
+                  }}
+                >
+                  <option value="Todos">Toda la Provincia</option>
+                  <option value="Capital">Solo Capital</option>
+                  <option value="Interior">Solo Interior</option>
+                </select>
+              </div>
+
+              {/* 3. Selector Múltiple de Departamento */}
+              <div className={styles.filterItem} style={{ position: "relative" }}>
+                <label>Departamento / Municipio:</label>
+                
+                <button
+                  type="button"
+                  onClick={() => setMenuDeptosAbierto(!menuDeptosAbierto)}
+                  style={{
+                    width: "100%",
+                    minWidth: "230px",
+                    height: "38px",
+                    padding: "0 0.85rem",
+                    borderRadius: "8px",
+                    border: departamentos.length > 0 ? "1.5px solid #456A9D" : "1px solid #cbd5e1",
+                    backgroundColor: departamentos.length > 0 ? "#F8FAFC" : "#ffffff",
+                    fontSize: "0.875rem",
+                    color: departamentos.length > 0 ? "#1e293b" : "#64748b",
+                    fontWeight: departamentos.length > 0 ? 600 : 400,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.03)",
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "6px" }}>
+                    {departamentos.length === 0
+                      ? "Todos los departamentos"
+                      : departamentos.length <= 2
+                      ? departamentos.join(", ")
+                      : `${departamentos.length} departamentos seleccionados`}
+                  </span>
+                  <ChevronDown 
+                    size={15} 
+                    style={{ 
+                      color: departamentos.length > 0 ? "#456A9D" : "#64748b", 
+                      transform: menuDeptosAbierto ? "rotate(180deg)" : "none", 
+                      transition: "transform 0.2s ease" 
+                    }} 
+                  />
+                </button>
+
+                {/* Dropdown flotante */}
+                {menuDeptosAbierto && (
+                  <>
+                    <div
+                      style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                      onClick={() => setMenuDeptosAbierto(false)}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 5px)",
+                        left: 0,
+                        width: "100%",
+                        minWidth: "260px",
+                        maxHeight: "300px",
+                        backgroundColor: "#ffffff",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "10px",
+                        boxShadow: "0 12px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04)",
+                        zIndex: 50,
+                        display: "flex",
+                        flexDirection: "column",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {/* Barra superior de acciones */}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          padding: "8px 12px",
+                          backgroundColor: "#F8FAFC",
+                          borderBottom: "1px solid #E2E8F0",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setDepartamentos(data?.departamentos || [])}
+                          style={{ background: "none", border: "none", color: "#456A9D", cursor: "pointer", padding: 0 }}
+                        >
+                          Seleccionar todos
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDepartamentos([])}
+                          style={{ background: "none", border: "none", color: "#DC2626", cursor: "pointer", padding: 0 }}
+                        >
+                          Limpiar
+                        </button>
+                      </div>
+
+                      {/* Lista con scroll de checkboxes */}
+                      <div style={{ overflowY: "auto", padding: "4px 0", flex: 1 }}>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "9px",
+                            padding: "7px 14px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            color: "#1e293b",
+                            backgroundColor: departamentos.length === 0 ? "#F1F5F9" : "transparent",
+                          }}
+                          onClick={() => setDepartamentos([])}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={departamentos.length === 0}
+                            readOnly
+                            style={{ cursor: "pointer", accentColor: "#456A9D" }}
+                          />
+                          <span>Todos los departamentos</span>
+                        </label>
+
+                        {data?.departamentos?.map((dep: string) => {
+                          const checked = departamentos.includes(dep);
+                          return (
+                            <label
+                              key={dep}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "9px",
+                                padding: "6px 14px",
+                                fontSize: "13px",
+                                color: checked ? "#1e293b" : "#475569",
+                                fontWeight: checked ? 600 : 400,
+                                cursor: "pointer",
+                                backgroundColor: checked ? "#F8FAFC" : "transparent",
+                                transition: "background-color 0.1s ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!checked) e.currentTarget.style.backgroundColor = "#F1F5F9";
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!checked) e.currentTarget.style.backgroundColor = "transparent";
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleDepto(dep)}
+                                style={{ cursor: "pointer", accentColor: "#456A9D" }}
+                              />
+                              <span>{dep}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className={styles.filterItem}>
-              <label>Zona:</label>
-              <select value={zona} onChange={(e) => { setZona(e.target.value); setDepartamento("Todos"); }}>
-                <option value="Todos">Toda la Provincia</option>
-                <option value="Capital">Solo Capital</option>
-                <option value="Interior">Solo Interior</option>
-              </select>
-            </div>
+            {/* 🌟 Renglón Inferior de Pastillas (Chips) Activas */}
+            {departamentos.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginTop: "14px",
+                  paddingTop: "12px",
+                  borderTop: "1px solid #E2E8F0",
+                }}
+              >
+                <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748B", marginRight: "4px" }}>
+                  Filtrando {departamentos.length} {departamentos.length === 1 ? "departamento" : "departamentos"}:
+                </span>
 
-            <div className={styles.filterItem}>
-              <label>Departamento:</label>
-              <select value={departamento} onChange={(e) => setDepartamento(e.target.value)}>
-                <option value="Todos">Todos los departamentos</option>
-                {data?.departamentos?.map((dep: string) => (
-                  <option key={dep} value={dep}>{dep}</option>
+                {departamentos.map((dep) => (
+                  <span
+                    key={dep}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      backgroundColor: "#EDF2F7",
+                      color: "#2B4C7E",
+                      border: "1px solid #CBD5E1",
+                      borderRadius: "9999px",
+                      padding: "3px 10px 3px 12px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      letterSpacing: "0.01em",
+                      boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02)",
+                    }}
+                  >
+                    {dep}
+                    <button
+                      type="button"
+                      onClick={() => toggleDepto(dep)}
+                      title={`Quitar ${dep}`}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#64748B",
+                        cursor: "pointer",
+                        padding: "2px",
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "color 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = "#DC2626")}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "#64748B")}
+                    >
+                      ✕
+                    </button>
+                  </span>
                 ))}
-              </select>
-            </div>
+
+                <button
+                  type="button"
+                  onClick={() => setDepartamentos([])}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#94A3B8",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    marginLeft: "4px",
+                    padding: "4px 6px",
+                    borderRadius: "4px",
+                    transition: "color 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "#DC2626";
+                    e.currentTarget.style.textDecoration = "underline";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "#94A3B8";
+                    e.currentTarget.style.textDecoration = "none";
+                  }}
+                >
+                  Limpiar todos
+                </button>
+              </div>
+            )}
           </div>
-        </div>
 
         {/* 🌟 2. TARJETA DE TABLA CON SCROLL INTERNO Y CABECERA FIJA */}
         <div className={styles.tableCard}>

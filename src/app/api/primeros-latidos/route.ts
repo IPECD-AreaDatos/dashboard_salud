@@ -37,10 +37,17 @@ export async function GET(request: Request) {
       filterClauses += ` AND COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), UPPER(TRIM(p.departamento_domicilio))) <> 'CAPITAL'`;
     }
 
-    // 3. Filtro Departamento
-    if (departamento !== "Todos") {
-      params.push(departamento.toUpperCase());
-      filterClauses += ` AND UPPER(TRIM(COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), p.departamento_domicilio))) = $${params.length}`;
+    // 3. Filtro Departamento (Soporta múltiples seleccionados por coma o uno solo)
+    if (departamento && departamento !== "Todos") {
+      const listaDeptos = departamento
+        .split(",")
+        .map((d) => d.trim().toUpperCase())
+        .filter(Boolean);
+
+      if (listaDeptos.length > 0 && !listaDeptos.includes("TODOS")) {
+        params.push(listaDeptos);
+        filterClauses += ` AND UPPER(TRIM(COALESCE((SELECT e.departamento FROM efectores_sisa e WHERE e.codigo_sisa = p.sisa_centro_salud LIMIT 1), p.departamento_domicilio))) = ANY($${params.length})`;
+      }
     }
 
     // 4. Filtro Establecimiento
