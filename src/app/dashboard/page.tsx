@@ -214,16 +214,22 @@ function SeguimientoPageContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
-  // 🌟 Mapeo automático del nombre real del efector limpio de contadores
+  // 🌟 Mapeo automático del nombre real del efector o nivel central
   const nombreInstitucionReal = useMemo(() => {
     let nombreCrudo = "";
+    
+    // Si es Administrador o Coordinador
     if (!isRestrictedRole) {
       if (filterEst !== "Todos") {
         const estSeleccionado = establecimientos.find((e) => e.value === filterEst);
         if (estSeleccionado) nombreCrudo = estSeleccionado.label;
       }
-      nombreCrudo = nombreCrudo || session?.user?.name || "Administrador";
+      // Si está viendo todo (sin filtrar un centro puntual), es Nivel Central / Provincia
+      if (!nombreCrudo || filterEst === "Todos") {
+        return "Nivel Central — Provincia de Corrientes";
+      }
     } else {
+      // Si es Centro de Salud o Maternidad
       const userCode = session?.user?.name?.toLowerCase().trim();
       const encontradoPorLista = establecimientos.find(
         (e) =>
@@ -240,7 +246,7 @@ function SeguimientoPageContent() {
       nombreCrudo = nombreCrudo || session?.user?.name || "Centro de Salud";
     }
 
-    // 🌟 Limpia cualquier sufijo tipo "(29 riesgo)" que traiga la base de datos
+    // 🌟 Limpia cualquier sufijo tipo "(29 riesgo)" y normaliza romanos
     return romanToArabic(nombreCrudo.replace(/\s*\(\d+\s*riesgo\)/gi, "").trim());
   }, [isRestrictedRole, filterEst, establecimientos, session?.user?.name, pacientes]);
 
