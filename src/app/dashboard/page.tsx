@@ -1,10 +1,11 @@
 /*src/app/dashboard/page.tsx*/
 "use client";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { registrarLog } from "@/lib/analytics";
 import styles from "./Dashboard.module.css";
 import Navbar from "@/components/Navbar";
-import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw, X, Download} from "lucide-react";
+import { generarReporteSeguimientoPDF } from "@/lib/pdfSeguimiento";
+import { Info, Filter, Search, Phone, CheckCircle2, AlertCircle, RefreshCcw, X, Download, ChevronDown, FileText, Sheet} from "lucide-react";
 import RegistroContactoModal from "@/components/RegistroContactoModal";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -137,6 +138,63 @@ function SeguimientoPageContent() {
     setSortConfig({ key, direction });
   };
 
+  
+
+  const [menuDescargaAbierto, setMenuDescargaAbierto] = useState(false);
+
+  const handleDescargar = async (formato: "pdf" | "xlsx") => {
+    setMenuDescargaAbierto(false);
+
+    if (formato === "xlsx") {
+      exportarAExcel();
+      return;
+    }
+
+    // Armamos el detalle exacto de todos los filtros aplicados en el servidor
+    const partesFiltro = [];
+
+    if (soloPorVencer) {
+      partesFiltro.push("Por Vencer sin Turno (≤ 10 días)");
+    } else if (aplicadoAtrasados === "Si") {
+      partesFiltro.push("Controles Atrasados (> 40 días)");
+    } else if (aplicadoAtrasados === "No") {
+      partesFiltro.push("Controles al Día (≤ 40 días)");
+    } else {
+      partesFiltro.push("Todos los controles");
+    }
+
+    if (aplicadoRiesgo === "Si") {
+      partesFiltro.push("Solo Alto Riesgo");
+    }
+
+    if (aplicadoTrimestre && aplicadoTrimestre !== "Todos") {
+      partesFiltro.push(`${aplicadoTrimestre}° Trimestre`);
+    }
+
+    // Refleja correctamente el estado de Derivadas
+    if (excluirDerivadas) {
+      partesFiltro.push("Excluyendo Derivadas");
+    } else {
+      partesFiltro.push("Incluyendo Derivadas");
+    }
+
+    if (filterEst !== "Todos") {
+      const estNombre = establecimientos.find((e) => e.value === filterEst)?.label;
+      if (estNombre) partesFiltro.push(estNombre.replace(/\s*\(\d+\s*riesgo\)/gi, ""));
+    }
+
+    const propsPDF = {
+      institucion: nombreInstitucionReal,
+      filtrosTexto: partesFiltro.join(" · "),
+      pacientes: pacientes, // 👈 Usamos 'pacientes' que ya trae todos los filtros aplicados de la API
+      totalEncontradas: pacientes.length,
+      totalRegistradas: totalGlobal || pacientes.length,
+      usuarioGenerador: `${session?.user?.username || session?.user?.name} (${userRole || ""})`,
+    };
+
+    await generarReporteSeguimientoPDF(propsPDF);
+  };
+
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null);
   // Estados para los filtros (Como Tony)
   const [filterDni, setFilterDni] = useState("");
@@ -155,6 +213,36 @@ function SeguimientoPageContent() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+
+  // 🌟 Mapeo automático del nombre real del efector limpio de contadores
+  const nombreInstitucionReal = useMemo(() => {
+    let nombreCrudo = "";
+    if (!isRestrictedRole) {
+      if (filterEst !== "Todos") {
+        const estSeleccionado = establecimientos.find((e) => e.value === filterEst);
+        if (estSeleccionado) nombreCrudo = estSeleccionado.label;
+      }
+      nombreCrudo = nombreCrudo || session?.user?.name || "Administrador";
+    } else {
+      const userCode = session?.user?.name?.toLowerCase().trim();
+      const encontradoPorLista = establecimientos.find(
+        (e) =>
+          e.value?.toLowerCase() === userCode ||
+          e.sisa?.toLowerCase() === userCode ||
+          e.label?.toLowerCase().includes(userCode || "")
+      );
+      if (encontradoPorLista && encontradoPorLista.value !== "Todos") {
+        nombreCrudo = encontradoPorLista.label;
+      } else if (pacientes.length > 0) {
+        const primerEst = pacientes.find((p) => p.nombre_establecimiento || p.establecimiento);
+        nombreCrudo = primerEst?.nombre_establecimiento || primerEst?.establecimiento || "";
+      }
+      nombreCrudo = nombreCrudo || session?.user?.name || "Centro de Salud";
+    }
+
+    // 🌟 Limpia cualquier sufijo tipo "(29 riesgo)" que traiga la base de datos
+    return romanToArabic(nombreCrudo.replace(/\s*\(\d+\s*riesgo\)/gi, "").trim());
+  }, [isRestrictedRole, filterEst, establecimientos, session?.user?.name, pacientes]);
 
   // Filtramos la lista de establecimientos según lo que el usuario escribe
   const filteredEsts = establecimientos.filter(est => {
@@ -883,7 +971,7 @@ function SeguimientoPageContent() {
                 }}>
                   {filterDni && pacientes.length === 1 
                     ? ` — Paciente de: ${pacientes[0].establecimiento}` 
-                    : ` — Institución: ${session?.user?.name || "Cargando..."}`
+                    : ` — Institución: ${nombreInstitucionReal || "Cargando..."}`
                   }
                 </span>
               </h2>
@@ -893,16 +981,141 @@ function SeguimientoPageContent() {
                     Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
                   </span>
                 )}
-                {userRole === 'Centro de Salud' && (
-                  <button 
-                    className={styles.btnRefresh} /* Usa la misma clase para que mantenga el tamaño y radio */
-                    onClick={exportarAExcel}
-                    style={{ backgroundColor: '#769FD3', color: 'white', borderColor: '#769FD3' }} /* Un verde esmeralda bien de Excel */
+
+                {/* Menú de Descarga Multiformato Seguimiento */}
+                <div style={{ position: "relative" }}>
+                  <button
                     type="button"
+                    onClick={() => setMenuDescargaAbierto(!menuDescargaAbierto)}
+                    title="Descargar listado"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      backgroundColor: "#456A9D",
+                      color: "#FFFFFF",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 12px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.08)",
+                      transition: "background-color 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#35537F")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#456A9D")}
                   >
-                    <Download size={16} style={{ marginRight: '4px', display: 'inline' }} />
+                    <Download size={16} />
+                    <span>Exportar</span>
+                    <ChevronDown
+                      size={14}
+                      style={{
+                        transform: menuDescargaAbierto ? "rotate(180deg)" : "none",
+                        transition: "transform 0.2s ease",
+                      }}
+                    />
                   </button>
-                )}
+
+                  {menuDescargaAbierto && (
+                    <>
+                      <div
+                        style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                        onClick={() => setMenuDescargaAbierto(false)}
+                      />
+
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: 0,
+                          top: "calc(100% + 6px)",
+                          backgroundColor: "#FFFFFF",
+                          border: "1px solid #E2E8F0",
+                          borderRadius: "10px",
+                          boxShadow: "0 12px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04)",
+                          zIndex: 50,
+                          minWidth: "210px",
+                          padding: "4px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "2px",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleDescargar("pdf")}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            padding: "9px 12px",
+                            backgroundColor: "transparent",
+                            border: "none",
+                            borderRadius: "6px",
+                            textAlign: "left",
+                            fontSize: "13px",
+                            fontWeight: 500,
+                            color: "#1E293B",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "26px",
+                              height: "26px",
+                              borderRadius: "6px",
+                              backgroundColor: "#FEE2E2",
+                            }}
+                          >
+                            <FileText size={15} color="#DC2626" />
+                          </div>
+                          <span>Documento PDF (.pdf)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDescargar("xlsx")}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            padding: "9px 12px",
+                            backgroundColor: "transparent",
+                            border: "none",
+                            borderRadius: "6px",
+                            textAlign: "left",
+                            fontSize: "13px",
+                            fontWeight: 500,
+                            color: "#1E293B",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "26px",
+                              height: "26px",
+                              borderRadius: "6px",
+                              backgroundColor: "#DCFCE7",
+                            }}
+                          >
+                            <Sheet size={15} color="#16A34A" />
+                          </div>
+                          <span>Planilla Excel (.xlsx)</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <button
                   className={styles.btnRefresh}
                   onClick={() => fetchPacientes()}
