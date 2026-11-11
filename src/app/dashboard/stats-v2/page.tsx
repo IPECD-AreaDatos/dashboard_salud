@@ -7,19 +7,25 @@ import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import { generarReporteStatsPDF } from "@/lib/pdfReporteStats";
 import { exportarReporteStatsExcel } from "@/lib/excelReporteStats";
+import { generarReporteTerritorialPDF } from "@/lib/pdfTerritorial";
 import { 
   Download, 
   ArrowRight, 
-  AlertTriangle, 
   Building2, 
   BarChart2, 
   Loader2,
   ChevronDown, 
   FileText, 
-  Sheet, 
-  FileSpreadsheet 
+  Sheet
 } from "lucide-react";
 import styles from "./StatsV2.module.css";
+
+type DepartamentoTerritorial = {
+  nombre: string;
+  embarazos: number;
+  controladas: number;
+  efectores: number;
+};
 
 export default function StatsV2Page() {
   const { data: session, status } = useSession();
@@ -83,7 +89,7 @@ export default function StatsV2Page() {
         fechaHasta: fHasta
       });
 
-      const res = await fetch(`${basePath}/api/stats?${queryParams.toString()}`);
+      const res = await fetch(`${basePath}/api/stats-v2?${queryParams.toString()}`);
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -143,8 +149,8 @@ export default function StatsV2Page() {
   const v2 = data?.statsV2;
   const pcia = v2?.padronProvincial;
   const padronProvincial = pcia?.total || 0;
-  const capital = pcia?.capital || { TOTAL: 0, CAPS: 0, SAPS: 0, HOSPITAL: 0 };
-  const interior = pcia?.interior || { TOTAL: 0, CAPS: 0, SAPS: 0, HOSPITAL: 0 };
+  const capital = pcia?.capital || { TOTAL: 0, CAPS: 0, SAPS: 0, HOSPITAL: 0, OTRO: 0 };
+  const interior = pcia?.interior || { TOTAL: 0, CAPS: 0, SAPS: 0, HOSPITAL: 0, OTRO: 0 };
 
   const pctCapital = padronProvincial > 0 ? ((capital.TOTAL * 100) / padronProvincial).toFixed(1).replace(".", ",") : "0,0";
   const pctInterior = padronProvincial > 0 ? ((interior.TOTAL * 100) / padronProvincial).toFixed(1).replace(".", ",") : "0,0";
@@ -200,14 +206,16 @@ export default function StatsV2Page() {
   }, [resumenEfectores, sortKey, sortAsc]);
 
   // Totales
-  const totalBase = resumenEfectores.reduce((acc: number, r: any) => acc + r.p1, 0) || (tipoEfector === "CAPS" ? 614 : 294);
-  const totalP0 = resumenEfectores.reduce((acc: number, r: any) => acc + r.p0, 0) || 628;
-  const totalCtrl = resumenEfectores.reduce((acc: number, r: any) => acc + r.ctrlAct, 0) || (tipoEfector === "CAPS" ? 532 : 102);
-  const pctCoberturaTotal = totalBase > 0 ? ((totalCtrl * 100) / totalBase).toFixed(1).replace(".", ",") : "86,6";
+  const totalBase = resumenEfectores.reduce((acc: number, r: any) => acc + r.p1, 0);
+  const totalP0 = resumenEfectores.reduce((acc: number, r: any) => acc + r.p0, 0);
+  const totalCtrl = resumenEfectores.reduce((acc: number, r: any) => acc + r.ctrlAct, 0);
+  const pctCoberturaTotal = totalBase > 0 ? ((totalCtrl * 100) / totalBase).toFixed(1).replace(".", ",") : "0,0";
   const totalAtrasadas = Math.max(0, totalBase - totalCtrl);
   const pctAtrasadas = totalBase > 0 ? ((totalAtrasadas * 100) / totalBase).toFixed(1).replace(".", ",") : "13,4";
 
-  const porVencerCount = tipoEfector === "CAPS" ? (v2?.porVencer?.caps || 15) : (v2?.porVencer?.saps || 41);
+  const porVencerCount = v2?.porVencer?.[tipoEfector.toLowerCase()] || 0;
+  const pctSeguimientoAdecuado = v2?.seguimientoAdecuado?.[tipoEfector.toLowerCase()] || 0;
+  const pctSeguimientoAdecuadoTxt = `${pctSeguimientoAdecuado.toFixed(1).replace(".", ",")}%`;
 
   // Helpers de color
   const getCoveragePillStyle = (v: number) => {
@@ -227,23 +235,17 @@ export default function StatsV2Page() {
       .sort((a, b) => b.cov - a.cov);
   }, [resumenEfectores, tipoEfector]);
 
-  const cobSalud = v2?.coberturaSalud || { publica: 85, obraSocial: 3, sinRegistro: 12 };
+  const cobSalud = v2?.coberturaSalud || { publica: 0, obraSocial: 0, sinRegistro: 0 };
 
   // Datos de histograma de Edad Gestacional
-  const egList = v2?.edadGestacional && v2.edadGestacional.length > 0 
-    ? v2.edadGestacional 
-    : [
-        { rango: "0 a 4", total: 0, controladas: 0 },
-        { rango: "5 a 8", total: 1, controladas: 1 },
-        { rango: "9 a 12", total: 12, controladas: 11 },
-        { rango: "13 a 16", total: 37, controladas: 33 },
-        { rango: "17 a 20", total: 64, controladas: 54 },
-        { rango: "21 a 24", total: 79, controladas: 66 },
-        { rango: "25 a 28", total: 90, controladas: 75 },
-        { rango: "29 a 32", total: 90, controladas: 74 },
-        { rango: "33 a 36", total: 74, controladas: 59 },
-        { rango: "37 a 40+", total: 181, controladas: 145 },
-      ];
+  const egList = v2?.edadGestacional || [];
+
+  const territorial = v2?.territorial;
+  const territorialResumen = territorial?.resumen;
+  const departamentosTerritoriales = (territorial?.departamentos || []) as DepartamentoTerritorial[];
+  const departamentosInterior = departamentosTerritoriales.filter((row) => row.nombre !== "CAPITAL").slice(0, 6);
+  const maxEmbarazosDepartamento = Math.max(1, ...departamentosInterior.map((row) => row.embarazos));
+  const catalogoSaps = tipoEfector === "SAPS" ? v2?.usoTablero : null;
 
   const maxEg = Math.max(1, ...egList.map((g: any) => g.total));
 
@@ -307,29 +309,42 @@ export default function StatsV2Page() {
   }, [pctCoberturaTotal, selectedEfectorIdx, resumenEfectores, tipoEfector]);
 
   const [menuDescargaAbierto, setMenuDescargaAbierto] = useState(false);
+  const [descargandoTerritorial, setDescargandoTerritorial] = useState(false);
+
+  const handleDescargarTerritorial = async () => {
+    if (!territorial) return;
+    setDescargandoTerritorial(true);
+    try {
+      await generarReporteTerritorialPDF(territorial, territorial.fechaCorte || "");
+    } catch (error) {
+      console.error("Error al generar el reporte territorial:", error);
+    } finally {
+      setDescargandoTerritorial(false);
+    }
+  };
 
   // Función unificada de descarga (PDF o Excel)
   const handleDescargar = async (formato: "pdf" | "xlsx") => {
     setMenuDescargaAbierto(false);
 
-    const segAdecuadoActual = tipoEfector === "CAPS" ? "31,4%" : "13,6%";
+    const segAdecuadoActual = pctSeguimientoAdecuadoTxt;
 
     const propsReporte = {
       tipoEfector,
       rangoTexto: `${periodoDias} días (${fechaDesde} al ${fechaHasta})`,
-      padronProvincial: padronProvincial || 2751,
+      padronProvincial,
       capital: {
-        TOTAL: capital?.TOTAL || 1136,
-        CAPS: capital?.CAPS || 610,
-        SAPS: capital?.SAPS || 282,
-        HOSPITAL: capital?.HOSPITAL || 244,
+        TOTAL: capital?.TOTAL || 0,
+        CAPS: capital?.CAPS || 0,
+        SAPS: capital?.SAPS || 0,
+        HOSPITAL: capital?.HOSPITAL || 0,
       },
       interior: {
-        TOTAL: interior?.TOTAL || 1615,
-        CAPS_SAPS: (interior?.CAPS || 0) + (interior?.SAPS || 0) || 754,
+        TOTAL: interior?.TOTAL || 0,
+        CAPS_SAPS: (interior?.CAPS || 0) + (interior?.SAPS || 0),
         CAPS: interior?.CAPS || 0,
         SAPS: interior?.SAPS || 0,
-        HOSPITAL: interior?.HOSPITAL || 861,
+        HOSPITAL: interior?.HOSPITAL || 0,
       },
       totalBase,
       totalCtrl,
@@ -338,7 +353,7 @@ export default function StatsV2Page() {
       pctAtrasadas,
       porVencerCount,
       pctSegAdecuado: segAdecuadoActual,
-      coberturaSalud: cobSalud || { publica: 85, obraSocial: 3, sinRegistro: 12 },
+      coberturaSalud: cobSalud,
       usoTablero: v2?.usoTablero, // 👈 Se suma auditoría de uso del tablero
       egList: egList,             // 👈 Se suma distribución de edad gestacional
       efectores: sortedRows || [],
@@ -561,7 +576,7 @@ export default function StatsV2Page() {
                 embarazadas activas
               </p>
               <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#5E5D5B" }}>
-                Datos al {new Date().toLocaleDateString("es-AR")}
+                Datos al {data?.ultimaActualizacion ? new Date(data.ultimaActualizacion).toLocaleDateString("es-AR") : new Date().toLocaleDateString("es-AR")}
               </p>
             </div>
 
@@ -579,7 +594,7 @@ export default function StatsV2Page() {
                     {pctCapital}%
                   </span>
                 </div>
-                <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 }}>
+                <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 }} title={`CAPS: ${capital.CAPS} · SAPS: ${capital.SAPS} · Hospitales: ${capital.HOSPITAL} · Otros: ${capital.OTRO}`}>
                   <div 
                     style={{ width: `${(capital.CAPS * 100) / capital.TOTAL}%`, background: "#2B4C7E", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
                     title={`CAPS: ${capital.CAPS}`}
@@ -598,10 +613,22 @@ export default function StatsV2Page() {
                   >
                     Hosp. {capital.HOSPITAL}
                   </div>
+                  {capital.OTRO > 0 && (
+                    <div
+                      style={{ width: `${(capital.OTRO * 100) / capital.TOTAL}%`, background: "#A7A9AC", flexShrink: 0 }}
+                      title={`Otros efectores sin clasificación CAPS/SAPS: ${capital.OTRO}`}
+                      aria-label={`Otros efectores sin clasificación CAPS/SAPS: ${capital.OTRO}`}
+                    />
+                  )}
                 </div>
+                {capital.OTRO > 0 && (
+                  <span style={{ fontSize: 12, color: "#5E5D5B" }}>
+                    Otros sin clasificación CAPS/SAPS: {capital.OTRO}
+                  </span>
+                )}
               </div>
 
-              {/* Bloque Interior (Unificando CAPS/SAPS y luego Hospitales) */}
+              {/* Bloque Interior (Unificado visualmente en la barra, desglosado en el tooltip) */}
               <div style={{ flex: "59.3 1 360px", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #2B4C7E", paddingBottom: "6px" }}>
                   <span style={{ fontSize: "15px", fontWeight: 700, color: "#2E2D2C" }}>Interior</span>
@@ -613,7 +640,8 @@ export default function StatsV2Page() {
                   </span>
                 </div>
                 <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 }}>
-                  {/* Tramo 1: CAPS + SAPS sumados */}
+
+                  {/* Tramo Único CAPS/SAPS con el tooltip detallado */}
                   <div 
                     style={{ 
                       width: `${((interior.CAPS + interior.SAPS) * 100) / interior.TOTAL}%`, 
@@ -624,14 +652,15 @@ export default function StatsV2Page() {
                       justifyContent: "center", 
                       padding: "0 6px", 
                       whiteSpace: "nowrap", 
-                      overflow: "hidden" 
+                      overflow: "hidden",
+                      cursor: "help"
                     }}
-                    title={`CAPS/SAPS Interior: ${interior.CAPS + interior.SAPS}`}
+                    title={`Interior (CAPS y SAPS): ${interior.CAPS + interior.SAPS}\n• CAPS: ${interior.CAPS}\n• SAPS: ${interior.SAPS}`}
                   >
                     CAPS/SAPS {interior.CAPS + interior.SAPS}
                   </div>
 
-                  {/* Tramo 2: Hospitales */}
+                  {/* Tramo Hospitales */}
                   <div 
                     style={{ 
                       width: `${(interior.HOSPITAL * 100) / interior.TOTAL}%`, 
@@ -642,12 +671,14 @@ export default function StatsV2Page() {
                       justifyContent: "center", 
                       padding: "0 8px", 
                       whiteSpace: "nowrap", 
-                      overflow: "hidden" 
+                      overflow: "hidden",
+                      cursor: "help"
                     }}
                     title={`Hospitales Interior: ${interior.HOSPITAL}`}
                   >
                     Hosp. {interior.HOSPITAL}
                   </div>
+
                 </div>
               </div>
 
@@ -673,12 +704,12 @@ export default function StatsV2Page() {
             </button>
           </div>
 
-          {tipoEfector === "SAPS" && (
-            <div className={styles.warningBanner}>
-              <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+          {catalogoSaps && (
+            <div className={styles.catalogSummary} role="status">
+              <Building2 size={18} />
               <span>
-                <b>Los SAPS todavía no registran todos los controles:</b> la cobertura muestra lo cargado y puede estar subestimada. 
-                De los 38 SAPS, 30 tienen embarazadas en padrón y 24 no registraron ningún control al día.
+                <b>{catalogoSaps.total} SAPS en el catálogo de Capital.</b>{" "}
+                {catalogoSaps.conPadron} con padrón activo y {catalogoSaps.sinPadron} sin padrón activo. Los 38 efectores se incluyen en la tabla, también los que están en cero.
               </span>
             </div>
           )}
@@ -758,12 +789,12 @@ export default function StatsV2Page() {
             <div className={styles.indicadorCardSmall}>
               <span style={{ fontSize: 14, fontWeight: 600, color: "#5E5D5B" }}>Seguimiento adecuado</span>
               <div style={{ fontSize: 36, fontWeight: 700, color: "#4E6FAE" }}>
-                {tipoEfector === "CAPS" ? "31,4%" : "13,6%"}
+                {pctSeguimientoAdecuadoTxt}
               </div>
               <div className={styles.progressBarTrack} style={{ height: 8 }}>
                 <div 
                   className={styles.progressBarFill} 
-                  style={{ width: tipoEfector === "CAPS" ? "31.4%" : "13.6%", background: "#4E6FAE" }} 
+                  style={{ width: `${Math.min(100, pctSeguimientoAdecuado)}%`, background: "#4E6FAE" }}
                 />
               </div>
             </div>
@@ -782,10 +813,10 @@ export default function StatsV2Page() {
               <span style={{ fontSize: 15, fontWeight: 600, color: "#5E5D5B" }}>{tipoEfector} activos</span>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
                 <span style={{ fontSize: 44, fontWeight: 700, color: "#3F5F9E" }}>
-                  {v2?.usoTablero?.activos ?? (tipoEfector === "CAPS" ? 12 : 9)}
+                  {resumenEfectores.filter((r: any) => r.diasSinUso <= 7).length}
                 </span>
                 <span style={{ fontSize: 20, fontWeight: 600, color: "#5E5D5B" }}>
-                  de {v2?.usoTablero?.total ?? (tipoEfector === "CAPS" ? 17 : 38)}
+                  de {resumenEfectores.length}
                 </span>
               </div>
               <span style={{ fontSize: 13, color: "#5E5D5B" }}>
@@ -796,16 +827,16 @@ export default function StatsV2Page() {
             <div className={styles.usoSinUsoCol}>
               <span style={{ fontSize: 14, fontWeight: 600, color: "#6F0603" }}>Sin uso hace 7 días o más</span>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {v2?.usoTablero?.sinUso && v2.usoTablero.sinUso.length > 0 ? (
-                  v2.usoTablero.sinUso.map((u: any, idx: number) => (
-                    <span key={idx} className={styles.chip}>{u.name} · {u.dias}</span>
-                  ))
+                {resumenEfectores.filter((r: any) => r.diasSinUso >= 7 && r.diasSinUso !== 999).length > 0 ? (
+                  resumenEfectores
+                    .filter((r: any) => r.diasSinUso >= 7 && r.diasSinUso !== 999)
+                    .map((u: any, idx: number) => (
+                      <span key={idx} className={styles.chip}>{u.name} · {u.diasSinUso} días</span>
+                    ))
                 ) : (
-                  <>
-                    <span className={styles.chip}>CAPS 13 · 15 días</span>
-                    <span className={styles.chip}>CAPS 11 · 11 días</span>
-                    <span className={styles.chip}>CAPS 8 · 9 días</span>
-                  </>
+                  <span style={{ fontSize: "13px", color: "#356F23", fontWeight: 600 }}>
+                    ¡Excelente! Todos los efectores registraron actividad reciente.
+                  </span>
                 )}
               </div>
             </div>
@@ -898,7 +929,7 @@ export default function StatsV2Page() {
                   {totalBase}
                 </span>
                 <span style={{ textAlign: "center" }}>{pctCoberturaTotal}%</span>
-                <span style={{ textAlign: "center" }}>{tipoEfector === "CAPS" ? "31,4%" : "13,6%"}</span>
+                <span style={{ textAlign: "center" }}>{pctSeguimientoAdecuadoTxt}</span>
                 <span style={{ color: "#5E5D5B", fontWeight: 500 }}>—</span>
               </div>
             </div>
@@ -1187,6 +1218,107 @@ export default function StatsV2Page() {
               </span>
             </div>
           )}
+        </section>
+
+        {/* 10. Alcance territorial e Interior */}
+        <section className={styles.chartCard} style={{ marginTop: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <Building2 size={20} color="#2B4C7E" />
+                <h2 className={styles.chartTitle} style={{ margin: 0 }}>Alcance territorial del seguimiento</h2>
+              </div>
+              <p className={styles.chartSub} style={{ margin: 0 }}>
+                Corte {territorial?.fechaCorte ? new Date(`${String(territorial.fechaCorte).slice(0, 10)}T12:00:00`).toLocaleDateString("es-AR") : "no disponible"}
+                {territorial?.ventanaInicio && ` · controles desde ${new Date(`${String(territorial.ventanaInicio).slice(0, 10)}T12:00:00`).toLocaleDateString("es-AR")}`}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleDescargarTerritorial}
+              disabled={!territorial || descargandoTerritorial}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: descargandoTerritorial ? "#7890A8" : "#2B4C7E",
+                color: "#FFFFFF",
+                border: 0,
+                borderRadius: 6,
+                padding: "10px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: !territorial || descargandoTerritorial ? "not-allowed" : "pointer",
+                opacity: !territorial ? 0.65 : 1,
+              }}
+            >
+              <Download size={16} />
+              <span>{descargandoTerritorial ? "Generando PDF..." : "Descargar informe territorial"}</span>
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", marginTop: 20, borderTop: "1px solid #D9E0E7", borderBottom: "1px solid #D9E0E7" }}>
+            <div style={{ padding: "16px 18px 16px 0" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#64748B", textTransform: "uppercase" }}>Embarazos en curso</span>
+              <p style={{ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#1E293B", fontVariantNumeric: "tabular-nums" }}>
+                {(territorialResumen?.embarazos || 0).toLocaleString("es-AR")}
+              </p>
+            </div>
+            <div style={{ padding: "16px 18px", borderLeft: "1px solid #D9E0E7" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#15803D", textTransform: "uppercase" }}>Controladas en 40 días</span>
+              <p style={{ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#15803D", fontVariantNumeric: "tabular-nums" }}>
+                {(territorialResumen?.controladas || 0).toLocaleString("es-AR")}
+              </p>
+            </div>
+            <div style={{ padding: "16px 18px", borderLeft: "1px solid #D9E0E7" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#2B4C7E", textTransform: "uppercase" }}>Cobertura reportada</span>
+              <p style={{ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#2B4C7E", fontVariantNumeric: "tabular-nums" }}>
+                {(territorialResumen?.cobertura || 0).toFixed(1).replace(".", ",")}%
+              </p>
+            </div>
+            <div style={{ padding: "16px 18px", borderLeft: "1px solid #D9E0E7" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#64748B", textTransform: "uppercase" }}>Centros con control reportado</span>
+              <p style={{ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#1E293B", fontVariantNumeric: "tabular-nums" }}>
+                {(territorialResumen?.efectoresConControl || 0).toLocaleString("es-AR")} <span style={{ fontSize: 16, fontWeight: 500, color: "#64748B" }}>/ {(territorialResumen?.efectoresConEmbarazos || 0).toLocaleString("es-AR")}</span>
+              </p>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 16, color: "#2B4C7E" }}>Interior · departamentos con mayor padrón</h3>
+              <span style={{ fontSize: 12, color: "#64748B" }}>Embarazos y controles reportados</span>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <div style={{ minWidth: 620 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(150px, 1.2fr) minmax(120px, 2fr) 90px 90px 80px", gap: 12, padding: "8px 0", borderBottom: "1px solid #CBD5E1", fontSize: 11, fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+                  <span>Departamento</span><span>En curso</span><span style={{ textAlign: "right" }}>Controladas</span><span style={{ textAlign: "right" }}>Cobertura</span><span style={{ textAlign: "right" }}>Efectores</span>
+                </div>
+                {departamentosInterior.map((row) => {
+                  const cobertura = row.embarazos > 0 ? (row.controladas * 100) / row.embarazos : 0;
+                  return (
+                    <div key={row.nombre} style={{ display: "grid", gridTemplateColumns: "minmax(150px, 1.2fr) minmax(120px, 2fr) 90px 90px 80px", gap: 12, alignItems: "center", padding: "9px 0", borderBottom: "1px solid #E8EDF2", fontSize: 13 }}>
+                      <span style={{ fontWeight: 600 }}>{row.nombre}</span>
+                      <div style={{ height: 12, background: "#DCE7F1", borderRadius: 2, overflow: "hidden" }} title={`${row.embarazos} embarazos`}>
+                        <div style={{ width: `${(row.embarazos * 100) / maxEmbarazosDepartamento}%`, height: "100%", background: "#2B4C7E" }} />
+                      </div>
+                      <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.controladas.toLocaleString("es-AR")}</span>
+                      <span style={{ textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{cobertura.toFixed(1).replace(".", ",")}%</span>
+                      <span style={{ textAlign: "right", color: "#64748B", fontVariantNumeric: "tabular-nums" }}>{row.efectores}</span>
+                    </div>
+                  );
+                })}
+                {departamentosInterior.length === 0 && (
+                  <p style={{ margin: 0, padding: "16px 0", color: "#64748B", fontSize: 13 }}>Sin datos territoriales disponibles para el corte.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <p style={{ margin: "16px 0 0", fontSize: 12, lineHeight: 1.5, color: "#64748B" }}>
+            Fuente: snapshot final {territorial?.batchId || "sin lote informado"} · {territorialResumen?.embarazosSinSisa || 0} embarazos sin código SISA y {territorialResumen?.codigosSinCatalogo || 0} códigos sin coincidencia en el catálogo. La ausencia de control reportado no demuestra ausencia de atención.
+          </p>
         </section>
       </main>
     </div>

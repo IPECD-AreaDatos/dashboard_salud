@@ -300,6 +300,18 @@
   line-height: 1.45;
 }
 
+.catalogSummary {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-left: 3px solid #2f806f;
+  background: #edf6f3;
+  color: #28564d;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 /* Cards Indicadores */
 .kpisSection {
   display: flex;
