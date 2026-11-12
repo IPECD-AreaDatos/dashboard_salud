@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { drawPdfBrandHeader, drawPdfKpiCard, drawPdfTitleBlock, loadPdfInstitutionalLogo, PDF_COLORS, styledAutoTable as autoTable } from "./pdfTheme";
 
 export interface ReportePrimerosLatidosProps {
   kpis: {
@@ -55,58 +55,22 @@ export async function generarReportePrimerosLatidosPDF(props: ReportePrimerosLat
   const fechaHoy = new Date().toLocaleDateString("es-AR");
   const horaHoy = new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
-  // ---------------------------------------------------------------------------
-  // 1. CABECERA INSTITUCIONAL LIMPIA
-  // ---------------------------------------------------------------------------
-  const brandX = margin;
-  const brandY = 10;
-  const logoBoxSize = 9;
-
-  // Cuadrado del logo SegEm
-  doc.setFillColor(118, 159, 211);
-  doc.roundedRect(brandX, brandY, logoBoxSize, logoBoxSize, 2, 2, "F");
-
-  // Pulso blanco
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(0.7);
-  doc.lines(
-    [
-      [1.5, 0],
-      [1.0, -2.8],
-      [1.5, 5.2],
-      [1.4, -4.0],
-      [1.0, 1.6],
-      [1.6, 0],
-    ],
-    brandX + 0.8,
-    brandY + logoBoxSize / 2
+  const logoInstitucional = await loadPdfInstitutionalLogo();
+  drawPdfBrandHeader(doc, logoInstitucional, margin, [
+    `Fecha de corte: ${fechaHoy} ${horaHoy} hs`,
+    `Operador: ${usuarioGenerador || "Administrador"}`,
+  ]);
+  const titleBottomY = drawPdfTitleBlock(
+    doc,
+    "Primeros Latidos — Padrón y Control de Prestaciones",
+    "Auditoría de controles prenatales para asignación, suspensión o continuidad del beneficio",
+    margin,
   );
-
-  // Tipografía SegEm sólida (modo fill puro)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(118, 159, 211);
-  doc.text("SegEm", brandX + logoBoxSize + 3, brandY + 7.2);
-
-  // Título
-  doc.setFontSize(13);
-  doc.setTextColor(43, 76, 126);
-  doc.text("Primeros Latidos — Padrón y Control de Prestaciones", brandX + logoBoxSize + 30, brandY + 4.5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Auditoría de controles prenatales para asignación, suspensión o continuidad del beneficio", brandX + logoBoxSize + 30, brandY + 8.5);
-
-  // Metadatos derecha
-  doc.setFontSize(7.5);
-  doc.text(`Fecha de corte: ${fechaHoy} ${horaHoy} hs`, pageWidth - margin, brandY + 4, { align: "right" });
-  doc.text(`Operador: ${usuarioGenerador || "Administrador"}`, pageWidth - margin, brandY + 8, { align: "right" });
 
   // ---------------------------------------------------------------------------
   // 2. CARDS DE KPIS CORREGIDAS (SIN LETRAS SEPARADAS)
   // ---------------------------------------------------------------------------
-  const cardY = 21;
+  const cardY = titleBottomY + 1;
   const cardHeight = 16.5;
   const gap = 3.5;
   const cardWidth = (contentWidth - gap * 4) / 5;
@@ -126,86 +90,64 @@ export async function generarReportePrimerosLatidosPDF(props: ReportePrimerosLat
       label: "TOTAL PADRÓN ACTIVO",
       val: totalActivas.toLocaleString("es-AR"),
       sub: "Universo provincial",
-      color: [43, 76, 126],
-      bg: [248, 250, 252],
-      borderColor: [203, 213, 225],
+      color: PDF_COLORS.navy,
     },
     {
       label: "APTAS (<= 40 DÍAS)",
       val: aptas40.toLocaleString("es-AR"),
       sub: `${pct40}% del padrón`,
-      color: [21, 128, 61],
-      bg: [240, 253, 244],
-      borderColor: [187, 247, 208],
+      color: PDF_COLORS.green,
     },
     {
       label: "APTAS (<= 60 DÍAS)",
       val: aptas60.toLocaleString("es-AR"),
       sub: `${pct60}% ventana flexible`,
-      color: [29, 78, 216],
-      bg: [239, 246, 255],
-      borderColor: [191, 219, 254],
+      color: PDF_COLORS.navy,
     },
     {
       label: "APTAS (<= 90 DÍAS)",
       val: aptas90.toLocaleString("es-AR"),
       sub: `${pct90}% ventana extendida`,
-      color: [126, 34, 206],
-      bg: [250, 245, 255],
-      borderColor: [233, 213, 255],
+      color: PDF_COLORS.amber,
     },
     {
       label: "INACTIVAS / SIN CTRL",
       val: noAptas.toLocaleString("es-AR"),
       sub: "Atraso > 90d o S/D",
-      color: [100, 116, 139],
-      bg: [248, 250, 252],
-      borderColor: [226, 232, 240],
+      color: PDF_COLORS.red,
     },
   ];
 
   cardsData.forEach((c, idx) => {
     const x = margin + idx * (cardWidth + gap);
-
-    doc.setFillColor(c.bg[0], c.bg[1], c.bg[2]);
-    doc.setDrawColor(c.borderColor[0], c.borderColor[1], c.borderColor[2]);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(x, cardY, cardWidth, cardHeight, 1.5, 1.5, "FD");
-
-    // Título
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(c.color[0], c.color[1], c.color[2]);
-    doc.text(c.label, x + 3.5, cardY + 4.2);
-
-    // Número
-    doc.setFontSize(13);
-    doc.setTextColor(c.color[0], c.color[1], c.color[2]);
-    doc.text(c.val, x + 3.5, cardY + 10.3);
-
-    // Subtítulo
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text(c.sub, x + 3.5, cardY + 14.3);
+    drawPdfKpiCard(doc, {
+      x,
+      y: cardY,
+      width: cardWidth,
+      height: cardHeight,
+      label: c.label,
+      value: c.val,
+      caption: c.sub,
+      accent: c.color,
+    });
   });
 
   // ---------------------------------------------------------------------------
   // 3. BARRA DE FILTROS DETALLADA (LISTA TODOS LOS MUNICIPIOS)
   // ---------------------------------------------------------------------------
   const filtroY = cardY + cardHeight + 3.5;
-  doc.setFillColor(241, 245, 249);
-  doc.setDrawColor(226, 232, 240);
+  doc.setFillColor(...PDF_COLORS.row);
+  doc.setDrawColor(...PDF_COLORS.rule);
   doc.setLineWidth(0.2);
   doc.roundedRect(margin, filtroY, contentWidth, 7, 1.2, 1.2, "FD");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.setTextColor(43, 76, 126);
+  doc.setTextColor(...PDF_COLORS.navy);
   doc.text("Filtros aplicados:", margin + 3.5, filtroY + 4.7);
 
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(51, 65, 85);
+  doc.setTextColor(...PDF_COLORS.text);
 
   const deptoLimpio = sanitizeText(filtros.deptosTexto);
   const corteLimpio = sanitizeText(filtros.corteTexto);
@@ -222,7 +164,7 @@ export async function generarReportePrimerosLatidosPDF(props: ReportePrimerosLat
 
   // Contador de registros a la derecha
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(43, 76, 126);
+  doc.setTextColor(...PDF_COLORS.navy);
   doc.text(`Listado: ${totalResultados.toLocaleString("es-AR")} beneficiarias`, pageWidth - margin - 3.5, filtroY + 4.7, { align: "right" });
 
   // ---------------------------------------------------------------------------
@@ -278,7 +220,7 @@ export async function generarReportePrimerosLatidosPDF(props: ReportePrimerosLat
     body: tableRows,
     theme: "striped",
     headStyles: {
-      fillColor: [69, 106, 157], // #456A9D SegEm
+      fillColor: PDF_COLORS.navy,
       textColor: [255, 255, 255],
       fontSize: 7.5,
       fontStyle: "bold",
@@ -287,11 +229,11 @@ export async function generarReportePrimerosLatidosPDF(props: ReportePrimerosLat
     },
     bodyStyles: {
       fontSize: 7,
-      textColor: [30, 41, 59],
+      textColor: PDF_COLORS.text,
       cellPadding: 1.8,
     },
     alternateRowStyles: {
-      fillColor: [248, 250, 252],
+      fillColor: PDF_COLORS.row,
     },
     columnStyles: {
       0: { cellWidth: 20, fontStyle: "bold" },
@@ -308,12 +250,12 @@ export async function generarReportePrimerosLatidosPDF(props: ReportePrimerosLat
       if (dataCell.section === "body" && dataCell.column.index === 5) {
         const val = String(dataCell.cell.raw);
         if (val.includes("Apta")) {
-          dataCell.cell.styles.textColor = [21, 128, 61];
+          dataCell.cell.styles.textColor = PDF_COLORS.green;
           dataCell.cell.styles.fontStyle = "bold";
         } else if (val.includes("Atraso")) {
-          dataCell.cell.styles.textColor = [180, 83, 9];
+          dataCell.cell.styles.textColor = PDF_COLORS.amber;
         } else if (val.includes("Severo") || val.includes("Crítico")) {
-          dataCell.cell.styles.textColor = [185, 28, 28];
+          dataCell.cell.styles.textColor = PDF_COLORS.red;
           dataCell.cell.styles.fontStyle = "bold";
         } else {
           dataCell.cell.styles.textColor = [100, 116, 139];
@@ -324,7 +266,7 @@ export async function generarReportePrimerosLatidosPDF(props: ReportePrimerosLat
       const strPagina = `Página ${dataPage.pageNumber} de ${doc.getNumberOfPages()}`;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
-      doc.setTextColor(148, 163, 184);
+      doc.setTextColor(...PDF_COLORS.muted);
 
       doc.text("SegEm · Programa Provincial Primeros Latidos · Ministerio de Salud Pública de Corrientes", margin, pageHeight - 6);
       doc.text(strPagina, pageWidth - margin, pageHeight - 6, { align: "right" });

@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { drawPdfBrandHeader, drawPdfTitleBlock, loadPdfInstitutionalLogo, PDF_COLORS, styledAutoTable as autoTable } from "./pdfTheme";
 
 export interface ReporteSeguimientoProps {
   institucion: string;
@@ -41,68 +41,37 @@ export async function generarReporteSeguimientoPDF(props: ReporteSeguimientoProp
   const fechaHoy = new Date().toLocaleDateString("es-AR");
   const horaHoy = new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
-  // 1. Cabecera SegEm
-  const brandX = margin;
-  const brandY = 10;
-  const logoBoxSize = 9;
-
-  doc.setFillColor(118, 159, 211);
-  doc.roundedRect(brandX, brandY, logoBoxSize, logoBoxSize, 2, 2, "F");
-
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(0.7);
-  doc.lines(
-    [[1.5, 0], [1.0, -2.8], [1.5, 5.2], [1.4, -4.0], [1.0, 1.6], [1.6, 0]],
-    brandX + 0.8,
-    brandY + logoBoxSize / 2
+  const tituloBase = `Listado Operativo de Seguimiento Clínico · ${cleanText(institucion)}`;
+  const logoInstitucional = await loadPdfInstitutionalLogo();
+  drawPdfBrandHeader(doc, logoInstitucional, margin, [
+    `Generado: ${fechaHoy} ${horaHoy} hs`,
+    `Usuario: ${usuarioGenerador || "Personal de Salud"}`,
+  ]);
+  const titleBottomY = drawPdfTitleBlock(
+    doc,
+    tituloBase,
+    "Nómina nominal activa para rescate de controles, gestión de turnos y contacto con beneficiarias",
+    margin,
   );
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(118, 159, 211);
-  doc.text("SegEm", brandX + logoBoxSize + 3, brandY + 7.2);
-
-  // Título principal con límite de ancho para no pisar la derecha
-  doc.setFontSize(10.5); // 👈 Reducido de 13 a 11 para mejor proporción
-  doc.setTextColor(43, 76, 126);
-
-  const tituloBase = `Listado Operativo de Seguimiento Clínico · ${cleanText(institucion)}`;
-  // Max ancho permitido para el título (dejando libre espacio para la fecha a la derecha)
-  const maxTituloWidth = contentWidth - 88; 
-  const tituloCortado = doc.getTextWidth(tituloBase) > maxTituloWidth 
-    ? `${tituloBase.substring(0, 52)}...` 
-    : tituloBase;
-
-  doc.text(tituloCortado, brandX + logoBoxSize + 30, brandY + 4.5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Nómina nominal activa para rescate de controles, gestión de turnos y contacto con beneficiarias", brandX + logoBoxSize + 30, brandY + 8.5);
-
-  // Metadatos derecha alineados
-  doc.setFontSize(7.5);
-  doc.text(`Generado: ${fechaHoy} ${horaHoy} hs`, pageWidth - margin, brandY + 4, { align: "right" });
-  doc.text(`Usuario: ${usuarioGenerador || "Personal de Salud"}`, pageWidth - margin, brandY + 8, { align: "right" });
-
   // 2. Barra de Contexto y Filtros
-  const bannerY = 22;
-  doc.setFillColor(241, 245, 249);
-  doc.setDrawColor(226, 232, 240);
+  const bannerY = titleBottomY + 2;
+  doc.setFillColor(...PDF_COLORS.row);
+  doc.setDrawColor(...PDF_COLORS.rule);
   doc.setLineWidth(0.2);
   doc.roundedRect(margin, bannerY, contentWidth, 7.5, 1.2, 1.2, "FD");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.setTextColor(43, 76, 126);
+  doc.setTextColor(...PDF_COLORS.navy);
   doc.text("Filtro aplicado:", margin + 3.5, bannerY + 5);
 
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(51, 65, 85);
+  doc.setTextColor(...PDF_COLORS.text);
   doc.text(filtrosTexto, margin + 25, bannerY + 5);
 
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(43, 76, 126);
+  doc.setTextColor(...PDF_COLORS.navy);
   doc.text(
     `Pacientes en nómina: ${totalEncontradas.toLocaleString("es-AR")} de ${totalRegistradas.toLocaleString("es-AR")}`,
     pageWidth - margin - 3.5,
@@ -154,7 +123,7 @@ export async function generarReporteSeguimientoPDF(props: ReporteSeguimientoProp
     body: tableRows,
     theme: "striped",
     headStyles: {
-      fillColor: [69, 106, 157],
+      fillColor: PDF_COLORS.navy,
       textColor: [255, 255, 255],
       fontSize: 7.5,
       fontStyle: "bold",
@@ -167,7 +136,7 @@ export async function generarReporteSeguimientoPDF(props: ReporteSeguimientoProp
       cellPadding: 2,
     },
     alternateRowStyles: {
-      fillColor: [248, 250, 252],
+      fillColor: PDF_COLORS.row,
     },
     columnStyles: {
       0: { cellWidth: 50, fontStyle: "bold" },
@@ -188,11 +157,11 @@ export async function generarReporteSeguimientoPDF(props: ReporteSeguimientoProp
         const diasNum = parseInt(val);
         if (!isNaN(diasNum)) {
           if (diasNum > 60) {
-            dataCell.cell.styles.textColor = [185, 28, 28]; // Rojo
+            dataCell.cell.styles.textColor = PDF_COLORS.red;
           } else if (diasNum > 40) {
-            dataCell.cell.styles.textColor = [180, 83, 9];  // Ámbar
+            dataCell.cell.styles.textColor = PDF_COLORS.amber;
           } else {
-            dataCell.cell.styles.textColor = [21, 128, 61]; // Verde
+            dataCell.cell.styles.textColor = PDF_COLORS.green;
           }
         }
       }
@@ -201,7 +170,7 @@ export async function generarReporteSeguimientoPDF(props: ReporteSeguimientoProp
       const strPagina = `Página ${dataPage.pageNumber} de ${doc.getNumberOfPages()}`;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
-      doc.setTextColor(148, 163, 184);
+      doc.setTextColor(...PDF_COLORS.muted);
 
       doc.text("SegEm · Sistema de Seguimiento de Embarazadas · Gobierno de Corrientes", margin, pageHeight - 6);
       doc.text(strPagina, pageWidth - margin, pageHeight - 6, { align: "right" });

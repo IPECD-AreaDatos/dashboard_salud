@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
-import autoTable, { type CellHookData } from "jspdf-autotable";
+import type { CellHookData } from "jspdf-autotable";
+import { drawPdfBrandHeader, drawPdfKpiCard, drawPdfSectionTitle, loadPdfInstitutionalLogo, PDF_COLORS as colors, styledAutoTable as autoTable } from "./pdfTheme";
 
 type TerritorialRow = {
   nombre: string;
@@ -42,26 +43,9 @@ type TerritorialData = {
   topInterior: TopInteriorRow[];
 };
 
-const colors = {
-  navy: [43, 76, 126] as [number, number, number],
-  green: [30, 137, 104] as [number, number, number],
-  paleBlue: [219, 231, 242] as [number, number, number],
-  text: [40, 48, 57] as [number, number, number],
-  muted: [96, 108, 120] as [number, number, number],
-  rule: [213, 221, 229] as [number, number, number],
-};
-
 const formatNumber = (value: number) => value.toLocaleString("es-AR");
 const formatPercent = (value: number) => `${value.toFixed(1).replace(".", ",")}%`;
 const formatDifference = (value: number) => `${value > 0 ? "+" : ""}${formatNumber(value)}`;
-
-const cargarImagen = (url: string): Promise<HTMLImageElement | null> => new Promise((resolve) => {
-  if (typeof window === "undefined") return resolve(null);
-  const image = new Image();
-  image.onload = () => resolve(image);
-  image.onerror = () => resolve(null);
-  image.src = url;
-});
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Sin dato";
@@ -82,10 +66,7 @@ export async function generarReporteTerritorialPDF(data: TerritorialData, rangoT
   const generatedAt = new Date();
   const generatedDate = generatedAt.toLocaleDateString("es-AR");
   const generatedTime = generatedAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
-  const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/salud-dashboard")
-    ? "/salud-dashboard"
-    : "";
-  const logoInstitucional = await cargarImagen(`${basePath}/logo_nuevo.png`);
+  const logoInstitucional = await loadPdfInstitutionalLogo();
   const windowLabel = data.ventanaInicio && data.fechaCorte
     ? `${formatDate(data.ventanaInicio)} al ${formatDate(data.fechaCorte)}`
     : rangoTexto || "Sin ventana informada";
@@ -97,48 +78,12 @@ export async function generarReporteTerritorialPDF(data: TerritorialData, rangoT
   });
 
   const addHeader = () => {
-    doc.setDrawColor(...colors.rule);
-    doc.setLineWidth(0.5);
-    doc.line(margin, 25, pageWidth - margin, 25);
-    doc.setFillColor(...colors.navy);
-    doc.roundedRect(margin, 8, 8, 8, 1.5, 1.5, "F");
-    doc.setDrawColor(255, 255, 255);
-    doc.setLineWidth(0.65);
-    doc.lines([[1.2, 0], [1, -2.2], [1.2, 4.4], [1.1, -3.2], [1, 1], [1.2, 0]], margin + 0.6, 12);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(17);
-    doc.setTextColor(118, 159, 211);
-    doc.text("SegEm", margin + 11, 14);
-    if (logoInstitucional) {
-      const logoWidth = 112;
-      const logoHeight = logoWidth * (290 / 2610);
-      doc.addImage(logoInstitucional, "PNG", pageWidth - margin - logoWidth, 7, logoWidth, logoHeight);
-    } else {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.setTextColor(...colors.text);
-      doc.text("GOBIERNO DE CORRIENTES", pageWidth - margin, 11, { align: "right" });
-      doc.setFont("helvetica", "normal");
-      doc.text("Ministerio de Salud Pública · Instituto de Modernización e Innovación", pageWidth - margin, 15, { align: "right" });
-    }
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(...colors.muted);
-    doc.text(`Corte ${formatDate(data.fechaCorte)} · Controles ${windowLabel}`, pageWidth - margin, 23, { align: "right" });
+    drawPdfBrandHeader(doc, logoInstitucional, margin, [`Corte ${formatDate(data.fechaCorte)} · Controles ${windowLabel}`]);
   };
 
   const addSectionTitle = (title: string, subtitle?: string) => {
-    const y = 31;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.setTextColor(...colors.text);
-    doc.text(title, margin, y);
-    if (subtitle) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...colors.muted);
-      doc.text(subtitle, margin, y + 6);
-    }
+    const y = 33;
+    drawPdfSectionTitle(doc, title, margin, y, subtitle, 15);
   };
 
   const addFooter = () => {
@@ -187,18 +132,15 @@ export async function generarReporteTerritorialPDF(data: TerritorialData, rangoT
 
   summaryCards.forEach((card, index) => {
     const x = margin + index * (summaryWidth + summaryGap);
-    doc.setDrawColor(...colors.rule);
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(x, summaryY, summaryWidth, 24, 1.5, 1.5, "FD");
-    doc.setFillColor(...card.color);
-    doc.rect(x, summaryY, summaryWidth, 1.5, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(...colors.muted);
-    doc.text(card.label, x + 4, summaryY + 7);
-    doc.setFontSize(16);
-    doc.setTextColor(...card.color);
-    doc.text(card.value, x + 4, summaryY + 18);
+    drawPdfKpiCard(doc, {
+      x,
+      y: summaryY,
+      width: summaryWidth,
+      height: 24,
+      label: card.label,
+      value: card.value,
+      accent: card.color,
+    });
   });
 
   doc.setFont("helvetica", "normal");

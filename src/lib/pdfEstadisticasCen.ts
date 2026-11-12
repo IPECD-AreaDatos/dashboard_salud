@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { drawPdfBrandHeader, drawPdfTitleBlock, loadPdfInstitutionalLogo, PDF_COLORS, styledAutoTable as autoTable } from "./pdfTheme";
 
 export interface ReporteEstadisticasProps {
   tituloCentro: string;
@@ -46,67 +46,26 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
     usuarioGenerador,
   } = props;
 
-  const doc = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: "a4",
-  });
-
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 12;
-  const contentWidth = pageWidth - margin * 2;
-
   const fechaHoy = new Date().toLocaleDateString("es-AR");
   const horaHoy = new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
-  // 1. Cabecera institucional SegEm
-  const brandX = margin;
-  const brandY = 10;
-  const logoBoxSize = 9;
-
-  doc.setFillColor(118, 159, 211);
-  doc.roundedRect(brandX, brandY, logoBoxSize, logoBoxSize, 2, 2, "F");
-
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(0.7);
-  doc.lines(
-    [[1.5, 0], [1.0, -2.8], [1.5, 5.2], [1.4, -4.0], [1.0, 1.6], [1.6, 0]],
-    brandX + 0.8,
-    brandY + logoBoxSize / 2
-  );
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.setTextColor(118, 159, 211);
-  doc.text("SegEm", brandX + logoBoxSize + 3, brandY + 7.2);
-
-  doc.setFontSize(11);
-  doc.setTextColor(43, 76, 126);
-  const maxTitleW = contentWidth - 65;
-  const tituloCortado = doc.getTextWidth(cleanText(tituloCentro)) > maxTitleW
-    ? `${cleanText(tituloCentro).substring(0, 52)}...`
-    : cleanText(tituloCentro);
-
-  doc.text(tituloCortado, brandX + logoBoxSize + 28, brandY + 4.2);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(cleanText(subtituloCentro), brandX + logoBoxSize + 28, brandY + 8);
-
-  doc.setFontSize(7.5);
-  doc.text(`Generado: ${fechaHoy} ${horaHoy}`, pageWidth - margin, brandY + 4, { align: "right" });
-  doc.text(`Datos al: ${fechaDatos || "Actual"}`, pageWidth - margin, brandY + 7.5, { align: "right" });
-  doc.text(`Usuario: ${usuarioGenerador || "Administrador"}`, pageWidth - margin, brandY + 11, { align: "right" });
-
-  let cursorY = brandY + 15;
+  const logoInstitucional = await loadPdfInstitutionalLogo();
+  drawPdfBrandHeader(doc, logoInstitucional, margin, [
+    `Generado: ${fechaHoy} ${horaHoy}`,
+    `Datos al: ${fechaDatos || "Actual"}`,
+    `Usuario: ${usuarioGenerador || "Administrador"}`,
+  ]);
+  let cursorY = drawPdfTitleBlock(doc, cleanText(tituloCentro), cleanText(subtituloCentro), margin);
 
   if (esAdminOrCoord) {
     // Reporte Provincial y Capital (Admin)
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
-    doc.setTextColor(43, 76, 126);
+    doc.setTextColor(...PDF_COLORS.navy);
     doc.text("Métricas Provinciales y Departamento Capital", margin, cursorY);
     cursorY += 4;
 
@@ -136,8 +95,8 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
       head: [["Indicador Clínico / Gestión", "Total Provincial", "Departamento Capital"]],
       body: kpiRows,
       theme: "striped",
-      headStyles: { fillColor: [69, 106, 157], fontSize: 8, fontStyle: "bold" },
-      bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
+      headStyles: { fillColor: PDF_COLORS.navy, fontSize: 8, fontStyle: "bold" },
+      bodyStyles: { fontSize: 7.5, textColor: PDF_COLORS.text },
       columnStyles: {
         0: { cellWidth: 70, fontStyle: "bold" },
         1: { cellWidth: 50, halign: "center" },
@@ -150,7 +109,7 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
     if (sortedCaps.length > 0) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9.5);
-      doc.setTextColor(43, 76, 126);
+      doc.setTextColor(...PDF_COLORS.navy);
       doc.text(`Desempeño y Evolución de Cobertura por ${tipoEfectorTabla} (Últimos ${periodoComparativa} días)`, margin, cursorY);
       cursorY += 4;
 
@@ -182,8 +141,8 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
         head: [["Efector", "Padrón", "Controladas", "% Cobertura", "% Seg. Adecuado", "% Gestión", "Turnos"]],
         body: capsRows,
         theme: "striped",
-        headStyles: { fillColor: [69, 106, 157], fontSize: 7.5, fontStyle: "bold" },
-        bodyStyles: { fontSize: 7, textColor: [30, 41, 59] },
+        headStyles: { fillColor: PDF_COLORS.navy, fontSize: 7.5, fontStyle: "bold" },
+        bodyStyles: { fontSize: 7, textColor: PDF_COLORS.text },
         columnStyles: {
           0: { cellWidth: 55, fontStyle: "bold" },
           1: { cellWidth: 26, halign: "center" },
@@ -199,7 +158,7 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
     // Reporte Específico para Centro de Salud (CAPS) o Maternidad
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
-    doc.setTextColor(43, 76, 126);
+    doc.setTextColor(...PDF_COLORS.navy);
     doc.text("1. Embarazadas General", margin, cursorY);
     cursorY += 4;
 
@@ -218,8 +177,8 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
       head: [["Rango Etario / Demografía General", "Cantidad de Pacientes"]],
       body: genRows,
       theme: "striped",
-      headStyles: { fillColor: [69, 106, 157], fontSize: 8, fontStyle: "bold" },
-      bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
+      headStyles: { fillColor: PDF_COLORS.navy, fontSize: 8, fontStyle: "bold" },
+      bodyStyles: { fontSize: 7.5, textColor: PDF_COLORS.text },
       columnStyles: { 0: { cellWidth: 110, fontStyle: "bold" }, 1: { cellWidth: 63, halign: "center" } },
     });
 
@@ -227,7 +186,7 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
-    doc.setTextColor(43, 76, 126);
+    doc.setTextColor(...PDF_COLORS.navy);
     doc.text("2. Embarazadas en Riesgo", margin, cursorY);
     cursorY += 4;
 
@@ -246,8 +205,8 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
       head: [["Rango Etario / Alto Riesgo", "Cantidad de Pacientes"]],
       body: rsgRows,
       theme: "striped",
-      headStyles: { fillColor: [69, 106, 157], fontSize: 8, fontStyle: "bold" },
-      bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
+      headStyles: { fillColor: PDF_COLORS.navy, fontSize: 8, fontStyle: "bold" },
+      bodyStyles: { fontSize: 7.5, textColor: PDF_COLORS.text },
       columnStyles: { 0: { cellWidth: 110, fontStyle: "bold" }, 1: { cellWidth: 63, halign: "center" } },
     });
 
@@ -261,7 +220,7 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9.5);
-      doc.setTextColor(43, 76, 126);
+      doc.setTextColor(...PDF_COLORS.navy);
       doc.text("3. Gestión Prioritaria del Centro", margin, cursorY);
       cursorY += 4;
 
@@ -269,8 +228,8 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
       const desg = gst.desgloseZona || {};
       const gestionRows = [
         ["Partos en 30 días", gst.proximosPartos || 0, "Recta final (sem 36+ o FPP próxima)"],
-        ["Riesgo sin Control", desg.riesgoSinControl || 0, "Riesgo alto/moderado >30d sin control"],
-        ["Controles Atrasados", gst.controlesPendientes || 0, ">30 días desde último control"],
+        ["Riesgo sin Control", desg.riesgoSinControl || 0, "Riesgo alto/moderado >40d sin control"],
+        ["Controles Atrasados", gst.controlesPendientes || 0, ">40 días desde último control"],
         ["Requieren Contacto", gst.sinContactoReciente || 0, ">30 días sin contacto o turno perdido"],
         ["Sin Teléfono", gst.sinTelefono || 0, "Sin número de contacto válido"],
         ["Seguimiento Adecuado", desg.seguimientoAdecuadoCaps || 0, "Controles y contactos al día en el mes"],
@@ -285,8 +244,8 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
         head: [["Métrica Operativa", "Cantidad", "Descripción / Criterio Clínico"]],
         body: gestionRows,
         theme: "striped",
-        headStyles: { fillColor: [69, 106, 157], fontSize: 8, fontStyle: "bold" },
-        bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
+        headStyles: { fillColor: PDF_COLORS.navy, fontSize: 8, fontStyle: "bold" },
+        bodyStyles: { fontSize: 7.5, textColor: PDF_COLORS.text },
         columnStyles: {
           0: { cellWidth: 55, fontStyle: "bold" },
           1: { cellWidth: 20, halign: "center", fontStyle: "bold" },
@@ -301,7 +260,7 @@ export async function generarReporteEstadisticasPDF(props: ReporteEstadisticasPr
     doc.setPage(i);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.setTextColor(148, 163, 184);
+    doc.setTextColor(...PDF_COLORS.muted);
     doc.text("SegEm · Panel de Estadísticas e Indicadores · Ministerio de Salud Pública de Corrientes", margin, pageHeight - 6);
     doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: "right" });
   }

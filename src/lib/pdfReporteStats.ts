@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { drawPdfBrandHeader, drawPdfKpiCard, drawPdfTitleBlock, loadPdfInstitutionalLogo, PDF_COLORS, styledAutoTable as autoTable } from "./pdfTheme";
 
 export interface ReporteStatsProps {
   tipoEfector: "CAPS" | "SAPS";
@@ -18,18 +18,6 @@ export interface ReporteStatsProps {
   efectores: any[];
   usuarioGenerador: string;
 }
-
-// Carga asíncrona de recursos desde /public
-const cargarImagen = (url: string): Promise<HTMLImageElement | null> => {
-  return new Promise((resolve) => {
-    if (typeof window === "undefined") return resolve(null);
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
-};
 
 export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   const {
@@ -60,97 +48,14 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   const marginX = 14;
   let currentY = 10;
 
-  const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/salud-dashboard")
-    ? "/salud-dashboard"
-    : "";
-
-  // Precarga del isotipo oficial ministerial
-  const logoGobierno = await cargarImagen(`${basePath}/logo_nuevo.png`);
-
-  // =========================================================================
-  // 1. HEADER INSTITUCIONAL: SegEm BRAND + LOGO GOBIERNO
-  // =========================================================================
-  const brandX = marginX;
-  const brandY = currentY;
-  const logoBoxSize = 9.5;
-  const logoRadius = 2.4;
-
-  // Caja de isotipo SegEm (#769FD3)
-  doc.setFillColor(118, 159, 211);
-  doc.roundedRect(brandX, brandY, logoBoxSize, logoBoxSize, logoRadius, logoRadius, "F");
-
-  // Pulso cardíaco blanco (Activity icon)
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(0.85);
-  doc.setLineCap("round");
-  doc.setLineJoin("round");
-
-  const midY = brandY + logoBoxSize / 2;
-  doc.lines(
-    [
-      [1.7, 0],
-      [1.1, -2.7],
-      [1.6, 5.4],
-      [1.3, -3.7],
-      [1.2, 1.0],
-      [1.2, 0]
-    ],
-    brandX + 0.8,
-    midY
-  );
-
-  // Tipografía SegEm (Extra Bold / Heavy)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(118, 159, 211);      // Relleno celeste (#769FD3)
-  doc.setDrawColor(118, 159, 211);     // Contorno celeste (#769FD3)
-  doc.setLineWidth(0.45);              // Grosor extra de la letra
-  
-  // Imprime con modo "fill then stroke" (2) para engrosar el texto
-  doc.text("SegEm", brandX + logoBoxSize + 3, brandY + 7.6, { renderingMode: "fillThenStroke" } as any);
-
-  // Logo institucional oficial a la derecha
-  if (logoGobierno) {
-    const logoW = 86;
-    const logoH = 12;
-    doc.addImage(logoGobierno, "PNG", pageWidth - marginX - logoW, brandY - 1, logoW, logoH);
-  } else {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.setTextColor(50, 60, 75);
-    doc.text("GOBIERNO DE CORRIENTES", pageWidth - marginX, brandY + 2, { align: "right" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(100, 116, 139);
-    doc.text("Ministerio de Salud Pública · Instituto de Modernización e Innovación", pageWidth - marginX, brandY + 5.5, { align: "right" });
-  }
-
-  currentY += 13.5;
-
-  // Línea divisoria
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.line(marginX, currentY, pageWidth - marginX, currentY);
-
-  currentY += 4.5;
-
-  // Título y Período
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(30, 41, 59);
-  doc.text(`Monitoreo y Cobertura de Embarazos · ${tipoEfector} Capital`, marginX, currentY);
-
-  currentY += 4.2;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(
+  const logoInstitucional = await loadPdfInstitutionalLogo();
+  drawPdfBrandHeader(doc, logoInstitucional, marginX);
+  currentY = drawPdfTitleBlock(
+    doc,
+    `Monitoreo y Cobertura de Embarazos · ${tipoEfector} Capital`,
     `Corte de datos: ${new Date().toLocaleDateString("es-AR")}  |  Período evaluado: ${rangoTexto}  |  Controles en ventana de 40 días`,
     marginX,
-    currentY
   );
-
-  currentY += 5.5;
 
   // =========================================================================
   // 2. BLOQUE PADRÓN PROVINCIAL (IDÉNTICO AL TABLERO WEB)
@@ -163,30 +68,32 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.3);
   doc.roundedRect(marginX, currentY, padronCardW, padronCardH, 2, 2, "FD");
+  doc.setFillColor(...PDF_COLORS.navy);
+  doc.rect(marginX, currentY, padronCardW, 1.3, "F");
 
   // Columna Izquierda: Total Provincial
   const colIzqW = 44;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(...PDF_COLORS.muted);
   doc.text("PADRÓN PROVINCIAL", marginX + 4, currentY + 5.5);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
-  doc.setTextColor(30, 41, 59);
+  doc.setTextColor(...PDF_COLORS.navy);
   doc.text(padronProvincial.toLocaleString("es-AR"), marginX + 4, currentY + 14.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
+  doc.setTextColor(...PDF_COLORS.text);
   doc.text("embarazadas activas", marginX + 4, currentY + 19);
 
   doc.setFontSize(6);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(...PDF_COLORS.muted);
   doc.text(`Datos al ${new Date().toLocaleDateString("es-AR")}`, marginX + 4, currentY + 24.5);
 
   // Línea vertical separadora
-  doc.setDrawColor(226, 232, 240);
+  doc.setDrawColor(...PDF_COLORS.rule);
   doc.line(marginX + colIzqW, currentY + 3, marginX + colIzqW, currentY + padronCardH - 3);
 
   // Columna Derecha: Barras Proporcionales de Capital e Interior
@@ -201,11 +108,11 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   let bY = currentY + 4;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.setTextColor(30, 41, 59);
+  doc.setTextColor(...PDF_COLORS.navy);
   doc.text("Capital", barrasX, bY);
 
   doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(...PDF_COLORS.muted);
   doc.text(`${capital.TOTAL.toLocaleString("es-AR")}  (${pctCap}%)`, barrasX + barrasW, bY, { align: "right" });
 
   bY += 2;
@@ -216,19 +123,19 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   const wCapHosp = Math.max(3, barrasW - wCapCaps - wCapSaps);
 
   // CAPS Capital (#2B4C7E)
-  doc.setFillColor(43, 76, 126);
+  doc.setFillColor(...PDF_COLORS.navy);
   doc.rect(barrasX, bY, wCapCaps, barH, "F");
   // SAPS Capital (#4E79B5)
-  doc.setFillColor(78, 121, 181);
+  doc.setFillColor(...PDF_COLORS.green);
   doc.rect(barrasX + wCapCaps, bY, wCapSaps, barH, "F");
   // Hospitales Capital (#719AD4)
-  doc.setFillColor(113, 154, 212);
+  doc.setFillColor(...PDF_COLORS.muted);
   doc.rect(barrasX + wCapCaps + wCapSaps, bY, wCapHosp, barH, "F");
 
   // Rótulos blancos dentro de los segmentos de Capital
   doc.setFont("helvetica", "bold");
   doc.setFontSize(5.8);
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...PDF_COLORS.white);
   if (wCapCaps > 15) doc.text(`CAPS ${capital.CAPS}`, barrasX + wCapCaps / 2, bY + 4.2, { align: "center" });
   if (wCapSaps > 15) doc.text(`SAPS ${capital.SAPS}`, barrasX + wCapCaps + wCapSaps / 2, bY + 4.2, { align: "center" });
   if (wCapHosp > 14) doc.text(`Hosp. ${capital.HOSPITAL}`, barrasX + wCapCaps + wCapSaps + wCapHosp / 2, bY + 4.2, { align: "center" });
@@ -237,11 +144,11 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   bY += barH + 3.8;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.setTextColor(30, 41, 59);
+  doc.setTextColor(...PDF_COLORS.navy);
   doc.text("Interior", barrasX, bY);
 
   doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(...PDF_COLORS.muted);
   doc.text(`${interior.TOTAL.toLocaleString("es-AR")}  (${pctInt}%)`, barrasX + barrasW, bY, { align: "right" });
 
   bY += 2;
@@ -250,16 +157,16 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   const wIntHosp = Math.max(3, barrasW - wIntPrimerNivel);
 
   // CAPS/SAPS Interior (#2B4C7E)
-  doc.setFillColor(43, 76, 126);
+  doc.setFillColor(...PDF_COLORS.navy);
   doc.rect(barrasX, bY, wIntPrimerNivel, barH, "F");
   // Hospitales Interior (#719AD4)
-  doc.setFillColor(113, 154, 212);
+  doc.setFillColor(...PDF_COLORS.muted);
   doc.rect(barrasX + wIntPrimerNivel, bY, wIntHosp, barH, "F");
 
   // Rótulos blancos dentro de los segmentos del Interior
   doc.setFont("helvetica", "bold");
   doc.setFontSize(5.8);
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...PDF_COLORS.white);
   if (wIntPrimerNivel > 18) doc.text(`CAPS/SAPS ${intPrimerNivel}`, barrasX + wIntPrimerNivel / 2, bY + 4.2, { align: "center" });
   if (wIntHosp > 18) doc.text(`Hosp. ${intHosp}`, barrasX + wIntPrimerNivel + wIntHosp / 2, bY + 4.2, { align: "center" });
 
@@ -277,78 +184,48 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
       val: totalCtrl.toLocaleString("es-AR"),
       pct: `${pctCobertura}%`,
       sub: "En últimos 40 días",
-      topColor: [46, 125, 50] as [number, number, number], // Verde
-      valColor: [46, 125, 50] as [number, number, number],
+      topColor: PDF_COLORS.green,
+      valColor: PDF_COLORS.green,
     },
     {
       label: "CONTROLES ATRASADOS",
       val: totalAtrasadas.toLocaleString("es-AR"),
       pct: `${pctAtrasadas}%`,
       sub: "Sin control > 40 días",
-      topColor: [198, 40, 40] as [number, number, number], // Rojo
-      valColor: [198, 40, 40] as [number, number, number],
+      topColor: PDF_COLORS.red,
+      valColor: PDF_COLORS.red,
     },
     {
       label: "POR VENCER SIN TURNO",
       val: porVencerCount.toLocaleString("es-AR"),
       pct: "",
       sub: "Vence en 10 días",
-      topColor: [230, 81, 0] as [number, number, number], // Ámbar
-      valColor: [230, 81, 0] as [number, number, number],
+      topColor: PDF_COLORS.amber,
+      valColor: PDF_COLORS.amber,
     },
     {
       label: "SEGUIMIENTO ADECUADO",
       val: pctSegAdecuado,
       pct: "",
       sub: "Pauta según trimestre",
-      topColor: [43, 76, 126] as [number, number, number], // Azul institucional
-      valColor: [43, 76, 126] as [number, number, number],
+      topColor: PDF_COLORS.navy,
+      valColor: PDF_COLORS.navy,
     },
   ];
 
   kpis.forEach((k, i) => {
     const x = marginX + i * (cardW + 3);
-
-    // Fondo blanco con borde tenue
-    doc.setFillColor(255, 255, 255);
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(x, currentY, cardW, cardH, 1.8, 1.8, "FD");
-
-    // Filete superior del color del indicador
-    doc.setFillColor(...k.topColor);
-    doc.roundedRect(x, currentY, cardW, 1.3, 0.6, 0.6, "F");
-
-    // 1. Etiqueta superior
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.2);
-    doc.setTextColor(100, 116, 139);
-    doc.text(k.label, x + 3.5, currentY + 5.2);
-
-    // 2. Número principal en grande
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...k.valColor);
-    doc.text(k.val, x + 3.5, currentY + 12.5);
-
-    // 3. Porcentaje al lado con separación garantizada
-    if (k.pct) {
-      const valorWidth = doc.getTextWidth(k.val);
-      const pctX = x + 3.5 + valorWidth + 2.5; // Espaciado de 2.5 mm exactos
-      
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.8);
-      doc.setTextColor(...k.valColor);
-      doc.text(k.pct, pctX, currentY + 12.5);
-    }
-
-    
-
-    // Leyenda inferior
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text(k.sub, x + 3.2, currentY + 16.8);
+    drawPdfKpiCard(doc, {
+      x,
+      y: currentY,
+      width: cardW,
+      height: cardH,
+      label: k.label,
+      value: k.val,
+      valueSuffix: k.pct,
+      caption: k.sub,
+      accent: k.topColor,
+    });
   });
 
   currentY += cardH + 7;
@@ -358,13 +235,13 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   // =========================================================================
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.setTextColor(30, 41, 59);
+  doc.setTextColor(...PDF_COLORS.navy);
   doc.text(`Detalle por ${tipoEfector} - Controles al Día`, marginX, currentY);
 
   currentY += 3.5;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(...PDF_COLORS.muted);
   doc.text("La barra completa representa el padrón activo; el relleno verde indica las controladas con el % impreso dentro.", marginX, currentY);
 
   currentY += 2;
@@ -400,18 +277,18 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
       "Último Uso"
     ]],
     body: tableRows,
-    theme: "grid",
+    theme: "striped",
     styles: {
       fontSize: 6.8,
       cellPadding: 1.8,
       valign: "middle",
-      lineColor: [241, 245, 249],
+      lineColor: PDF_COLORS.rule,
       lineWidth: 0.2,
-      textColor: [51, 65, 85],
+      textColor: PDF_COLORS.text,
     },
     headStyles: {
-      fillColor: [35, 73, 127], // Azul institucional oscuro
-      textColor: [255, 255, 255],
+      fillColor: PDF_COLORS.navy,
+      textColor: PDF_COLORS.white,
       fontStyle: "bold",
       halign: "center",
     },
@@ -442,14 +319,14 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
           // 1. Pista de fondo con base mínima de 16mm para dar margen de diferenciación
           const baseTrackW = 16;
           const trackW = baseTrackW + (p1 / maxPadron) * (barMaxW - baseTrackW);
-          doc.setFillColor(226, 232, 240);
+          doc.setFillColor(...PDF_COLORS.paleBlue);
           doc.roundedRect(barX, barY, trackW, barH, 0.8, 0.8, "F");
 
           // 2. Relleno verde proporcional a la cobertura real
           let fillW = (ctrlAct / p1) * trackW;
           if (ctrlAct > 0) {
             fillW = Math.max(12, fillW); // Asegura espacio cómodo para el texto
-            doc.setFillColor(46, 125, 50); // Verde salud
+            doc.setFillColor(...PDF_COLORS.green);
             doc.roundedRect(barX, barY, Math.min(trackW, fillW), barH, 0.8, 0.8, "F");
           }
 
@@ -462,7 +339,7 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
           // Si no tiene padrón
           doc.setFont("helvetica", "bold");
           doc.setFontSize(5.5);
-          doc.setTextColor(148, 163, 184);
+          doc.setTextColor(...PDF_COLORS.muted);
           doc.text("0,0%", barX + 2, barY + 3.5);
         }
       }
@@ -473,11 +350,11 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
         if (rowData) {
           const covVal = Number(rowData.cov ?? rowData.cobAct ?? 0);
           if (covVal >= 85) {
-            dataCell.cell.styles.textColor = [46, 125, 50]; // Verde
+            dataCell.cell.styles.textColor = PDF_COLORS.green;
           } else if (covVal >= 70) {
-            dataCell.cell.styles.textColor = [217, 119, 6];  // Ámbar
+            dataCell.cell.styles.textColor = PDF_COLORS.amber;
           } else {
-            dataCell.cell.styles.textColor = [198, 40, 40];  // Rojo
+            dataCell.cell.styles.textColor = PDF_COLORS.red;
           }
         }
       }
@@ -497,12 +374,12 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
       if (finalY < pageHeight - 15) {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
-        doc.setTextColor(71, 85, 105);
+        doc.setTextColor(...PDF_COLORS.text);
         doc.text("Aclaración metodológica y reglas de conteo oficial:", marginX, finalY);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6.2);
-        doc.setTextColor(100, 116, 139);
+        doc.setTextColor(...PDF_COLORS.muted);
         doc.text("• Cobertura: controles registrados en los últimos 40 días sobre total de embarazadas en padrón activo.", marginX, finalY + 3.2);
         doc.text("• Derivaciones: no se computan al efector barrial las pacientes derivadas a maternidades u hospitales cabecera.", marginX, finalY + 6.2);
         doc.text("• Fuente oficial: Padrón SUMAR y base nominal provincial POF conciliada en SegEm.", marginX, finalY + 9.2);
@@ -517,7 +394,7 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
     // Metadatos
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    doc.setTextColor(148, 163, 184);
+    doc.setTextColor(...PDF_COLORS.muted);
     doc.text(
       `SegEm · Corte ${new Date().toLocaleDateString("es-AR")} | Generado por: ${usuarioGenerador || "Administrador"}`,
       marginX,

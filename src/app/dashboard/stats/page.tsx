@@ -460,7 +460,7 @@ export default function StatsPage() {
           ["Métrica Operativa", "Cantidad", "Descripción"],
           ["Partos en 30 días", data?.gestion?.proximosPartos || 0, "Recta final (sem 36+ o FPP próxima)"],
           ["Riesgo sin Control", data?.gestion?.desgloseZona?.riesgoSinControl || 0, "Riesgo alto/moderado >30d sin control"],
-          ["Controles Atrasados", data?.gestion?.controlesPendientes || 0, ">30 días desde último control"],
+          ["Controles Atrasados", data?.gestion?.controlesPendientes || 0, ">40 días desde último control"],
           ["Requieren Contacto", data?.gestion?.sinContactoReciente || 0, ">30 días sin contacto o turno perdido"],
           ["Sin Teléfono", data?.gestion?.sinTelefono || 0, "Sin número de contacto válido"],
           ["Seguimiento Adecuado", data?.gestion?.desgloseZona?.seguimientoAdecuadoCaps || 0, "Controles y contactos al día en el mes"],
@@ -923,13 +923,13 @@ export default function StatsPage() {
               <KpiCardConTooltip
                 label="Riesgo sin Control"
                 value={data?.gestion?.desgloseZona?.riesgoSinControl || 0}
-                tooltip="Cantidad de embarazadas con riesgo alto/moderado que llevan más de 30 días sin control médico."
+                tooltip="Cantidad de embarazadas con riesgo alto/moderado que llevan más de 40 días sin control médico."
                 color="#c76d07"
               />
               <KpiCardConTooltip
                 label="Controles Atrasados"
                 value={data?.gestion?.controlesPendientes}
-                tooltip="Pacientes que superaron los 30 días desde su último control médico."
+                tooltip="Pacientes que superaron los 40 días desde su último control médico."
                 color="#ef4444"
               />
               <KpiCardConTooltip
@@ -951,7 +951,7 @@ export default function StatsPage() {
               <KpiCardConTooltip
                 label="Seguimiento Adecuado"
                 value={data?.gestion?.desgloseZona?.seguimientoAdecuadoCaps || 0}
-                tooltip="Total de embarazadas con sus controles médicos y contactos al día (últimos 30 días)."
+                tooltip="Total de embarazadas con sus controles médicos y contactos al día."
                 color="#1276b8e0"
               />
               <KpiCardConTooltip
