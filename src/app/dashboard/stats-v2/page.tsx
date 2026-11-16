@@ -77,6 +77,8 @@ export default function StatsV2Page() {
     return d.toISOString().split("T")[0];
   });
 
+  
+
   // 1. Función para consultar las estadísticas con las fechas reales
   const fetchStats = async (diasNum = periodoDias, fDesde = fechaDesde, fHasta = fechaHasta) => {
     setLoading(true);
@@ -237,6 +239,8 @@ export default function StatsV2Page() {
 
   const cobSalud = v2?.coberturaSalud || { publica: 0, obraSocial: 0, sinRegistro: 0 };
 
+
+  
   // Datos de histograma de Edad Gestacional
   const egList = v2?.edadGestacional || [];
 
@@ -322,6 +326,41 @@ export default function StatsV2Page() {
       setDescargandoTerritorial(false);
     }
   };
+
+  // Estados para ordenamiento de la tabla territorial
+  const [territorialSortKey, setTerritorialSortKey] = useState<"nombre" | "embarazos" | "controladas" | "cobertura" | "efectores">("embarazos");
+  const [territorialSortAsc, setTerritorialSortAsc] = useState<boolean>(false); // Por defecto descendente (mayor padrón primero)
+
+  const handleTerritorialSort = (key: "nombre" | "embarazos" | "controladas" | "cobertura" | "efectores") => {
+    if (territorialSortKey === key) {
+      setTerritorialSortAsc(!territorialSortAsc);
+    } else {
+      setTerritorialSortKey(key);
+      setTerritorialSortAsc(key === "nombre"); // Ascendente para texto, descendente para números
+    }
+  };
+
+  const departamentosOrdenados = useMemo(() => {
+    if (!territorial?.departamentos) return [];
+    return [...territorial.departamentos].sort((a: any, b: any) => {
+      let valA = a[territorialSortKey];
+      let valB = b[territorialSortKey];
+
+      if (territorialSortKey === "cobertura") {
+        valA = a.embarazos > 0 ? (a.controladas * 100) / a.embarazos : 0;
+        valB = b.embarazos > 0 ? (b.controladas * 100) / b.embarazos : 0;
+      }
+
+      if (typeof valA === "string") {
+        valA = valA.toLowerCase();
+        valB = valB.toLowerCase();
+      }
+
+      if (valA < valB) return territorialSortAsc ? -1 : 1;
+      if (valA > valB) return territorialSortAsc ? 1 : -1;
+      return 0;
+    });
+  }, [territorial?.departamentos, territorialSortKey, territorialSortAsc]);
 
   // Función unificada de descarga (PDF o Excel)
   const handleDescargar = async (formato: "pdf" | "xlsx") => {
@@ -1287,30 +1326,89 @@ export default function StatsV2Page() {
 
           <div style={{ marginTop: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 16, color: "#2B4C7E" }}>Interior · departamentos con mayor padrón</h3>
-              <span style={{ fontSize: 12, color: "#64748B" }}>Embarazos y controles reportados</span>
+              <h3 style={{ margin: 0, fontSize: 16, color: "#2B4C7E" }}>Embarazos en curso por departamento</h3>
+              <span style={{ fontSize: 12, color: "#64748B" }}>Interior y Capital · ordenados por volumen</span>
             </div>
             <div style={{ overflowX: "auto" }}>
-              <div style={{ minWidth: 620 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "minmax(150px, 1.2fr) minmax(120px, 2fr) 90px 90px 80px", gap: 12, padding: "8px 0", borderBottom: "1px solid #CBD5E1", fontSize: 11, fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
-                  <span>Departamento</span><span>En curso</span><span style={{ textAlign: "right" }}>Controladas</span><span style={{ textAlign: "right" }}>Cobertura</span><span style={{ textAlign: "right" }}>Efectores</span>
+              <div style={{ minWidth: 640 }}>
+                {/* Cabecera Interactiva con Ordenamiento */}
+                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 90px 90px 1.4fr 70px", gap: 10, padding: "6px 10px", background: "#2B4C7E", color: "#FFFFFF", borderRadius: "6px 6px 0 0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
+                  <button 
+                    onClick={() => handleTerritorialSort("nombre")} 
+                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", padding: 0, display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    Departamento {territorialSortKey === "nombre" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
+                  </button>
+                  <button 
+                    onClick={() => handleTerritorialSort("embarazos")} 
+                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "right", padding: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}
+                  >
+                    En curso {territorialSortKey === "embarazos" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
+                  </button>
+                  <button 
+                    onClick={() => handleTerritorialSort("controladas")} 
+                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "right", padding: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}
+                  >
+                    Controladas {territorialSortKey === "controladas" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
+                  </button>
+                  <button 
+                    onClick={() => handleTerritorialSort("cobertura")} 
+                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "center", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  >
+                    Cobertura {territorialSortKey === "cobertura" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
+                  </button>
+                  <button 
+                    onClick={() => handleTerritorialSort("efectores")} 
+                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "right", padding: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}
+                  >
+                    Efectores {territorialSortKey === "efectores" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
+                  </button>
                 </div>
-                {departamentosInterior.map((row) => {
+
+                {departamentosOrdenados.map((row: any, idx: number) => {
                   const cobertura = row.embarazos > 0 ? (row.controladas * 100) / row.embarazos : 0;
+                  const isEven = idx % 2 === 0;
                   return (
-                    <div key={row.nombre} style={{ display: "grid", gridTemplateColumns: "minmax(150px, 1.2fr) minmax(120px, 2fr) 90px 90px 80px", gap: 12, alignItems: "center", padding: "9px 0", borderBottom: "1px solid #E8EDF2", fontSize: 13 }}>
-                      <span style={{ fontWeight: 600 }}>{row.nombre}</span>
-                      <div style={{ height: 12, background: "#DCE7F1", borderRadius: 2, overflow: "hidden" }} title={`${row.embarazos} embarazos`}>
-                        <div style={{ width: `${(row.embarazos * 100) / maxEmbarazosDepartamento}%`, height: "100%", background: "#2B4C7E" }} />
+                    <div 
+                      key={row.nombre} 
+                      style={{ 
+                        display: "grid", 
+                        gridTemplateColumns: "1.4fr 90px 90px 1.4fr 70px", 
+                        gap: 10, 
+                        alignItems: "center", 
+                        padding: "8px 10px", 
+                        background: isEven ? "#FFFFFF" : "#F8FAFC",
+                        borderBottom: "1px solid #E2E8F0", 
+                        fontSize: 12.5 
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: "#1E293B" }}>{row.nombre}</span>
+                      <span style={{ textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#334155" }}>{row.embarazos.toLocaleString("es-AR")}</span>
+                      <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", color: "#15803D", fontWeight: 600 }}>{row.controladas.toLocaleString("es-AR")}</span>
+                      
+                      {/* Cobertura compacta: Porcentaje y barrita con escala correcta */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                        <span style={{ width: 42, textAlign: "right", fontWeight: 700, fontSize: "12px", color: "#1E293B", fontVariantNumeric: "tabular-nums" }}>
+                          {cobertura.toFixed(1).replace(".", ",")}%
+                        </span>
+                        <div style={{ width: 70, height: 8, background: "#E2E8F0", borderRadius: 2, overflow: "hidden" }}>
+                          <div 
+                            style={{ 
+                              width: `${Math.min(100, Math.max(0, cobertura))}%`, 
+                              height: "100%", 
+                              background: cobertura >= 85 ? "#356F23" : cobertura >= 70 ? "#FAAE05" : "#EA2F09",
+                              borderRadius: 2
+                            }} 
+                          />
+                        </div>
                       </div>
-                      <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.controladas.toLocaleString("es-AR")}</span>
-                      <span style={{ textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{cobertura.toFixed(1).replace(".", ",")}%</span>
+
                       <span style={{ textAlign: "right", color: "#64748B", fontVariantNumeric: "tabular-nums" }}>{row.efectores}</span>
                     </div>
                   );
                 })}
-                {departamentosInterior.length === 0 && (
-                  <p style={{ margin: 0, padding: "16px 0", color: "#64748B", fontSize: 13 }}>Sin datos territoriales disponibles para el corte.</p>
+                {departamentosOrdenados.length === 0 && (
+                  <p style={{ margin: 0, padding: "16px 10px", color: "#64748B", fontSize: 13 }}>Sin datos territoriales disponibles para el corte.</p>
                 )}
               </div>
             </div>

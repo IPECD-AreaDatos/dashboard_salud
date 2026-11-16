@@ -57,6 +57,13 @@ function coverage(row: Pick<TerritorialRow, "embarazos" | "controladas">) {
   return row.embarazos > 0 ? (row.controladas * 100) / row.embarazos : 0;
 }
 
+// 🌟 Escala institucional de colores para las barras de cobertura
+function getCoverageColor(val: number): [number, number, number] {
+  if (val >= 85) return [53, 111, 35]; // Verde (#356F23) - Bien (>= 85%)
+  if (val >= 70) return [250, 174, 5]; // Ámbar (#FAAE05) - Atención (70-84%)
+  return [234, 47, 9];               // Rojo (#EA2F09) - Crítico (< 70%)
+}
+
 export async function generarReporteTerritorialPDF(data: TerritorialData, rangoTexto = "") {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -110,7 +117,8 @@ export async function generarReporteTerritorialPDF(data: TerritorialData, rangoT
       const width = Math.max(2, cell.width - 6);
       tableDoc.setFillColor(...colors.paleBlue);
       tableDoc.rect(x, y, width, 1, "F");
-      tableDoc.setFillColor(...colors.green);
+      const barColor = getCoverageColor(value);
+      tableDoc.setFillColor(...barColor);
       tableDoc.rect(x, y, width * value / 100, 1, "F");
     },
   });
@@ -301,7 +309,8 @@ export async function generarReporteTerritorialPDF(data: TerritorialData, rangoT
       const width = Math.max(2, cell.width - 6);
       tableDoc.setFillColor(...colors.paleBlue);
       tableDoc.rect(x, y, width, 1, "F");
-      tableDoc.setFillColor(...colors.green);
+      const barColor = getCoverageColor(value);
+      tableDoc.setFillColor(...barColor);
       tableDoc.rect(x, y, width * value / 100, 1, "F");
     },
   });
