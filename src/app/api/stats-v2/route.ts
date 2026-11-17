@@ -43,9 +43,7 @@ export async function GET(request: Request) {
 
   const resumenEfectoresSql = `
     WITH fecha_actual AS (
-      SELECT MAX(fecha_corte) AS fecha_t1
-      FROM public.indicadores_establecimientos
-      WHERE es_snapshot_final_dia = true
+      SELECT $1::date AS fecha_t1
     ),
     fecha_anterior AS (
       SELECT COALESCE(
@@ -73,6 +71,7 @@ export async function GET(request: Request) {
       LEFT JOIN (
         SELECT codigo_sisa, MAX(creado_at) AS ultimo_acceso
         FROM public.logs_actividad_dashboard
+        WHERE creado_at < $1::date + INTERVAL '1 day'
         GROUP BY codigo_sisa
       ) u ON u.codigo_sisa = s.codigo_sisa
       WHERE ${filtroEfector}
@@ -107,7 +106,7 @@ export async function GET(request: Request) {
         COUNT(DISTINCT p.id) AS padron_act,
         COUNT(DISTINCT p.id) FILTER (
           WHERE p.fecha_ultimo_control IS NOT NULL
-            AND CURRENT_DATE - p.fecha_ultimo_control BETWEEN 0 AND 40
+            AND ($1::date - p.fecha_ultimo_control::date) BETWEEN 0 AND 40
         ) AS controladas_act,
         COUNT(DISTINCT p.id) FILTER (
           WHERE p.controles_1er_trim > 0
@@ -117,7 +116,7 @@ export async function GET(request: Request) {
       FROM public.pacientes_gold p
       JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
       WHERE p.embarazo_en_curso = true
-        AND p.fecha_probable_parto >= CURRENT_DATE
+        AND p.fecha_probable_parto >= $1::date
         AND p.fecha_nacimiento IS NOT NULL
         AND COALESCE(p.en_red_perinatal_msp, true) = true
         AND (p.nombre_centro_derivado IS NULL OR TRIM(p.nombre_centro_derivado) = '')
@@ -177,7 +176,7 @@ export async function GET(request: Request) {
     FROM public.pacientes_gold p
     LEFT JOIN public.efectores_sisa e ON e.codigo_sisa = p.sisa_centro_salud
     WHERE p.embarazo_en_curso = true
-      AND p.fecha_probable_parto >= CURRENT_DATE
+      AND p.fecha_probable_parto >= $1::date
       AND p.fecha_nacimiento IS NOT NULL
       AND COALESCE(p.en_red_perinatal_msp, true) = true
     GROUP BY 1, 2;
@@ -203,7 +202,7 @@ export async function GET(request: Request) {
       ) AS sin_registro
     FROM public.pacientes_gold p
     WHERE p.embarazo_en_curso = true
-      AND p.fecha_probable_parto >= CURRENT_DATE
+      AND p.fecha_probable_parto >= $1::date
       AND p.fecha_nacimiento IS NOT NULL
       AND COALESCE(p.en_red_perinatal_msp, true) = true;
   `;
@@ -238,10 +237,10 @@ export async function GET(request: Request) {
           ELSE 10
         END AS orden_num,
         CASE WHEN p.fecha_ultimo_control IS NOT NULL
-          AND CURRENT_DATE - p.fecha_ultimo_control BETWEEN 0 AND 40 THEN p.id END AS id_controlada
+          AND ($1::date - p.fecha_ultimo_control::date) BETWEEN 0 AND 40 THEN p.id END AS id_controlada
       FROM public.pacientes_gold p
       WHERE p.embarazo_en_curso = true
-        AND p.fecha_probable_parto >= CURRENT_DATE
+        AND p.fecha_probable_parto >= $1::date
         AND p.fecha_nacimiento IS NOT NULL
         AND COALESCE(p.en_red_perinatal_msp, true) = true
     ) q
@@ -254,18 +253,18 @@ export async function GET(request: Request) {
     FROM public.pacientes_gold p
     JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
     WHERE p.embarazo_en_curso = true
-      AND p.fecha_probable_parto >= CURRENT_DATE
+      AND p.fecha_probable_parto >= $1::date
       AND p.fecha_nacimiento IS NOT NULL
       AND COALESCE(p.en_red_perinatal_msp, true) = true
       AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital'
       AND (p.nombre_centro_derivado IS NULL OR TRIM(p.nombre_centro_derivado) = '')
       AND p.derivacion_maternidad_id IS NULL
       AND p.fecha_ultimo_control IS NOT NULL
-      AND CURRENT_DATE - p.fecha_ultimo_control BETWEEN 31 AND 40
-      AND (p.proxima_cita IS NULL OR p.proxima_cita < CURRENT_DATE)
+      AND ($1::date - p.fecha_ultimo_control::date) BETWEEN 31 AND 40
+      AND (p.proxima_cita IS NULL OR p.proxima_cita < $1::date)
       AND NOT EXISTS (
         SELECT 1 FROM public.seguimientos sec
-        WHERE sec.paciente_id = p.id AND sec.proxima_cita >= CURRENT_DATE
+        WHERE sec.paciente_id = p.id AND sec.proxima_cita >= $1::date
       )
       AND ${filtroEfector};
   `;
@@ -281,10 +280,11 @@ export async function GET(request: Request) {
     ), actividad AS (
       SELECT codigo_sisa, MAX(creado_at) AS ultimo_log
       FROM public.logs_actividad_dashboard
+      WHERE creado_at < $1::date + INTERVAL '1 day'
       GROUP BY codigo_sisa
     )
     SELECT e.codigo_sisa, e.nombre,
-      COALESCE(CURRENT_DATE - a.ultimo_log::date, 999) AS dias_sin_uso,
+      COALESCE($1::date - a.ultimo_log::date, 999) AS dias_sin_uso,
       a.ultimo_log AS ultimo_acceso
     FROM efectores e
     LEFT JOIN actividad a ON a.codigo_sisa = e.codigo_sisa
@@ -293,9 +293,7 @@ export async function GET(request: Request) {
 
   const territorialResumenSql = `
     WITH corte AS (
-      SELECT MAX(fecha_corte) AS fecha_corte
-      FROM public.indicadores_establecimientos
-      WHERE es_snapshot_final_dia = true
+      SELECT $1::date AS fecha_corte
     ), centros AS (
       SELECT NULLIF(TRIM(i.sisa_centro_salud), '') AS sisa_centro_salud,
         SUM(i.embarazos_en_curso) AS embarazos,
@@ -335,20 +333,18 @@ export async function GET(request: Request) {
       COUNT(DISTINCT p.id) AS embarazos,
       COUNT(DISTINCT p.id) FILTER (
         WHERE p.fecha_ultimo_control IS NOT NULL
-          AND CURRENT_DATE - p.fecha_ultimo_control BETWEEN 0 AND 40
+          AND ($1::date - p.fecha_ultimo_control::date) BETWEEN 0 AND 40
       ) AS controladas
     FROM public.pacientes_gold p
     WHERE p.embarazo_en_curso = true
-      AND p.fecha_probable_parto >= CURRENT_DATE
+      AND p.fecha_probable_parto >= $1::date
       AND p.fecha_nacimiento IS NOT NULL
       AND COALESCE(p.en_red_perinatal_msp, true) = true;
   `;
 
   const territorialGeoCte = `
     WITH corte AS (
-      SELECT MAX(fecha_corte) AS fecha_corte
-      FROM public.indicadores_establecimientos
-      WHERE es_snapshot_final_dia = true
+      SELECT $1::date AS fecha_corte
     ), centros AS (
       SELECT NULLIF(TRIM(i.sisa_centro_salud), '') AS sisa_centro_salud,
         SUM(i.embarazos_en_curso) AS embarazos,
@@ -405,20 +401,27 @@ export async function GET(request: Request) {
   `;
 
   try {
+    const corteRes = await query(`
+      SELECT COALESCE(
+        (SELECT MAX(fecha_corte)::date FROM public.indicadores_establecimientos WHERE es_snapshot_final_dia = true),
+        (SELECT MAX(ingestion_at)::date FROM public.pacientes_gold)
+      )::text AS fecha_corte
+    `);
+    const fechaCorte = stringValue((corteRes.rows[0] as DbRow | undefined)?.fecha_corte) || null;
     const [resumenRes, padronRes, coberturaRes, edadRes, porVencerRes, usoRes,
       territorialRes, padronVigenteRes, departamentosRes, localidadesRes, topInteriorRes, ultimaActualizacionRes] = await Promise.all([
-      query(resumenEfectoresSql),
-      query(padronProvincialSql),
-      query(coberturaSql),
-      query(edadGestacionalSql),
-      query(porVencerSql),
-      query(usoTableroSql),
-      query(territorialResumenSql),
-      query(padronVigenteSql),
-      query(departamentosSql),
-      query(localidadesSql),
-      query(topInteriorSql),
-      query("SELECT MAX(ingestion_at) AS fecha FROM public.pacientes_gold")
+      query(resumenEfectoresSql, [fechaCorte]),
+      query(padronProvincialSql, [fechaCorte]),
+      query(coberturaSql, [fechaCorte]),
+      query(edadGestacionalSql, [fechaCorte]),
+      query(porVencerSql, [fechaCorte]),
+      query(usoTableroSql, [fechaCorte]),
+      query(territorialResumenSql, [fechaCorte]),
+      query(padronVigenteSql, [fechaCorte]),
+      query(departamentosSql, [fechaCorte]),
+      query(localidadesSql, [fechaCorte]),
+      query(topInteriorSql, [fechaCorte]),
+      query("SELECT MAX(ingestion_at) AS fecha FROM public.pacientes_gold WHERE ingestion_at < $1::date + INTERVAL '1 day'", [fechaCorte])
     ]);
 
     const desglose = {
@@ -454,8 +457,9 @@ export async function GET(request: Request) {
       const cobAnt = padronAnt > 0 ? (ctrlAnt * 100) / padronAnt : 0;
       const ultimoAcceso = dateValue(row.ultimo_acceso);
       const ultimoAccesoDate = ultimoAcceso ? new Date(ultimoAcceso) : null;
-      const diasSinUso = ultimoAccesoDate && Number.isFinite(ultimoAccesoDate.getTime())
-        ? Math.floor((Date.now() - ultimoAccesoDate.getTime()) / 86400000)
+      const fechaCorteMs = fechaCorte ? Date.parse(`${fechaCorte}T00:00:00Z`) : NaN;
+      const diasSinUso = ultimoAcceso && ultimoAccesoDate && Number.isFinite(ultimoAccesoDate.getTime())
+        ? Math.floor((fechaCorteMs - Date.parse(`${ultimoAcceso.slice(0, 10)}T00:00:00Z`)) / 86400000)
         : 999;
 
       return {
@@ -545,6 +549,7 @@ export async function GET(request: Request) {
     const seguimientoPercent = padronEfector > 0 ? Number(((seguimientoEfector * 100) / padronEfector).toFixed(1)) : 0;
 
     return NextResponse.json({
+      fechaCorte,
       ultimaActualizacion: ultimaActualizacionRes.rows[0]?.fecha || null,
       resumenCaps,
       tipoEfector,

@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 
 export interface ReporteExcelProps {
   tipoEfector: "CAPS" | "SAPS";
+  fechaCorte: string | null;
   rangoTexto: string;
   padronProvincial: number;
   capital: { TOTAL: number; CAPS: number; SAPS: number; HOSPITAL: number };
@@ -41,8 +42,11 @@ export function exportarReporteStatsExcel(props: ReporteExcelProps) {
     usuarioGenerador
   } = props;
 
-  const fechaCorte = new Date().toLocaleDateString("es-AR");
-  const fechaIso = new Date().toISOString().split("T")[0];
+  const fechaCorte = props.fechaCorte;
+  const fechaCorteTexto = fechaCorte
+    ? `${fechaCorte.slice(8, 10)}/${fechaCorte.slice(5, 7)}/${fechaCorte.slice(0, 4)}`
+    : "Sin dato";
+  const fechaIso = fechaCorte?.slice(0, 10) || new Date().toISOString().split("T")[0];
   const intPrimerNivel = interior.CAPS_SAPS ?? ((interior.CAPS || 0) + (interior.SAPS || 0));
 
   const libro = XLSX.utils.book_new();
@@ -53,7 +57,7 @@ export function exportarReporteStatsExcel(props: ReporteExcelProps) {
   const datosResumen: any[][] = [
     ["SISTEMA DE SEGUIMIENTO DE EMBARAZADAS (SegEm)"],
     [`Reporte Estadístico Integral · ${tipoEfector} Capital`],
-    [`Fecha de Corte: ${fechaCorte}`, `Período: ${rangoTexto}`, `Generado por: ${usuarioGenerador || "Administrador"}`],
+    [`Fecha de Corte: ${fechaCorteTexto}`, `Período: ${rangoTexto}`, `Generado por: ${usuarioGenerador || "Administrador"}`],
     [],
     ["1. PADRÓN PROVINCIAL Y DISTRIBUCIÓN TERRITORIAL"],
     [
@@ -163,7 +167,7 @@ export function exportarReporteStatsExcel(props: ReporteExcelProps) {
   // =========================================================================
   const datosGestacion: any[][] = [
     ["DISTRIBUCIÓN POR EDAD GESTACIONAL Y CONTROL PRENATAL"],
-    [`Efector: ${tipoEfector} Capital · Corte: ${fechaCorte}`],
+    [`Efector: ${tipoEfector} Capital · Corte: ${fechaCorteTexto}`],
     [],
     ["1. RESUMEN POR TRIMESTRES"],
     ["Trimestre", "Pauta Gestacional", "Estado de Controles"],

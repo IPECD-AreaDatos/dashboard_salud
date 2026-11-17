@@ -3,6 +3,7 @@ import { drawPdfBrandHeader, drawPdfKpiCard, drawPdfTitleBlock, loadPdfInstituti
 
 export interface ReporteStatsProps {
   tipoEfector: "CAPS" | "SAPS";
+  fechaCorte: string | null;
   rangoTexto: string;
   padronProvincial: number;
   capital: { TOTAL: number; CAPS: number; SAPS: number; HOSPITAL: number };
@@ -19,9 +20,16 @@ export interface ReporteStatsProps {
   usuarioGenerador: string;
 }
 
+function formatDate(value: string | null) {
+  if (!value) return "Sin dato";
+  const [year, month, day] = value.slice(0, 10).split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
 export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   const {
     tipoEfector,
+    fechaCorte,
     rangoTexto,
     padronProvincial,
     capital,
@@ -47,13 +55,14 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   const pageHeight = doc.internal.pageSize.getHeight();
   const marginX = 14;
   let currentY = 10;
+  const fechaCorteTexto = formatDate(fechaCorte);
 
   const logoInstitucional = await loadPdfInstitutionalLogo();
   drawPdfBrandHeader(doc, logoInstitucional, marginX);
   currentY = drawPdfTitleBlock(
     doc,
     `Monitoreo y Cobertura de Embarazos · ${tipoEfector} Capital`,
-    `Corte de datos: ${new Date().toLocaleDateString("es-AR")}  |  Período evaluado: ${rangoTexto}  |  Controles en ventana de 40 días`,
+    `Corte de datos: ${fechaCorteTexto}  |  Período evaluado: ${rangoTexto}  |  Controles en ventana de 40 días`,
     marginX,
   );
 
@@ -90,7 +99,7 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
 
   doc.setFontSize(6);
   doc.setTextColor(...PDF_COLORS.muted);
-  doc.text(`Datos al ${new Date().toLocaleDateString("es-AR")}`, marginX + 4, currentY + 24.5);
+  doc.text(`Datos al ${fechaCorteTexto}`, marginX + 4, currentY + 24.5);
 
   // Línea vertical separadora
   doc.setDrawColor(...PDF_COLORS.rule);
@@ -396,7 +405,7 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
     doc.setFontSize(6.5);
     doc.setTextColor(...PDF_COLORS.muted);
     doc.text(
-      `SegEm · Corte ${new Date().toLocaleDateString("es-AR")} | Generado por: ${usuarioGenerador || "Administrador"}`,
+      `SegEm · Corte ${fechaCorteTexto} | Generado por: ${usuarioGenerador || "Administrador"}`,
       marginX,
       pageHeight - 5.5
     );
@@ -405,6 +414,6 @@ export async function generarReporteStatsPDF(props: ReporteStatsProps) {
   }
 
   // Descarga del PDF
-  const fechaStr = new Date().toISOString().split("T")[0];
+  const fechaStr = fechaCorte?.slice(0, 10) || new Date().toISOString().split("T")[0];
   doc.save(`SegEm_Reporte_${tipoEfector}_${fechaStr}.pdf`);
 }

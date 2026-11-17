@@ -27,6 +27,25 @@ type DepartamentoTerritorial = {
   efectores: number;
 };
 
+function formatDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function shiftDate(value: string, days: number) {
+  const date = new Date(`${value}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return formatDateInput(date);
+}
+
+function formatDateDisplay(value: string | null | undefined) {
+  if (!value) return "Sin dato";
+  const [year, month, day] = value.slice(0, 10).split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
 export default function StatsV2Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -66,16 +85,10 @@ export default function StatsV2Page() {
   };
 
   // --- MANEJO DE FECHAS Y PERÍODOS SINCRONIZADO ---
-  const fechaHoy = new Date().toISOString().split("T")[0];
-  const [fechaHasta, setFechaHasta] = useState(fechaHoy);
+  const [fechaHasta, setFechaHasta] = useState("");
   const [periodoDias, setPeriodoDias] = useState<number>(30);
 
-  // Calcula fecha inicial hace 30 días
-  const [fechaDesde, setFechaDesde] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString().split("T")[0];
-  });
+  const [fechaDesde, setFechaDesde] = useState("");
 
   
 
@@ -95,6 +108,11 @@ export default function StatsV2Page() {
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        const corte = typeof json.fechaCorte === "string" ? json.fechaCorte.slice(0, 10) : "";
+        if (corte) {
+          setFechaHasta(corte);
+          setFechaDesde((actual) => actual || shiftDate(corte, -diasNum));
+        }
       }
     } catch (err) {
       console.error("Error al cargar stats v2:", err);
@@ -111,10 +129,9 @@ export default function StatsV2Page() {
 
   // 3. Al hacer clic en los botones rápidos: 7 días, 14 días o 30 días
   const handlePeriodPick = (dias: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() - dias);
-    const nuevaFechaDesde = d.toISOString().split("T")[0];
-    const nuevaFechaHasta = fechaHoy;
+    const nuevaFechaHasta = data?.fechaCorte?.slice(0, 10) || fechaHasta;
+    if (!nuevaFechaHasta) return;
+    const nuevaFechaDesde = shiftDate(nuevaFechaHasta, -dias);
 
     setPeriodoDias(dias);
     setFechaDesde(nuevaFechaDesde);
@@ -125,18 +142,14 @@ export default function StatsV2Page() {
   };
 
   // 4. Al cambiar manualmente los inputs de fecha (Desde / Hasta)
-  const handleFechaManualChange = (nuevaDesde: string, nuevaHasta: string) => {
+  const handleFechaManualChange = (nuevaDesde: string) => {
+    if (!nuevaDesde || !fechaHasta || nuevaDesde > fechaHasta) return;
     setFechaDesde(nuevaDesde);
-    setFechaHasta(nuevaHasta);
-
-    if (nuevaDesde && nuevaHasta) {
-      const d1 = new Date(nuevaDesde).getTime();
-      const d2 = new Date(nuevaHasta).getTime();
-      const diffDias = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
-
-      setPeriodoDias(diffDias);
-      fetchStats(diffDias, nuevaDesde, nuevaHasta);
-    }
+    const d1 = Date.parse(`${nuevaDesde}T00:00:00Z`);
+    const d2 = Date.parse(`${fechaHasta}T00:00:00Z`);
+    const diffDias = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+    setPeriodoDias(diffDias);
+    fetchStats(diffDias, nuevaDesde, fechaHasta);
   };
 
   // Estado para el centro seleccionado en la evolución de cobertura (-1 = Todos/Total)
@@ -253,8 +266,21 @@ export default function StatsV2Page() {
 
   const maxEg = Math.max(1, ...egList.map((g: any) => g.total));
 
-  // 9. Cálculo matemático del gráfico SVG de Evolución
-  const evoDates = ["28/7", "4/8", "11/8", "18/8", "25/8", "1/9", "8/9", "15/9", "22/9", "29/9", "6/10", "13/10", "22/10"];
+  // 9. Cálculo dinámico de las 13 semanas hacia atrás basadas en la fecha actual o el corte
+  const evoDates = useMemo(() => {
+    const dates: string[] = [];
+    const baseDate = new Date(`${fechaHasta}T12:00:00`);
+
+    // Generar 13 puntos semanales hacia atrás
+    for (let i = 12; i >= 0; i--) {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() - (i * 7));
+      const dia = d.getDate();
+      const mes = d.getMonth() + 1;
+      dates.push(`${dia}/${mes}`);
+    }
+    return dates;
+  }, [fechaHasta]);
 
   const evoData = useMemo(() => {
     const evoX = (i: number) => 80 + i * (680 / 12);
@@ -370,6 +396,7 @@ export default function StatsV2Page() {
 
     const propsReporte = {
       tipoEfector,
+      fechaCorte: data?.fechaCorte || null,
       rangoTexto: `${periodoDias} días (${fechaDesde} al ${fechaHasta})`,
       padronProvincial,
       capital: {
@@ -430,7 +457,8 @@ export default function StatsV2Page() {
               <input 
                 type="date" 
                 value={fechaDesde} 
-                onChange={(e) => handleFechaManualChange(e.target.value, fechaHasta)} 
+                max={fechaHasta || undefined}
+                onChange={(e) => handleFechaManualChange(e.target.value)}
                 className={styles.dateInput} 
               />
             </label>
@@ -440,7 +468,8 @@ export default function StatsV2Page() {
               <input 
                 type="date" 
                 value={fechaHasta} 
-                onChange={(e) => handleFechaManualChange(fechaDesde, e.target.value)} 
+                readOnly
+                aria-label="Fecha de corte"
                 className={styles.dateInput} 
               />
             </label>
@@ -615,7 +644,7 @@ export default function StatsV2Page() {
                 embarazadas activas
               </p>
               <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#5E5D5B" }}>
-                Datos al {data?.ultimaActualizacion ? new Date(data.ultimaActualizacion).toLocaleDateString("es-AR") : new Date().toLocaleDateString("es-AR")}
+                Datos al {formatDateDisplay(data?.fechaCorte)}
               </p>
             </div>
 
@@ -981,7 +1010,7 @@ export default function StatsV2Page() {
           <div className={styles.chartCard}>
             <h2 className={styles.chartTitle}>Cobertura de controles por {tipoEfector}</h2>
             <p className={styles.chartSub}>
-              Controles al día al {new Date().toLocaleDateString("es-AR")} · comparado con el promedio {tipoEfector} ({pctCoberturaTotal}%, línea azul)
+              Controles al día al {formatDateDisplay(data?.fechaCorte)} · comparado con el promedio {tipoEfector} ({pctCoberturaTotal}%, línea azul)
             </p>
 
             <div className={styles.rankingContainer}>
