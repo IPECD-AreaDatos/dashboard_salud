@@ -339,17 +339,17 @@ function SeguimientoPageContent() {
   const [sugerencias, setSugerencias] = useState<any[]>([]);
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
 
-  // Función para buscar sugerencias (sin filtros, a toda la base)
+  // Buscar únicamente una coincidencia provincial por DNI completo.
   const fetchSugerencias = async (busqueda: string) => {
-    // Si borra el texto, ocultamos la lista
-    if (busqueda.length < 1) {
+    const dni = busqueda.trim().replace(/[\s.-]/g, "");
+    if (!/^\d{6,12}$/.test(dni)) {
       setSugerencias([]);
-      setMostrarSugerencias(false); // <--- Agregá esto
+      setMostrarSugerencias(false);
       return;
     }
 
     try {
-      const res = await apiFetch(`/pacientes/sugerencias?q=${busqueda}`);
+      const res = await apiFetch(`/pacientes/sugerencias?q=${encodeURIComponent(dni)}`);
 
       // Si la API responde bien (200), procesamos
       if (res.ok) {

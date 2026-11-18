@@ -47,6 +47,13 @@ if ! npm run build; then
   exit 1
 fi
 
+echo "Quitando dependencias de desarrollo del servidor..."
+if ! npm prune --omit=dev --quiet; then
+  restore_previous_build
+  echo "Falló la limpieza de dependencias; se restauró el artefacto anterior." >&2
+  exit 1
+fi
+
 echo "Reiniciando salud-dashboard en el puerto 3005..."
 if ! pm2 restart salud-dashboard; then
   restore_previous_build
