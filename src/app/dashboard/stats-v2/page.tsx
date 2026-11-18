@@ -257,6 +257,38 @@ export default function StatsV2Page() {
   // Datos de histograma de Edad Gestacional
   const egList = v2?.edadGestacional || [];
 
+  // Cálculo dinámico de Trimestres a partir de egList (CAPS o SAPS)
+  const trimestresEg = useMemo(() => {
+    const rangosT1 = ["0 a 4", "5 a 8", "9 a 12"];
+    const rangosT2 = ["13 a 16", "17 a 20", "21 a 24", "25 a 28"];
+
+    let t1Total = 0, t1Ctrl = 0;
+    let t2Total = 0, t2Ctrl = 0;
+    let t3Total = 0, t3Ctrl = 0;
+
+    for (const item of egList) {
+      const tot = Number(item.total) || 0;
+      const ctrl = Number(item.controladas) || 0;
+      if (rangosT1.includes(item.rango)) {
+        t1Total += tot;
+        t1Ctrl += ctrl;
+      } else if (rangosT2.includes(item.rango)) {
+        t2Total += tot;
+        t2Ctrl += ctrl;
+      } else {
+        t3Total += tot;
+        t3Ctrl += ctrl;
+      }
+    }
+
+    return {
+      t1: { total: t1Total, ctrl: t1Ctrl, pct: t1Total > 0 ? Math.round((t1Ctrl * 100) / t1Total) : 0 },
+      t2: { total: t2Total, ctrl: t2Ctrl, pct: t2Total > 0 ? Math.round((t2Ctrl * 100) / t2Total) : 0 },
+      t3: { total: t3Total, ctrl: t3Ctrl, pct: t3Total > 0 ? Math.round((t3Ctrl * 100) / t3Total) : 0 },
+      captacionPct: v2?.captacionTemprana?.pct ?? 0,
+    };
+  }, [egList, v2?.captacionTemprana]);
+
   const territorial = v2?.territorial;
   const territorialResumen = territorial?.resumen;
   const departamentosTerritoriales = (territorial?.departamentos || []) as DepartamentoTerritorial[];
@@ -1085,35 +1117,41 @@ export default function StatsV2Page() {
           <h2 className={styles.chartTitle}>Semana de gestación en {tipoEfector}</h2>
           <p className={styles.chartSub}>Embarazos activos y controladas al día según edad gestacional</p>
 
-          {/* Cards de Trimestres y Captación */}
+          {/* Cards de Trimestres y Captación Dinámicos */}
           <div className={styles.egGridTri}>
             <div className={styles.egTriCard}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#5E5D5B" }}>1.º trimestre · hasta sem. 12</span>
               <b style={{ fontSize: 28, color: "#2E2D2C" }}>
-                92% <span style={{ fontSize: 14, color: "#5E5D5B", fontWeight: 400 }}>al día</span>
+                {trimestresEg.t1.pct}% <span style={{ fontSize: 14, color: "#5E5D5B", fontWeight: 400 }}>al día</span>
               </b>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>12 de 13 embarazadas</span>
+              <span style={{ fontSize: 13, color: "#5E5D5B" }}>
+                {trimestresEg.t1.ctrl} de {trimestresEg.t1.total} embarazadas
+              </span>
             </div>
 
             <div className={styles.egTriCard}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#5E5D5B" }}>2.º trimestre · sem. 13 a 28</span>
               <b style={{ fontSize: 28, color: "#2E2D2C" }}>
-                84% <span style={{ fontSize: 14, color: "#5E5D5B", fontWeight: 400 }}>al día</span>
+                {trimestresEg.t2.pct}% <span style={{ fontSize: 14, color: "#5E5D5B", fontWeight: 400 }}>al día</span>
               </b>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>228 de 270 embarazadas</span>
+              <span style={{ fontSize: 13, color: "#5E5D5B" }}>
+                {trimestresEg.t2.ctrl} de {trimestresEg.t2.total} embarazadas
+              </span>
             </div>
 
             <div className={styles.egTriCard}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#5E5D5B" }}>3.º trimestre · sem. 29 o más</span>
               <b style={{ fontSize: 28, color: "#2E2D2C" }}>
-                81% <span style={{ fontSize: 14, color: "#5E5D5B", fontWeight: 400 }}>al día</span>
+                {trimestresEg.t3.pct}% <span style={{ fontSize: 14, color: "#5E5D5B", fontWeight: 400 }}>al día</span>
               </b>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>278 de 345 embarazadas</span>
+              <span style={{ fontSize: 13, color: "#5E5D5B" }}>
+                {trimestresEg.t3.ctrl} de {trimestresEg.t3.total} embarazadas
+              </span>
             </div>
 
             <div className={styles.egTriCardDashed}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#3F5F9E" }}>Captación temprana</span>
-              <b style={{ fontSize: 28 }}>68%</b>
+              <b style={{ fontSize: 28 }}>{trimestresEg.captacionPct}%</b>
               <span style={{ fontSize: 13, color: "#5E5D5B" }}>primer control antes de la semana 13</span>
             </div>
           </div>

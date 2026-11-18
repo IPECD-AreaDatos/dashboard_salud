@@ -181,30 +181,34 @@ export async function GET(request: Request) {
       AND COALESCE(p.en_red_perinatal_msp, true) = true
     GROUP BY 1, 2;
   `;
-
-  const coberturaSql = `
+const coberturaSql = `
     SELECT
-      COUNT(*) FILTER (
+      COUNT(DISTINCT p.id) FILTER (
         WHERE p.fuente_principal = 'sumar'
           OR (p.fuente_principal IN ('pof', 'v_embarazosdw')
             AND (p.cobertura_salud ILIKE '%plan nacer%' OR p.cobertura_salud ILIKE '%sumar%'))
       ) AS publica,
-      COUNT(*) FILTER (
+      COUNT(DISTINCT p.id) FILTER (
         WHERE p.fuente_principal <> 'sumar'
           AND p.fuente_principal IN ('pof', 'v_embarazosdw')
           AND p.cobertura_salud IS NOT NULL
           AND p.cobertura_salud NOT ILIKE '%plan nacer%'
           AND p.cobertura_salud NOT ILIKE '%sumar%'
       ) AS obra_social,
-      COUNT(*) FILTER (
+      COUNT(DISTINCT p.id) FILTER (
         WHERE p.fuente_principal <> 'sumar'
           AND (p.fuente_principal NOT IN ('pof', 'v_embarazosdw') OR p.cobertura_salud IS NULL)
       ) AS sin_registro
     FROM public.pacientes_gold p
+    JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
     WHERE p.embarazo_en_curso = true
       AND p.fecha_probable_parto >= $1::date
       AND p.fecha_nacimiento IS NOT NULL
-      AND COALESCE(p.en_red_perinatal_msp, true) = true;
+      AND COALESCE(p.en_red_perinatal_msp, true) = true
+      AND (p.nombre_centro_derivado IS NULL OR TRIM(p.nombre_centro_derivado) = '')
+      AND p.derivacion_maternidad_id IS NULL
+      AND ${filtroEfector}
+      AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital';
   `;
 
   const edadGestacionalSql = `
@@ -239,13 +243,34 @@ export async function GET(request: Request) {
         CASE WHEN p.fecha_ultimo_control IS NOT NULL
           AND ($1::date - p.fecha_ultimo_control::date) BETWEEN 0 AND 40 THEN p.id END AS id_controlada
       FROM public.pacientes_gold p
+      JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
       WHERE p.embarazo_en_curso = true
         AND p.fecha_probable_parto >= $1::date
         AND p.fecha_nacimiento IS NOT NULL
         AND COALESCE(p.en_red_perinatal_msp, true) = true
+        AND (p.nombre_centro_derivado IS NULL OR TRIM(p.nombre_centro_derivado) = '')
+        AND p.derivacion_maternidad_id IS NULL
+        AND ${filtroEfector}
+        AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital'
     ) q
     GROUP BY rango_eg, orden_num
     ORDER BY orden_num;
+  `;
+
+  const captacionTempranaSql = `
+    SELECT
+      COUNT(DISTINCT p.id) AS total,
+      COUNT(DISTINCT p.id) FILTER (WHERE p.controles_1er_trim > 0) AS tempranas
+    FROM public.pacientes_gold p
+    JOIN public.efectores_sisa s ON s.codigo_sisa = p.sisa_centro_salud
+    WHERE p.embarazo_en_curso = true
+      AND p.fecha_probable_parto >= $1::date
+      AND p.fecha_nacimiento IS NOT NULL
+      AND COALESCE(p.en_red_perinatal_msp, true) = true
+      AND (p.nombre_centro_derivado IS NULL OR TRIM(p.nombre_centro_derivado) = '')
+      AND p.derivacion_maternidad_id IS NULL
+      AND ${filtroEfector}
+      AND LOWER(TRIM(COALESCE(s.departamento, 'CAPITAL'))) = 'capital';
   `;
 
   const porVencerSql = `
@@ -408,12 +433,13 @@ export async function GET(request: Request) {
       )::text AS fecha_corte
     `);
     const fechaCorte = stringValue((corteRes.rows[0] as DbRow | undefined)?.fecha_corte) || null;
-    const [resumenRes, padronRes, coberturaRes, edadRes, porVencerRes, usoRes,
+    const [resumenRes, padronRes, coberturaRes, edadRes, captacionRes, porVencerRes, usoRes,
       territorialRes, padronVigenteRes, departamentosRes, localidadesRes, topInteriorRes, ultimaActualizacionRes] = await Promise.all([
       query(resumenEfectoresSql, [fechaCorte]),
       query(padronProvincialSql, [fechaCorte]),
       query(coberturaSql, [fechaCorte]),
       query(edadGestacionalSql, [fechaCorte]),
+      query(captacionTempranaSql, [fechaCorte]),
       query(porVencerSql, [fechaCorte]),
       query(usoTableroSql, [fechaCorte]),
       query(territorialResumenSql, [fechaCorte]),
@@ -547,6 +573,14 @@ export async function GET(request: Request) {
     const padronEfector = resumenCaps.reduce((sum, row) => sum + row.padronAct, 0);
     const seguimientoEfector = resumenCaps.reduce((sum, row) => sum + row.absSeguimientoAdecuado, 0);
     const seguimientoPercent = padronEfector > 0 ? Number(((seguimientoEfector * 100) / padronEfector).toFixed(1)) : 0;
+    
+    const captacionRow = (captacionRes.rows[0] || {}) as DbRow;
+    const totalCaptacion = integerValue(captacionRow.total);
+    const tempranasCaptacion = integerValue(captacionRow.tempranas);
+    const pctCaptacionTemprana = totalCaptacion > 0
+      ? Math.round((tempranasCaptacion * 100) / totalCaptacion)
+      : 0;
+
 
     return NextResponse.json({
       fechaCorte,
@@ -576,6 +610,11 @@ export async function GET(request: Request) {
           publica: coveragePercent(coverageRow.publica),
           obraSocial: coveragePercent(coverageRow.obra_social),
           sinRegistro: coveragePercent(coverageRow.sin_registro)
+        },
+        captacionTemprana: {
+          pct: pctCaptacionTemprana,
+          tempranas: tempranasCaptacion,
+          total: totalCaptacion
         },
         edadGestacional: (edadRes.rows as DbRow[]).map((row) => ({
           rango: stringValue(row.rango_eg),
