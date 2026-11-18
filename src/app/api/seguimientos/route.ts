@@ -1,16 +1,13 @@
-/*src/app/api/seguimientos/route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { patientScope } from "@/lib/patientScope";
 import { requireHealthSession } from "@/lib/healthAuth";
 
 /**
- * GET: Obtiene el historial de contactos de una paciente específica.
+- GET: Obtiene el historial de contactos de una paciente específica (abierto a todo el padrón provincial al buscar por DNI).
  */
 export async function GET(request: Request) {
   const auth = await requireHealthSession();
   if (!auth.ok) return auth.response;
-  const session = auth.session;
 
   const { searchParams } = new URL(request.url);
   const pacienteId = searchParams.get("pacienteId");
@@ -18,10 +15,9 @@ export async function GET(request: Request) {
   if (!pacienteId) return NextResponse.json({ error: "Falta pacienteId" }, { status: 400 });
 
   try {
-    const scope = patientScope(session.user);
     const res = await query(
-      `SELECT s.* FROM seguimientos s JOIN pacientes_gold p ON p.id = s.paciente_id WHERE s.paciente_id = $1 AND ${scope.sql} ORDER BY s.fecha_contacto DESC`,
-      [parseInt(pacienteId), ...scope.params]
+      `SELECT s.* FROM seguimientos s JOIN pacientes_gold p ON p.id = s.paciente_id WHERE s.paciente_id = $1 ORDER BY s.fecha_contacto DESC`,
+      [parseInt(pacienteId)]
     );
     return NextResponse.json(res.rows);
   } catch (error) {
@@ -31,8 +27,7 @@ export async function GET(request: Request) {
 }
 
 /**
- * POST: Registra un nuevo contacto.
- * La identidad del operador se toma exclusivamente de la sesión central.
+- POST: Registra un nuevo contacto (permite registrar seguimiento a pacientes de otros centros si fueron buscadas por DNI).
  */
 export async function POST(request: Request) {
   const auth = await requireHealthSession();
@@ -57,12 +52,13 @@ export async function POST(request: Request) {
       telefono_contactado,
       observaciones,
       proxima_cita
-      // El autor se toma exclusivamente de la sesión autenticada.
     } = body;
 
-    const scope = patientScope(session.user);
-    const permitted = await query(`SELECT 1 FROM pacientes_gold p WHERE p.id = $1 AND ${scope.sql} LIMIT 1`, [paciente_id, ...scope.params]);
-    if (!permitted.rows.length) return NextResponse.json({ error: "No autorizado para esta paciente" }, { status: 403 });
+    // Validamos únicamente que la paciente exista y tenga embarazo en curso en el padrón provincial
+    const permitted = await query(`SELECT 1 FROM pacientes_gold p WHERE p.id = $1 AND embarazo_en_curso = true LIMIT 1`, [paciente_id]);
+    if (!permitted.rows.length) {
+      return NextResponse.json({ error: "Paciente no encontrada o sin embarazo activo" }, { status: 404 });
+    }
 
     const sql = `
       INSERT INTO seguimientos (
@@ -99,8 +95,8 @@ export async function POST(request: Request) {
 
     const result = await query(sql, params);
 
-    // 3. Actualizamos el flag de último contacto en la tabla principal SOLO SI FUE LOGRADO
-    if (contacto_logrado === true) { // 👈 FILTRO CORRECTO DE TONY
+    // Actualizamos el flag de último contacto en la tabla principal SOLO SI FUE LOGRADO
+    if (contacto_logrado === true) {
       await query(
         `UPDATE pacientes_gold 
          SET ultimo_contacto_at = CURRENT_TIMESTAMP 

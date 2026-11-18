@@ -75,10 +75,17 @@ export async function GET(request: Request) {
         AND p.fecha_nacimiento IS NOT NULL
         AND p.en_red_perinatal_msp = true`;
       
-      if (dni && exact) {
-        params.push(dni.trim());
-        whereClause += ` AND dni = $${params.length}`;
+      // 🌟 SI HAY BÚSQUEDA POR DNI, IGNORAMOS LA RESTRICCIÓN DE CENTRO (securityClause)
+      if (dni) {
+        if (exact) {
+          params.push(dni.trim());
+          whereClause += ` AND dni = $${params.length}`;
+        } else {
+          params.push(`${dni}%`);
+          whereClause += ` AND dni LIKE $${params.length}`;
+        }
       } else {
+        // Si NO busca por DNI, aplicamos el scope estricto del centro de salud
         whereClause += securityClause;
 
         if (excluirDerivadas) {
@@ -99,10 +106,9 @@ export async function GET(request: Request) {
 
           const controlesAtrasadosParam = searchParams.get("controlesAtrasados");
           
-          // Si es porVencer, NO aplicamos la cláusula de atrasadas porque las pacientes por vencer están al día (31 a 40 días)
           if (!porVencer) {
             if (controlesAtrasadosParam === "true") {
-              whereClause += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 40)`;
+              whereClause += ` AND (p.fecha_ultimo_control IS NULL OR (CURRENT_DATE - p.fecha_ultimo_control) > 0)`;
             } else if (controlesAtrasadosParam === "false") {
               whereClause += ` AND p.fecha_ultimo_control IS NOT NULL AND (CURRENT_DATE - p.fecha_ultimo_control) <= 40`;
             }
@@ -117,11 +123,6 @@ export async function GET(request: Request) {
         } else if (trimestre === "3") {
           whereClause += ` AND p.eg_actual >= 28`;
         } 
-
-        if (dni) {
-          params.push(`${dni}%`);
-          whereClause += ` AND dni LIKE $${params.length}`;
-        }
 
         // 🌟 FILTRO POR GRUPO (CAPS / SAPS) CIRCUNSCRIPTO A CAPITAL
         const grupoObjetivo = tipoGrupo || (establecimiento === "CAPS" || establecimiento === "SAPS" ? establecimiento : null);
@@ -152,7 +153,7 @@ export async function GET(request: Request) {
           )`;
         }
 
-        // 🌟 FILTRO PARA "POR VENCER SIN TURNO" (alerta preventiva en ventana de 10 días)
+        // 🌟 FILTRO PARA "POR VENCER SIN TURNO"
         if (porVencer) {
           whereClause += ` 
             AND p.fecha_ultimo_control IS NOT NULL 
@@ -166,7 +167,7 @@ export async function GET(request: Request) {
           `;
         }
 
-        // 🌟 3. Filtro por establecimiento individual (cuando no es CAPS ni SAPS genérico)
+        // 🌟 3. Filtro por establecimiento individual
         const botonesEspeciales = ["Todos", "Capital", "Interior", "CAPS", "SAPS", "undefined"];
         if (establecimiento && !botonesEspeciales.includes(establecimiento)) {
           params.push(establecimiento);
