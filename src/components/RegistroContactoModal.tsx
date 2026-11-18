@@ -3,7 +3,6 @@ import styles from "./RegistroContactoModal.module.css";
 import { X, Save, Clock } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useSession } from "next-auth/react"; // Importamos el hook de sesión
-import { registrarLog } from "@/lib/analytics";
 
 export default function RegistroContactoModal({ paciente, onClose, onSuccess }: any) {
   const { data: session } = useSession(); // Obtenemos la sesión actual
@@ -57,42 +56,17 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
 
     setSaving(true);
     
-    const identificadorUsuario = session.user.username || session.user.name || "Anonimo";
-    
     try {
       const res = await apiFetch("/seguimientos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paciente_id: paciente.id,
-          ...formData,
-          personal_salud: identificadorUsuario
+          ...formData
         })
       });
       
       if (res.ok) {
-        // 🚀 2. CAPA DE MÉTRICAS COMPAÑERO MATI: El contacto se insertó con éxito, registramos el log de negocio
-        
-        // Acción A: Registramos de forma obligatoria el intento de comunicación (Exitoso o Fallido)
-        await registrarLog({
-          modulo: "Seguimiento",
-          accion: "REGISTRAR_CONTACTO",
-          paciente_dni: paciente.dni ? paciente.dni.toString() : null,
-          contacto_exitoso: formData.contacto_logrado, // TRUE o FALSE directo del radio button
-          detalles: `Medio: ${formData.medio_contacto}. Dirigido a: ${formData.persona_contactada}. Obs: ${formData.observaciones}`
-        });
-
-        // Acción B: Si el contacto fue logrado Y el operador le cargó una fecha de Próximo Turno, ¡hay un turno asignado!
-        if (formData.contacto_logrado && formData.proxima_cita) {
-          await registrarLog({
-            modulo: "Seguimiento",
-            accion: "ASIGNAR_TURNO",
-            paciente_dni: paciente.dni ? paciente.dni.toString() : null,
-            fecha_turno_asignado: formData.proxima_cita, // Mandamos la fecha del calendario
-            detalles: `Turno coordinado de forma directa durante la llamada por ${identificadorUsuario}`
-          });
-        }
-
         onSuccess();
       } else {
         alert("Error al guardar el contacto en el servidor");

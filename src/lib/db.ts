@@ -4,7 +4,7 @@ import { Pool } from 'pg';
  * Configuración del pool de conexiones para PostgreSQL.
  * Utiliza variables de entorno para establecer la conexión.
  */
-const pool = new Pool({
+export const pool = new Pool({
   host: process.env.DB_HOST || process.env.HOST_DBB2,
   port: parseInt(process.env.DB_PORT || process.env.PORT_DBB2 || '5432'),
   user: process.env.DB_USER || process.env.USER_DBB2,

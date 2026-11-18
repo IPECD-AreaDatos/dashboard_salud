@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { requireHealthSession } from "@/lib/healthAuth";
+import { dashboardScope } from "@/lib/dashboardScope";
 
 export const dynamic = "force-dynamic";
 
@@ -26,32 +27,6 @@ export async function GET(request: Request) {
 
   try {
     const fechaUmbral = "CURRENT_DATE";
-    const sisa = session.user?.sisa_code;
-    const cuie = session.user?.cuie_code;
-
-    // 1. Cláusula de Seguridad RBAC
-    let securityClause = "";
-    if (session.user?.role === 'Centro de Salud') {
-      if (sisa) {
-        securityClause = ` AND (p.sisa_centro_salud = '${sisa}')`;
-      } else if (cuie) {
-        securityClause = ` AND (
-          p.sisa_centro_salud = '${cuie}' 
-          OR p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}')
-          OR p.cuie_seguimiento = '${cuie}'
-        )`;
-      }
-    } else if (session.user?.role === 'Maternidad') {
-      const matId = session.user?.maternidad_id;
-      let localClause = "";
-      if (sisa) {
-        localClause = `sisa_centro_salud = '${sisa}'`;
-      } else if (cuie) {
-        localClause = `(p.sisa_centro_salud = '${cuie}' OR p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
-      }
-      securityClause = ` AND (${localClause || 'FALSE'} OR p.derivacion_maternidad_id = '${matId}')`;
-    }
-
     // 2. Cláusula Dinámica de Selección de Centro
     let centroFilterClause = "";
     const statsParams: any[] = [];
@@ -68,6 +43,11 @@ export async function GET(request: Request) {
         )`;
       }
     }
+
+    const scope = dashboardScope(session.user, statsParams.length);
+    const securityClause = session.user?.role === 'Centro de Salud' || session.user?.role === 'Maternidad'
+      ? ` AND ${scope.sql}` : '';
+    statsParams.push(...scope.params);
 
     // Filtros de zona
     let zonaGlobalClause = "";

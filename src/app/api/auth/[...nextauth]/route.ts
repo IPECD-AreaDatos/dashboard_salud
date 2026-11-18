@@ -134,7 +134,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: { strategy: "jwt" },
   pages: { signIn: "/" },
-  secret: process.env.NEXTAUTH_SECRET || "ipec-salud-secret-2026",
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);

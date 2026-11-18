@@ -12,6 +12,9 @@ export async function POST(request: Request) {
 
     // 2. Extraemos los datos de la acción que nos manda el Frontend
     const { modulo, accion, detalles, paciente_dni, contacto_exitoso, fecha_turno_asignado } = await request.json();
+    if (accion === 'REGISTRAR_CONTACTO' || accion === 'ASIGNAR_TURNO') {
+      return NextResponse.json({ error: 'Este evento se registra al guardar el seguimiento.' }, { status: 403 });
+    }
 
     // 3. Capturamos la IP del cliente de forma segura (por si tu jefe quiere auditoría de red)
     const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "127.0.0.1";

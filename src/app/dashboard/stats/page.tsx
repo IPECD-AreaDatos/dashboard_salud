@@ -1411,7 +1411,7 @@ export default function StatsPage() {
                         cx="50%"
                         cy="45%"
                         labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                         outerRadius={90}
                         fill="#8884d8"
                         dataKey="value"
@@ -1420,7 +1420,7 @@ export default function StatsPage() {
                           <Cell key={`cell-${index}`} fill={["#608bc4", "#16a34a", "#94a3b8"][index % 3]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: number) => [value, "Cantidad"]} />
+                      <Tooltip formatter={(value) => [Number(value ?? 0), "Cantidad"]} />
                       <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', fontWeight: 600 }} />
                     </PieChart>
                   </ResponsiveContainer>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { requireHealthSession } from "@/lib/healthAuth";
+import { dashboardScope } from "@/lib/dashboardScope";
 
 /**
  * Maneja las peticiones GET para obtener la lista de pacientes con riesgo.
@@ -28,33 +29,11 @@ export async function GET(request: Request) {
   const cobertura = searchParams.get("cobertura") || "todas";
 
   try {
-    const sisa = session.user?.sisa_code;
-    const cuie = session.user?.cuie_code;
     const userRole = session.user?.role;
 
-    // 🌟 1. Lógica de Seguridad RBAC Blindada
-    let securityClause = ``;
-    
-    if (userRole === 'Centro de Salud') {
-      if (sisa) {
-        securityClause = ` AND (p.sisa_centro_salud = '${sisa}' OR p.sisa_centro_derivado = '${sisa}')`;
-      } else if (cuie) {
-        securityClause = ` AND (
-          p.sisa_centro_salud = '${cuie}' 
-          OR p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}')
-          OR p.cuie_seguimiento = '${cuie}'
-        )`;
-      }
-    } else if (userRole === 'Maternidad') {
-      const matId = session.user?.maternidad_id;
-      let localClause = "";
-      if (sisa) {
-        localClause = `p.sisa_centro_salud = '${sisa}'`;
-      } else if (cuie) {
-        localClause = `(p.sisa_centro_salud = '${cuie}' OR p.sisa_centro_salud IN (SELECT codigo_sisa FROM efectores_sisa WHERE cuie = '${cuie}'))`;
-      }
-      securityClause = ` AND (${localClause || 'FALSE'} OR p.derivacion_maternidad_id = '${matId}')`;
-    }
+    const scope = dashboardScope(session.user, 0, true);
+    const securityClause = userRole === 'Centro de Salud' || userRole === 'Maternidad'
+      ? ` AND ${scope.sql}` : '';
 
     // 2. Obtener el total para el contador del Dashboard
     const countQuery = `
@@ -64,12 +43,12 @@ export async function GET(request: Request) {
         AND embarazo_en_curso = true
         AND p.en_red_perinatal_msp = true ${securityClause}
     `;
-    const totalRes = await query(countQuery);
+    const totalRes = await query(countQuery, scope.params);
     const totalGlobal = parseInt(totalRes.rows[0].count, 10);
 
     // Función auxiliar para armar la query y sus parámetros
     const ejecutarConsultaPacientes = async (aplicarRestriccionesGestión: boolean) => {
-      const params: any[] = [];
+      const params: any[] = dni ? [] : [...scope.params];
       let whereClause = `WHERE embarazo_en_curso = true
         AND fecha_probable_parto >= CURRENT_DATE
         AND p.fecha_nacimiento IS NOT NULL
