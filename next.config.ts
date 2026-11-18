@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 
 const nextConfig = {
   basePath: '/salud-dashboard',
+  poweredByHeader: false,
   async headers() {
     return [{
       source: '/(.*)',
