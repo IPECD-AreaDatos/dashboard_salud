@@ -1,12 +1,12 @@
 /*src\app\api\logs\route.ts*/
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireHealthSession } from "@/lib/healthAuth";
+import { DASHBOARD_ROLES, requireHealthSession } from "@/lib/healthAuth";
 
 export async function POST(request: Request) {
   try {
     // 1. Validamos que haya una sesión activa en el Dashboard
-    const auth = await requireHealthSession();
+    const auth = await requireHealthSession(DASHBOARD_ROLES);
     if (!auth.ok) return auth.response;
     const session = auth.session;
 

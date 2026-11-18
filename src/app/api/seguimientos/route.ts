@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { pool, query } from "@/lib/db";
-import { requireHealthSession } from "@/lib/healthAuth";
+import { DASHBOARD_ROLES, requireHealthSession } from "@/lib/healthAuth";
 
 /**
 - GET: Obtiene el historial de contactos de una paciente específica (abierto a todo el padrón provincial al buscar por DNI).
  */
 export async function GET(request: Request) {
-  const auth = await requireHealthSession();
+  const auth = await requireHealthSession(DASHBOARD_ROLES);
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(request.url);
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 - POST: Registra un nuevo contacto (permite registrar seguimiento a pacientes de otros centros si fueron buscadas por DNI).
  */
 export async function POST(request: Request) {
-  const auth = await requireHealthSession();
+  const auth = await requireHealthSession(DASHBOARD_ROLES);
   if (!auth.ok) return auth.response;
   const session = auth.session;
 

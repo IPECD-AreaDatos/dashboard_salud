@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireHealthSession } from "@/lib/healthAuth";
+import { DASHBOARD_ROLES, requireHealthSession } from "@/lib/healthAuth";
 
 const formatearMotivoAuditoria = (motivo: string | null) => {
   const motivoOriginal = motivo?.trim() || "Edad gestacional inválida (< 2 semanas) o ausente";
@@ -29,7 +29,7 @@ const formatearMotivoAuditoria = (motivo: string | null) => {
 };
 
 export async function GET(request: Request) {
-  const auth = await requireHealthSession();
+  const auth = await requireHealthSession(DASHBOARD_ROLES);
   if (!auth.ok) return auth.response;
   const session = auth.session;
   if (session?.user?.role === 'Centro de Salud' && !session.user.sisa_code && !session.user.cuie_code) return NextResponse.json({ error: 'La cuenta no tiene centro asignado' }, { status: 403 });

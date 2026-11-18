@@ -1,11 +1,11 @@
 /*src/app/api/filtros/route.ts*/ 
 import { NextResponse } from "next/server";
-import { requireHealthSession } from "@/lib/healthAuth";
+import { DASHBOARD_ROLES, requireHealthSession } from "@/lib/healthAuth";
 import { patientScope } from "@/lib/patientScope";
 import { query } from "@/lib/db";
 
 export async function GET() {
-  const auth = await requireHealthSession();
+  const auth = await requireHealthSession(DASHBOARD_ROLES);
   if (!auth.ok) return auth.response;
   const session = auth.session;
   const scope = patientScope(session.user, 0);
