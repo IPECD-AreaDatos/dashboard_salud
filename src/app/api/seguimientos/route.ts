@@ -10,16 +10,38 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(request.url);
-  const pacienteId = searchParams.get("pacienteId");
+  const dni = searchParams.get("dni")?.trim();
 
-  if (!pacienteId) return NextResponse.json({ error: "Falta pacienteId" }, { status: 400 });
+  if (!dni || !/^\d{6,12}$/.test(dni)) return NextResponse.json({ error: "DNI inválido" }, { status: 400 });
 
   try {
-    const res = await query(
-      `SELECT s.* FROM seguimientos s JOIN pacientes_gold p ON p.id = s.paciente_id WHERE s.paciente_id = $1 ORDER BY s.fecha_contacto DESC`,
-      [parseInt(pacienteId)]
+    const patient = await query(
+      `SELECT id, dni FROM pacientes_gold WHERE dni = $1 AND embarazo_en_curso = true LIMIT 1`,
+      [dni]
     );
-    return NextResponse.json(res.rows);
+    if (!patient.rows.length) return NextResponse.json([], { headers: { "Cache-Control": "no-store" } });
+
+    const user = auth.session.user;
+    const numericId = Number(user.id);
+    const auditUserId = Number.isSafeInteger(numericId) && numericId > 0 ? numericId : 0;
+    const institution = user.role === "Administrador" ? "Administración"
+      : user.role === "Coordinador" ? "Coordinación"
+      : user.name || "Establecimiento Desconocido";
+    const code = user.sisa_code || user.cuie_code || (user.maternidad_id ? `MATERNIDAD_${user.maternidad_id}` : null);
+    await query(
+      `INSERT INTO public.logs_actividad_dashboard
+        (usuario_id, usuario_name, usuario_role, establecimiento_name, codigo_sisa,
+         modulo, accion, detalles, paciente_dni, ip_address)
+       VALUES ($1,$2,$3,$4,$5,'Seguimiento','CONSULTAR_HISTORIAL','Consulta de historial autorizada',$6,$7)`,
+      [auditUserId, user.username || user.name || "Usuario", user.role || "Sin Rol", institution, code,
+        patient.rows[0].dni, request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for") || "127.0.0.1"]
+    );
+
+    const res = await query(
+      `SELECT s.* FROM seguimientos s WHERE s.paciente_id = $1 ORDER BY s.fecha_contacto DESC LIMIT 100`,
+      [patient.rows[0].id]
+    );
+    return NextResponse.json(res.rows, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Error obteniendo seguimientos:", error);
     return NextResponse.json({ error: "Error de servidor" }, { status: 500 });
@@ -43,9 +65,20 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json();
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 8192) return NextResponse.json({ error: "Datos de seguimiento inválidos" }, { status: 413 });
+    let body: Record<string, unknown>;
+    try {
+      const parsed: unknown = await request.json();
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return NextResponse.json({ error: "Datos de seguimiento inválidos" }, { status: 400 });
+      }
+      body = parsed as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ error: "Datos de seguimiento inválidos" }, { status: 400 });
+    }
     const {
-      paciente_id,
+      paciente_dni,
       contacto_logrado,
       medio_contacto,
       persona_contactada,
@@ -55,13 +88,24 @@ export async function POST(request: Request) {
     } = body;
 
     // Validamos únicamente que la paciente exista y tenga embarazo en curso en el padrón provincial
-    if (!Number.isSafeInteger(Number(paciente_id)) || Number(paciente_id) <= 0 || typeof contacto_logrado !== 'boolean') {
+    const mediosPermitidos = ["llamada", "whatsapp", "sms", "visita_domiciliaria", "email", "otro"];
+    const personasPermitidas = ["paciente", "familiar", "vecino", "otro"];
+    const fechaTurno = typeof proxima_cita === "string" && /^\d{4}-\d{2}-\d{2}$/.test(proxima_cita)
+      ? new Date(`${proxima_cita}T00:00:00Z`) : null;
+    const fechaValida = !proxima_cita || Boolean(fechaTurno && !Number.isNaN(fechaTurno.getTime()) &&
+      fechaTurno.toISOString().slice(0, 10) === proxima_cita);
+    if (typeof paciente_dni !== 'string' || !/^\d{6,12}$/.test(paciente_dni.trim()) ||
+        typeof contacto_logrado !== 'boolean' || typeof medio_contacto !== "string" || !mediosPermitidos.includes(medio_contacto) ||
+        typeof persona_contactada !== "string" || !personasPermitidas.includes(persona_contactada) ||
+        typeof telefono_contactado !== "string" || telefono_contactado.length > 64 ||
+        typeof observaciones !== "string" || observaciones.length > 2000 || !fechaValida) {
       return NextResponse.json({ error: "Datos de seguimiento inválidos" }, { status: 400 });
     }
-    const permitted = await query(`SELECT dni FROM pacientes_gold p WHERE p.id = $1 AND embarazo_en_curso = true LIMIT 1`, [paciente_id]);
+    const permitted = await query(`SELECT id, dni FROM pacientes_gold p WHERE p.dni = $1 AND embarazo_en_curso = true LIMIT 1`, [paciente_dni.trim()]);
     if (!permitted.rows.length) {
       return NextResponse.json({ error: "Paciente no encontrada o sin embarazo activo" }, { status: 404 });
     }
+    const pacienteId = permitted.rows[0].id;
 
     const sql = `
       INSERT INTO seguimientos (
@@ -85,7 +129,7 @@ export async function POST(request: Request) {
     const cita = proxima_cita ? proxima_cita : null;
 
     const params = [
-      paciente_id,
+      pacienteId,
       contacto_logrado,
       medio_contacto,
       persona_contactada,
@@ -101,7 +145,7 @@ export async function POST(request: Request) {
       await client.query('BEGIN');
       const result = await client.query(sql, params);
       if (contacto_logrado) {
-        await client.query('UPDATE pacientes_gold SET ultimo_contacto_at = CURRENT_TIMESTAMP WHERE id = $1', [paciente_id]);
+        await client.query('UPDATE pacientes_gold SET ultimo_contacto_at = CURRENT_TIMESTAMP WHERE id = $1', [pacienteId]);
       }
 
       const user = session.user;

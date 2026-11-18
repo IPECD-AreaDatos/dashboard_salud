@@ -23,7 +23,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
   const fetchHistorial = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`/seguimientos?pacienteId=${paciente.id}`);
+      const res = await apiFetch(`/seguimientos?dni=${encodeURIComponent(paciente.dni)}`);
       const data = await res.json();
       if (Array.isArray(data)) setHistorial(data);
     } catch (error) {
@@ -61,7 +61,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          paciente_id: paciente.id,
+          paciente_dni: String(paciente.dni).replace(/\D/g, ''),
           ...formData
         })
       });

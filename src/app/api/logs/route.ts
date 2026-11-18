@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { DASHBOARD_ROLES, requireHealthSession } from "@/lib/healthAuth";
 
+const allowedEvents: Record<string, readonly string[]> = {
+  Seguimiento: ["VISUALIZAR_LISTADO", "EXPORTAR_EXCEL"],
+  Auditoría: ["VISUALIZAR_LISTADO", "DESCARGAR_EXCEL", "VISUALIZAR_RED_PERINATAL", "DESCARGAR_EXCEL_RED_PERINATAL"],
+  Estadísticas: ["VISUALIZAR_ESTADISTICAS", "EXPORTAR_EXCEL"],
+};
+
 export async function POST(request: Request) {
   try {
     // 1. Validamos que haya una sesión activa en el Dashboard
@@ -10,14 +16,38 @@ export async function POST(request: Request) {
     if (!auth.ok) return auth.response;
     const session = auth.session;
 
-    // 2. Extraemos los datos de la acción que nos manda el Frontend
-    const { modulo, accion, detalles, paciente_dni, contacto_exitoso, fecha_turno_asignado } = await request.json();
-    if (accion === 'REGISTRAR_CONTACTO' || accion === 'ASIGNAR_TURNO') {
-      return NextResponse.json({ error: 'Este evento se registra al guardar el seguimiento.' }, { status: 403 });
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 4096) return NextResponse.json({ error: "Evento demasiado grande" }, { status: 413 });
+    const reader = request.body?.getReader();
+    if (!reader) return NextResponse.json({ error: "Evento inválido" }, { status: 400 });
+    const decoder = new TextDecoder();
+    let rawBody = "";
+    let byteLength = 0;
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      byteLength += chunk.value.byteLength;
+      if (byteLength > 4096) {
+        await reader.cancel();
+        return NextResponse.json({ error: "Evento demasiado grande" }, { status: 413 });
+      }
+      rawBody += decoder.decode(chunk.value, { stream: true });
+    }
+    rawBody += decoder.decode();
+    let body: unknown;
+    try { body = JSON.parse(rawBody); } catch { return NextResponse.json({ error: "Evento inválido" }, { status: 400 }); }
+    if (!body || typeof body !== "object") return NextResponse.json({ error: "Evento inválido" }, { status: 400 });
+    const { modulo, accion, detalles } = body as { modulo?: unknown; accion?: unknown; detalles?: unknown };
+    if (typeof modulo !== "string" || typeof accion !== "string" ||
+        !Object.prototype.hasOwnProperty.call(allowedEvents, modulo) || !allowedEvents[modulo].includes(accion)) {
+      return NextResponse.json({ error: "Evento no permitido" }, { status: 400 });
+    }
+    if (detalles !== undefined && (typeof detalles !== "string" || detalles.length > 300)) {
+      return NextResponse.json({ error: "Detalle inválido" }, { status: 400 });
     }
 
     // 3. Capturamos la IP del cliente de forma segura (por si tu jefe quiere auditoría de red)
-    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "127.0.0.1";
+    const ip = request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for") || "127.0.0.1";
 
     // 4. Armamos la Query SQL apuntando a la nueva tabla de negocio
     const sql = `
@@ -71,10 +101,10 @@ export async function POST(request: Request) {
       identificadorCentro,   // Código SISA o CUIE (ej: 50180212139123)
       modulo,
       accion,
-      detalles || null,
-      paciente_dni || null,
-      contacto_exitoso !== undefined ? contacto_exitoso : null,
-      fecha_turno_asignado || null,
+      detalles ? `[evento de interfaz; no acredita ejecución] ${detalles}` : "[evento de interfaz; no acredita ejecución]",
+      null,
+      null,
+      null,
       ip
     ];
 
