@@ -427,3 +427,7 @@
   visibility: visible;
   opacity: 1;
 }
+:global(.recharts-legend-wrapper) {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}

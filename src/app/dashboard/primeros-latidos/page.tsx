@@ -5,20 +5,21 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { generarReportePrimerosLatidosPDF } from "@/lib/pdfPrimerosLatidos";
 import * as XLSX from "xlsx";
-import { 
-  Download, 
-  Search, 
-  Loader2, 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown, 
-  ChevronDown, 
-  FileText, 
-  Sheet 
+import {
+  Download,
+  Search,
+  Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  FileText,
+  Sheet
 } from "lucide-react";import Navbar from "@/components/Navbar";
 import Image from "next/image";
 import logoColorImg from "../../../../public/logo_nuevo.png";
 import styles from "./PrimerosLatidos.module.css";
+import { classesForStyle, mergeClassNames } from "@/lib/cspStyles";
 
 export default function PrimerosLatidosPage() {
   const { data: session, status } = useSession();
@@ -148,12 +149,12 @@ export default function PrimerosLatidosPage() {
   // Ícono de ordenamiento
   const renderSortIcon = (colKey: string) => {
     if (sortConfig.key !== colKey) {
-      return <ArrowUpDown size={13} style={{ opacity: 0.35, marginLeft: 4 }} />;
+      return <ArrowUpDown size={13} className={classesForStyle({ opacity: 0.35, marginLeft: 4 })} />;
     }
     return sortConfig.direction === "asc" ? (
-      <ArrowUp size={13} style={{ color: "#587ba8", marginLeft: 4 }} />
+      <ArrowUp size={13} className={classesForStyle({ color: "#587ba8", marginLeft: 4 })} />
     ) : (
-      <ArrowDown size={13} style={{ color: "#587ba8", marginLeft: 4 }} />
+      <ArrowDown size={13} className={classesForStyle({ color: "#587ba8", marginLeft: 4 })} />
     );
   };
 
@@ -253,21 +254,21 @@ export default function PrimerosLatidosPage() {
           </div>
 
           {/* Menú de Descarga (PDF / Excel) */}
-          <div style={{ position: "relative" }}>
+          <div className={classesForStyle({ position: "relative" })}>
             <button
               type="button"
-              className={styles.btnExportar}
+              className={mergeClassNames(styles.btnExportar, classesForStyle({ display: "flex", alignItems: "center", gap: "8px" }))}
               onClick={() => setMenuDescargaAbierto(!menuDescargaAbierto)}
-              style={{ display: "flex", alignItems: "center", gap: "8px" }}
+
             >
               <Download size={18} />
               <span>Descargar Reporte</span>
               <ChevronDown
                 size={15}
-                style={{
+                className={classesForStyle({
                   transform: menuDescargaAbierto ? "rotate(180deg)" : "none",
                   transition: "transform 0.2s ease",
-                }}
+                })}
               />
             </button>
 
@@ -275,13 +276,13 @@ export default function PrimerosLatidosPage() {
               <>
                 {/* Backdrop invisible para cerrar al hacer clic afuera */}
                 <div
-                  style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                  className={classesForStyle({ position: "fixed", inset: 0, zIndex: 40 })}
                   onClick={() => setMenuDescargaAbierto(false)}
                 />
 
                 {/* Dropdown flotante */}
                 <div
-                  style={{
+                  className={classesForStyle({
                     position: "absolute",
                     right: 0,
                     top: "calc(100% + 6px)",
@@ -295,13 +296,13 @@ export default function PrimerosLatidosPage() {
                     display: "flex",
                     flexDirection: "column",
                     gap: "2px",
-                  }}
+                  })}
                 >
                   {/* Opción PDF */}
                   <button
                     type="button"
                     onClick={() => handleDescargar("pdf")}
-                    style={{
+                    className={classesForStyle({
                       display: "flex",
                       alignItems: "center",
                       gap: "10px",
@@ -315,12 +316,12 @@ export default function PrimerosLatidosPage() {
                       color: "#1E293B",
                       cursor: "pointer",
                       transition: "background-color 0.15s ease",
-                    }}
+                    })}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                   >
                     <div
-                      style={{
+                      className={classesForStyle({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -328,7 +329,7 @@ export default function PrimerosLatidosPage() {
                         height: "26px",
                         borderRadius: "6px",
                         backgroundColor: "#FEE2E2",
-                      }}
+                      })}
                     >
                       <FileText size={15} color="#DC2626" />
                     </div>
@@ -339,7 +340,7 @@ export default function PrimerosLatidosPage() {
                   <button
                     type="button"
                     onClick={() => handleDescargar("xlsx")}
-                    style={{
+                    className={classesForStyle({
                       display: "flex",
                       alignItems: "center",
                       gap: "10px",
@@ -353,12 +354,12 @@ export default function PrimerosLatidosPage() {
                       color: "#1E293B",
                       cursor: "pointer",
                       transition: "background-color 0.15s ease",
-                    }}
+                    })}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                   >
                     <div
-                      style={{
+                      className={classesForStyle({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -366,7 +367,7 @@ export default function PrimerosLatidosPage() {
                         height: "26px",
                         borderRadius: "6px",
                         backgroundColor: "#DCFCE7",
-                      }}
+                      })}
                     >
                       <Sheet size={15} color="#16A34A" />
                     </div>
@@ -381,7 +382,7 @@ export default function PrimerosLatidosPage() {
         {/* Fila de KPIs SegEm: Ventanas de Cobro para Primeros Latidos */}
         <div className={styles.kpiGrid}>
           {/* Card: Total Padrón Activo */}
-          <div 
+          <div
             onClick={() => setCorteDias("Todos")}
             className={`${styles.kpiCard} ${corteDias === "Todos" ? styles.cardActive : ""}`}
             title="Ver todas las embarazadas en curso"
@@ -394,12 +395,12 @@ export default function PrimerosLatidosPage() {
           </div>
 
           {/* Card: Aptas <= 40 días */}
-          <div 
+          <div
             onClick={() => setCorteDias("40")}
             className={`${styles.kpiCard} ${styles.cardVerde} ${corteDias === "40" ? styles.cardActive : ""}`}
             title="Beneficiarias con control vigente dentro de los 40 días"
           >
-            <span className={styles.kpiLabel} style={{ color: "#15803d" }}>Aptas (Control &le; 40 días)</span>
+            <span className={mergeClassNames(styles.kpiLabel, classesForStyle({ color: "#15803d" }))} >Aptas (Control &le; 40 días)</span>
             <span className={`${styles.kpiValue} ${styles.colorVerde}`}>
               {parseInt(kpis.aptas_40 || 0).toLocaleString("es-AR")}
             </span>
@@ -409,12 +410,12 @@ export default function PrimerosLatidosPage() {
           </div>
 
           {/* Card: Aptas <= 60 días */}
-          <div 
+          <div
             onClick={() => setCorteDias("60")}
             className={`${styles.kpiCard} ${styles.cardAzul} ${corteDias === "60" ? styles.cardActive : ""}`}
             title="Beneficiarias si se amplía la ventana de corte a 60 días"
           >
-            <span className={styles.kpiLabel} style={{ color: "#1d4ed8" }}>Aptas (Ventana &le; 60 días)</span>
+            <span className={mergeClassNames(styles.kpiLabel, classesForStyle({ color: "#1d4ed8" }))} >Aptas (Ventana &le; 60 días)</span>
             <span className={`${styles.kpiValue} ${styles.colorAzul}`}>
               {parseInt(kpis.aptas_60 || 0).toLocaleString("es-AR")}
             </span>
@@ -424,12 +425,12 @@ export default function PrimerosLatidosPage() {
           </div>
 
           {/* Card: Aptas <= 90 días */}
-          <div 
+          <div
             onClick={() => setCorteDias("90")}
             className={`${styles.kpiCard} ${styles.cardVioleta} ${corteDias === "90" ? styles.cardActive : ""}`}
             title="Beneficiarias si se amplía la ventana máxima a 90 días"
           >
-            <span className={styles.kpiLabel} style={{ color: "#7e22ce" }}>Aptas (Ventana &le; 90 días)</span>
+            <span className={mergeClassNames(styles.kpiLabel, classesForStyle({ color: "#7e22ce" }))} >Aptas (Ventana &le; 90 días)</span>
             <span className={`${styles.kpiValue} ${styles.colorVioleta}`}>
               {parseInt(kpis.aptas_90 || 0).toLocaleString("es-AR")}
             </span>
@@ -439,12 +440,12 @@ export default function PrimerosLatidosPage() {
           </div>
 
           {/* Card: No Aptas / Sin Control (> 90 días o sin registro) */}
-          <div 
+          <div
             onClick={() => setCorteDias("no_aptas")}
             className={`${styles.kpiCard} ${styles.cardGris} ${corteDias === "no_aptas" ? styles.cardActive : ""}`}
             title="Embarazadas sin control reciente o sin controles registrados"
           >
-            <span className={styles.kpiLabel} style={{ color: "#64748b" }}>Inactivas / Sin Control</span>
+            <span className={mergeClassNames(styles.kpiLabel, classesForStyle({ color: "#64748b" }))} >Inactivas / Sin Control</span>
             <span className={`${styles.kpiValue} ${styles.colorGris}`}>
               {parseInt(kpis.no_aptas_mas_90 || 0).toLocaleString("es-AR")}
             </span>
@@ -483,11 +484,11 @@ export default function PrimerosLatidosPage() {
               {/* 2. Zona */}
               <div className={styles.filterItem}>
                 <label>Zona:</label>
-                <select 
-                  value={zona} 
-                  onChange={(e) => { 
-                    setZona(e.target.value); 
-                    setDepartamentos([]); 
+                <select
+                  value={zona}
+                  onChange={(e) => {
+                    setZona(e.target.value);
+                    setDepartamentos([]);
                   }}
                 >
                   <option value="Todos">Toda la Provincia</option>
@@ -497,13 +498,13 @@ export default function PrimerosLatidosPage() {
               </div>
 
               {/* 3. Selector Múltiple de Departamento */}
-              <div className={styles.filterItem} style={{ position: "relative" }}>
+              <div className={mergeClassNames(styles.filterItem, classesForStyle({ position: "relative" }))} >
                 <label>Departamento / Municipio:</label>
-                
+
                 <button
                   type="button"
                   onClick={() => setMenuDeptosAbierto(!menuDeptosAbierto)}
-                  style={{
+                  className={classesForStyle({
                     width: "100%",
                     minWidth: "230px",
                     height: "38px",
@@ -520,22 +521,22 @@ export default function PrimerosLatidosPage() {
                     cursor: "pointer",
                     transition: "all 0.15s ease",
                     boxShadow: "0 1px 2px rgba(0, 0, 0, 0.03)",
-                  }}
+                  })}
                 >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "6px" }}>
+                  <span className={classesForStyle({ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "6px" })}>
                     {departamentos.length === 0
                       ? "Todos los departamentos"
                       : departamentos.length <= 2
                       ? departamentos.join(", ")
                       : `${departamentos.length} departamentos seleccionados`}
                   </span>
-                  <ChevronDown 
-                    size={15} 
-                    style={{ 
-                      color: departamentos.length > 0 ? "#456A9D" : "#64748b", 
-                      transform: menuDeptosAbierto ? "rotate(180deg)" : "none", 
-                      transition: "transform 0.2s ease" 
-                    }} 
+                  <ChevronDown
+                    size={15}
+                    className={classesForStyle({
+                      color: departamentos.length > 0 ? "#456A9D" : "#64748b",
+                      transform: menuDeptosAbierto ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s ease"
+                    })}
                   />
                 </button>
 
@@ -543,11 +544,11 @@ export default function PrimerosLatidosPage() {
                 {menuDeptosAbierto && (
                   <>
                     <div
-                      style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                      className={classesForStyle({ position: "fixed", inset: 0, zIndex: 40 })}
                       onClick={() => setMenuDeptosAbierto(false)}
                     />
                     <div
-                      style={{
+                      className={classesForStyle({
                         position: "absolute",
                         top: "calc(100% + 5px)",
                         left: 0,
@@ -562,11 +563,11 @@ export default function PrimerosLatidosPage() {
                         display: "flex",
                         flexDirection: "column",
                         overflow: "hidden",
-                      }}
+                      })}
                     >
                       {/* Barra superior de acciones */}
                       <div
-                        style={{
+                        className={classesForStyle({
                           display: "flex",
                           justifyContent: "space-between",
                           padding: "8px 12px",
@@ -574,28 +575,28 @@ export default function PrimerosLatidosPage() {
                           borderBottom: "1px solid #E2E8F0",
                           fontSize: "12px",
                           fontWeight: 600,
-                        }}
+                        })}
                       >
                         <button
                           type="button"
                           onClick={() => setDepartamentos(data?.departamentos || [])}
-                          style={{ background: "none", border: "none", color: "#456A9D", cursor: "pointer", padding: 0 }}
+                          className={classesForStyle({ background: "none", border: "none", color: "#456A9D", cursor: "pointer", padding: 0 })}
                         >
                           Seleccionar todos
                         </button>
                         <button
                           type="button"
                           onClick={() => setDepartamentos([])}
-                          style={{ background: "none", border: "none", color: "#DC2626", cursor: "pointer", padding: 0 }}
+                          className={classesForStyle({ background: "none", border: "none", color: "#DC2626", cursor: "pointer", padding: 0 })}
                         >
                           Limpiar
                         </button>
                       </div>
 
                       {/* Lista con scroll de checkboxes */}
-                      <div style={{ overflowY: "auto", padding: "4px 0", flex: 1 }}>
+                      <div className={classesForStyle({ overflowY: "auto", padding: "4px 0", flex: 1 })}>
                         <label
-                          style={{
+                          className={classesForStyle({
                             display: "flex",
                             alignItems: "center",
                             gap: "9px",
@@ -605,14 +606,14 @@ export default function PrimerosLatidosPage() {
                             cursor: "pointer",
                             color: "#1e293b",
                             backgroundColor: departamentos.length === 0 ? "#F1F5F9" : "transparent",
-                          }}
+                          })}
                           onClick={() => setDepartamentos([])}
                         >
                           <input
                             type="checkbox"
                             checked={departamentos.length === 0}
                             readOnly
-                            style={{ cursor: "pointer", accentColor: "#456A9D" }}
+                            className={classesForStyle({ cursor: "pointer", accentColor: "#456A9D" })}
                           />
                           <span>Todos los departamentos</span>
                         </label>
@@ -622,7 +623,7 @@ export default function PrimerosLatidosPage() {
                           return (
                             <label
                               key={dep}
-                              style={{
+                              className={classesForStyle({
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "9px",
@@ -633,7 +634,7 @@ export default function PrimerosLatidosPage() {
                                 cursor: "pointer",
                                 backgroundColor: checked ? "#F8FAFC" : "transparent",
                                 transition: "background-color 0.1s ease",
-                              }}
+                              })}
                               onMouseEnter={(e) => {
                                 if (!checked) e.currentTarget.style.backgroundColor = "#F1F5F9";
                               }}
@@ -645,7 +646,7 @@ export default function PrimerosLatidosPage() {
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => toggleDepto(dep)}
-                                style={{ cursor: "pointer", accentColor: "#456A9D" }}
+                                className={classesForStyle({ cursor: "pointer", accentColor: "#456A9D" })}
                               />
                               <span>{dep}</span>
                             </label>
@@ -661,7 +662,7 @@ export default function PrimerosLatidosPage() {
             {/* 🌟 Renglón Inferior de Pastillas (Chips) Activas */}
             {departamentos.length > 0 && (
               <div
-                style={{
+                className={classesForStyle({
                   display: "flex",
                   flexWrap: "wrap",
                   alignItems: "center",
@@ -669,16 +670,16 @@ export default function PrimerosLatidosPage() {
                   marginTop: "14px",
                   paddingTop: "12px",
                   borderTop: "1px solid #E2E8F0",
-                }}
+                })}
               >
-                <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748B", marginRight: "4px" }}>
+                <span className={classesForStyle({ fontSize: "12px", fontWeight: 600, color: "#64748B", marginRight: "4px" })}>
                   Filtrando {departamentos.length} {departamentos.length === 1 ? "departamento" : "departamentos"}:
                 </span>
 
                 {departamentos.map((dep) => (
                   <span
                     key={dep}
-                    style={{
+                    className={classesForStyle({
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "6px",
@@ -691,14 +692,14 @@ export default function PrimerosLatidosPage() {
                       fontWeight: 600,
                       letterSpacing: "0.01em",
                       boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02)",
-                    }}
+                    })}
                   >
                     {dep}
                     <button
                       type="button"
                       onClick={() => toggleDepto(dep)}
                       title={`Quitar ${dep}`}
-                      style={{
+                      className={classesForStyle({
                         background: "none",
                         border: "none",
                         color: "#64748B",
@@ -709,7 +710,7 @@ export default function PrimerosLatidosPage() {
                         alignItems: "center",
                         justifyContent: "center",
                         transition: "color 0.15s ease",
-                      }}
+                      })}
                       onMouseEnter={(e) => (e.currentTarget.style.color = "#DC2626")}
                       onMouseLeave={(e) => (e.currentTarget.style.color = "#64748B")}
                     >
@@ -721,7 +722,7 @@ export default function PrimerosLatidosPage() {
                 <button
                   type="button"
                   onClick={() => setDepartamentos([])}
-                  style={{
+                  className={classesForStyle({
                     background: "none",
                     border: "none",
                     color: "#94A3B8",
@@ -732,7 +733,7 @@ export default function PrimerosLatidosPage() {
                     padding: "4px 6px",
                     borderRadius: "4px",
                     transition: "color 0.15s ease",
-                  }}
+                  })}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = "#DC2626";
                     e.currentTarget.style.textDecoration = "underline";
@@ -779,7 +780,7 @@ export default function PrimerosLatidosPage() {
                       <div className={styles.thContent}>Último Control {renderSortIcon("fecha_ultimo_control")}</div>
                     </th>
                     <th className={`${styles.colDias} ${styles.thSortable}`} onClick={() => handleSort("dias_ultimo_control")}>
-                      <div className={styles.thContent} style={{ justifyContent: "center" }}>
+                      <div className={mergeClassNames(styles.thContent, classesForStyle({ justifyContent: "center" }))} >
                         Días {renderSortIcon("dias_ultimo_control")}
                       </div>
                     </th>
@@ -816,7 +817,7 @@ export default function PrimerosLatidosPage() {
 
                       return (
                         <tr key={p.id}>
-                          <td className={styles.colDni} style={{ fontWeight: 600 }}>
+                          <td className={mergeClassNames(styles.colDni, classesForStyle({ fontWeight: 600 }))} >
                             {p.dni}
                           </td>
                           <td className={styles.colPaciente} title={`${p.apellido}, ${p.nombre}`}>
@@ -865,12 +866,12 @@ export default function PrimerosLatidosPage() {
       {/* 🌟 3. FOOTER INSTITUCIONAL SEGEM */}
       <footer className={styles.footer}>
         <div className={styles.footerLogos}>
-          <Image 
-            src={logoColorImg} 
-            alt="Modernización" 
-            style={{ height: '32px', width: 'auto', objectFit: 'contain', opacity: 0.85 }}
+          <Image
+            src={logoColorImg}
+            alt="Modernización"
+            className={classesForStyle({ height: '32px', width: 'auto', objectFit: 'contain', opacity: 0.85 })}
           />
-          
+
         </div>
         <p className={styles.footerText}>
           Provincia de Corrientes - Ministerio de Salud Pública © 2026

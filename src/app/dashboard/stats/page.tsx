@@ -22,6 +22,7 @@ import { Loader2, Download, Info, FileText, Sheet, ChevronDown } from "lucide-re
 import { generarReporteEstadisticasPDF } from "@/lib/pdfEstadisticasCen";
 import { apiFetch } from "@/lib/api";
 import * as XLSX from 'xlsx';
+import { classesForStyle, mergeClassNames } from "@/lib/cspStyles";
 
 // 🌟 FUNCIONES AUXILIARES DECLARADAS ARRIBA DE TODO (Evitan ReferenceErrors globales)
 const romanToArabic = (text: string) => {
@@ -92,7 +93,7 @@ const KpiCardConTooltip = ({ label, value, tooltip, color }: { label: string, va
         </span>
       </div>
     </div>
-    <span className={styles.kpiSubValue} style={{ color: color }}>
+    <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: color }))} >
       {value}
     </span>
   </div>
@@ -113,10 +114,10 @@ export default function StatsPage() {
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null);
 
   const [tipoEfectorTabla, setTipoEfectorTabla] = useState<'CAPS' | 'SAPS'>('CAPS');
-  
-  const [sortConfigCaps, setSortConfigCaps] = useState<{ 
-      key: 'displayName' | 'padronAct' | 'ctrlAct' | 'cobAct' | 'variacionCob' | 'pctSeguimientoAdecuado' | 'pctGestion' | 'turnosAsignadosCaps'; 
-      direction: 'asc' | 'desc' 
+
+  const [sortConfigCaps, setSortConfigCaps] = useState<{
+      key: 'displayName' | 'padronAct' | 'ctrlAct' | 'cobAct' | 'variacionCob' | 'pctSeguimientoAdecuado' | 'pctGestion' | 'turnosAsignadosCaps';
+      direction: 'asc' | 'desc'
     }>({ key: 'padronAct', direction: 'desc' });
 
   const handleSortCaps = (key: any) => {
@@ -153,14 +154,14 @@ export default function StatsPage() {
       .trim(); // 10. Limpiar espacios al inicio y final
   };
 
-  
+
 
   const [periodoComparativa, setPeriodoComparativa] = useState<7 | 14 | 30>(30);
 
   // Agrupamos la comparativa normalizando los nombres para evitar duplicados
   const comparativaProcesada = useMemo(() => {
     if (!data?.comparativaCaps) return [];
-    
+
     return data.comparativaCaps.map((c: any) => ({
       ...c,
       displayName: formatCapsDisplayName(c.capsName)
@@ -181,12 +182,12 @@ export default function StatsPage() {
         const aVal = a[sortConfigCaps.key];
         const bVal = b[sortConfigCaps.key];
         if (typeof aVal === 'string') {
-          return sortConfigCaps.direction === 'asc' 
-            ? aVal.localeCompare(bVal) 
+          return sortConfigCaps.direction === 'asc'
+            ? aVal.localeCompare(bVal)
             : bVal.localeCompare(aVal);
         }
-        return sortConfigCaps.direction === 'asc' 
-          ? (Number(aVal) || 0) - (Number(bVal) || 0) 
+        return sortConfigCaps.direction === 'asc'
+          ? (Number(aVal) || 0) - (Number(bVal) || 0)
           : (Number(bVal) || 0) - (Number(aVal) || 0);
       });
     }
@@ -233,8 +234,8 @@ export default function StatsPage() {
         setUltimaActualizacion(resData.ultimaActualizacion || null);
         setLoading({ initial: false, filtering: false });
 
-        registrarLog({ 
-          modulo: "Estadísticas", 
+        registrarLog({
+          modulo: "Estadísticas",
           accion: "VISUALIZAR_ESTADISTICAS",
           detalles: "El usuario ingresó a revisar el panel de control de gestión y reportes estadísticos."
         }).catch(err => console.error("Error al registrar log:", err));
@@ -252,7 +253,7 @@ export default function StatsPage() {
     setLoading(prev => ({ ...prev, filtering: true }));
 
     // 🌟 Enviamos tanto la zona como el período de días seleccionado
-    apiFetch(`/stats?establecimiento=${zonaChart}&periodoDias=${periodoComparativa}&tipoEfector=${tipoEfectorTabla}`)      
+    apiFetch(`/stats?establecimiento=${zonaChart}&periodoDias=${periodoComparativa}&tipoEfector=${tipoEfectorTabla}`)
     .then(res => res.json())
       .then(filteredData => {
         setData((prev: any) => ({
@@ -275,10 +276,10 @@ export default function StatsPage() {
   // 🌟 Cálculo para la tarjeta de Efectividad de Contacto
   const contactosConTurno = data?.gestion?.desgloseZona?.contactosConTurnoCaps || 0;
   const contactosTotales = data?.gestion?.desgloseZona?.contactosTotalesCaps || 0;
-  const efectividadContactoPct = contactosTotales > 0 
-    ? ((contactosConTurno / contactosTotales) * 100).toFixed(0) 
+  const efectividadContactoPct = contactosTotales > 0
+    ? ((contactosConTurno / contactosTotales) * 100).toFixed(0)
     : 0;
-  
+
   const totalPadron = data?.general?.total || 0;
   const getPct = (value: number) => {
     if (!totalPadron) return "0.0%";
@@ -363,9 +364,9 @@ export default function StatsPage() {
         ["Padrón Provincial Activo", "Total en Alto Riesgo", "Total en Riesgo Controladas", "Total Controladas (Al Día)", "Total Seguimiento Adecuado"],
         [
           `${totalPadron} (100%)`,
-          `${totalRiesgoPcia} (${getPct(totalRiesgoPcia)})`, 
+          `${totalRiesgoPcia} (${getPct(totalRiesgoPcia)})`,
           `${riesgoControladasPcia} ${pctRiesgoCtrlPcia}`,
-          `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`, 
+          `${data?.gestion?.controladas || 0} (${getPct(data?.gestion?.controladas || 0)})`,
           `${data?.gestion?.seguimientoAdecuado || 0} (${getPct(data?.gestion?.seguimientoAdecuado || 0)})`
         ],
         [],
@@ -518,7 +519,7 @@ export default function StatsPage() {
     const hoy = new Date();
     const ayer = new Date();
     ayer.setDate(hoy.getDate() - 1);
-    
+
     const opciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit' };
     const formatear = (d: Date) => d.toLocaleDateString('es-AR', opciones);
 
@@ -540,10 +541,10 @@ export default function StatsPage() {
     return (
       <>
         <Navbar />
-        <div className={styles.container} style={{ padding: '2rem', minHeight: '72vh' }}>
-          <div style={{ background: '#fff', borderRadius: '1rem', padding: '2rem', boxShadow: '0 12px 24px rgba(15,23,42,0.08)', maxWidth: '720px', margin: '2rem auto' }}>
-            <h1 style={{ marginBottom: '1rem', color: '#0f172a' }}>Acceso denegado</h1>
-            <p style={{ color: '#475569', lineHeight: '1.7' }}>
+        <div className={mergeClassNames(styles.container, classesForStyle({ padding: '2rem', minHeight: '72vh' }))} >
+          <div className={classesForStyle({ background: '#fff', borderRadius: '1rem', padding: '2rem', boxShadow: '0 12px 24px rgba(15,23,42,0.08)', maxWidth: '720px', margin: '2rem auto' })}>
+            <h1 className={classesForStyle({ marginBottom: '1rem', color: '#0f172a' })}>Acceso denegado</h1>
+            <p className={classesForStyle({ color: '#475569', lineHeight: '1.7' })}>
               El rol <strong>Supervisora</strong> sólo puede acceder a la sección de Seguimiento. No tiene permiso para ver Estadísticas.
             </p>
           </div>
@@ -556,7 +557,7 @@ export default function StatsPage() {
     return (
       <>
         <Navbar />
-        <div className={styles.container} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <div className={mergeClassNames(styles.container, classesForStyle({ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }))} >
           <Loader2 className="animate-spin text-slate-400" size={48} />
         </div>
       </>
@@ -572,7 +573,7 @@ export default function StatsPage() {
     <>
       <Navbar />
       <div className={styles.container}>
-        
+
         {/* Encabezado */}
         <div className={styles.header}>
           <div className={styles.titleArea}>
@@ -594,25 +595,25 @@ export default function StatsPage() {
             )}
           </div>
           {/* 🌟 SECCIÓN DE LA DERECHA ACOMODADA PROLIJAMENTE */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
+          <div className={classesForStyle({ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' })}>
             {ultimaActualizacion && (
-              <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: 550,  padding: '3px 10px', borderRadius: '6px' }}>
+              <span className={classesForStyle({ fontSize: '1rem', color: '#64748b', fontWeight: 550,  padding: '3px 10px', borderRadius: '6px' })}>
                 Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
               </span>
             )}
             {(isAdminOrCoord || isCAPS || isMaternidad) && (
-              <div style={{ position: "relative" }}>
+              <div className={classesForStyle({ position: "relative" })}>
                 <button
                   type="button"
                   onClick={() => setMenuDescargaAbierto(!menuDescargaAbierto)}
-                  style={{ 
+                  className={classesForStyle({
                     display: 'flex', alignItems: 'center', gap: '8px',
-                    backgroundColor: '#769FD3', color: 'white', 
-                    border: '1px solid #587ba8', padding: '0.6rem 1.1rem', 
-                    borderRadius: '0.8rem', fontSize: '0.875rem', 
+                    backgroundColor: '#769FD3', color: 'white',
+                    border: '1px solid #587ba8', padding: '0.6rem 1.1rem',
+                    borderRadius: '0.8rem', fontSize: '0.875rem',
                     fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
                     boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-                  }}
+                  })}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#587ba8")}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#769FD3")}
                 >
@@ -620,22 +621,22 @@ export default function StatsPage() {
                   <span>Descargar Reporte</span>
                   <ChevronDown
                     size={14}
-                    style={{
+                    className={classesForStyle({
                       transform: menuDescargaAbierto ? "rotate(180deg)" : "none",
                       transition: "transform 0.2s ease",
-                    }}
+                    })}
                   />
                 </button>
 
                 {menuDescargaAbierto && (
                   <>
                     <div
-                      style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                      className={classesForStyle({ position: "fixed", inset: 0, zIndex: 40 })}
                       onClick={() => setMenuDescargaAbierto(false)}
                     />
 
                     <div
-                      style={{
+                      className={classesForStyle({
                         position: "absolute",
                         right: 0,
                         top: "calc(100% + 6px)",
@@ -649,12 +650,12 @@ export default function StatsPage() {
                         display: "flex",
                         flexDirection: "column",
                         gap: "2px",
-                      }}
+                      })}
                     >
                       <button
                         type="button"
                         onClick={() => handleDescargar("pdf")}
-                        style={{
+                        className={classesForStyle({
                           display: "flex",
                           alignItems: "center",
                           gap: "10px",
@@ -667,12 +668,12 @@ export default function StatsPage() {
                           fontWeight: 500,
                           color: "#1E293B",
                           cursor: "pointer",
-                        }}
+                        })}
                         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
                         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                       >
                         <div
-                          style={{
+                          className={classesForStyle({
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -680,7 +681,7 @@ export default function StatsPage() {
                             height: "26px",
                             borderRadius: "6px",
                             backgroundColor: "#FEE2E2",
-                          }}
+                          })}
                         >
                           <FileText size={15} color="#DC2626" />
                         </div>
@@ -690,7 +691,7 @@ export default function StatsPage() {
                       <button
                         type="button"
                         onClick={() => handleDescargar("xlsx")}
-                        style={{
+                        className={classesForStyle({
                           display: "flex",
                           alignItems: "center",
                           gap: "10px",
@@ -703,12 +704,12 @@ export default function StatsPage() {
                           fontWeight: 500,
                           color: "#1E293B",
                           cursor: "pointer",
-                        }}
+                        })}
                         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
                         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                       >
                         <div
-                          style={{
+                          className={classesForStyle({
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -716,7 +717,7 @@ export default function StatsPage() {
                             height: "26px",
                             borderRadius: "6px",
                             backgroundColor: "#DCFCE7",
-                          }}
+                          })}
                         >
                           <Sheet size={15} color="#16A34A" />
                         </div>
@@ -732,124 +733,124 @@ export default function StatsPage() {
 
         {/* KPIs COMPACTOS SÓLO SI ES ADMIN O COORDINADOR */}
         {isAdminOrCoord ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
-            
+          <div className={classesForStyle({ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' })}>
+
             {/* 🌟 FILA 1: MÉTRICAS GENERALES PROVINCIALES */}
             <div className={styles.kpiGridAdmin}>
               <div className={styles.kpiCardCompact}>
                 <span className={styles.kpiLabel}>Total Padrón Provincial</span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
-                  <span className={styles.kpiSubValue} style={{ color: '#0f172a', margin: 0 }}>
+                <div className={classesForStyle({ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' })}>
+                  <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: '#0f172a', margin: 0 }))} >
                     {(data?.general?.total || 0).toLocaleString('es-AR')}
                   </span>
-                  <span style={{ fontSize: '0.95rem', color: '#94a3b8', fontWeight: 700 }}>(100%)</span>
+                  <span className={classesForStyle({ fontSize: '0.95rem', color: '#94a3b8', fontWeight: 700 })}>(100%)</span>
                 </div>
                 <small className={styles.kpiSubtext}>Embarazadas activas</small>
               </div>
-              
+
               <div className={styles.kpiCardCompact}>
-                <span className={styles.kpiLabel} style={{ color: '#991b1b' }}>Total en Alto Riesgo</span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' }}>
-                  <span className={styles.kpiSubValue} style={{ color: '#dc2626', margin: 0 }}>
+                <span className={mergeClassNames(styles.kpiLabel, classesForStyle({ color: '#991b1b' }))} >Total en Alto Riesgo</span>
+                <div className={classesForStyle({ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '0.25rem' })}>
+                  <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: '#dc2626', margin: 0 }))} >
                     {(data?.riesgo?.total || 0).toLocaleString('es-AR')}
                   </span>
-                  <span style={{ fontSize: '0.95rem', color: '#f87171', fontWeight: 700 }}>({getPct(data?.riesgo?.total || 0)})</span>
+                  <span className={classesForStyle({ fontSize: '0.95rem', color: '#f87171', fontWeight: 700 })}>({getPct(data?.riesgo?.total || 0)})</span>
                 </div>
-                <small className={styles.kpiSubtext} style={{ color: '#991b1b' }}>Seguimiento prioritario</small>
+                <small className={mergeClassNames(styles.kpiSubtext, classesForStyle({ color: '#991b1b' }))} >Seguimiento prioritario</small>
               </div>
 
               <div className={styles.kpiCardCompact}>
-                <span className={styles.kpiLabel} style={{ color: '#c76d07' }}>Total en Riesgo Controladas</span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
-                  <span className={styles.kpiSubValue} style={{ color: '#f18913', margin: 0 }}>
+                <span className={mergeClassNames(styles.kpiLabel, classesForStyle({ color: '#c76d07' }))} >Total en Riesgo Controladas</span>
+                <div className={classesForStyle({ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' })}>
+                  <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: '#f18913', margin: 0 }))} >
                     {(data?.gestion?.riesgoControladas || 0).toLocaleString('es-AR')}
                   </span>
                   {/* 🌟 CORREGIDO: Denominador = Total en Alto Riesgo (data?.riesgo?.total) */}
-                  <span style={{ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 }}>
+                  <span className={classesForStyle({ fontSize: '0.95rem', color: '#f1a23a', fontWeight: 700 })}>
                     ({getPctRiesgo(data?.gestion?.riesgoControladas || 0, data?.riesgo?.total || 0)})
                   </span>
                 </div>
-                <small className={styles.kpiSubtext} style={{ color: '#c76d07' }}>Pacientes de riesgo con controles al día</small>
+                <small className={mergeClassNames(styles.kpiSubtext, classesForStyle({ color: '#c76d07' }))} >Pacientes de riesgo con controles al día</small>
               </div>
 
               <div className={`${styles.kpiCardCompact} ${styles.kpiCardVerde}`}>
                 <span className={styles.kpiLabel}>Total Controladas</span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
+                <div className={classesForStyle({ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' })}>
                   <span className={`${styles.kpiSubValue} ${styles.valGreen}`}>
                     {(data?.gestion?.controladas || 0).toLocaleString('es-AR')}
                   </span>
-                  <span style={{ fontSize: '0.95rem', color: '#16a34a', fontWeight: 700 }}>({getPct(data?.gestion?.controladas || 0)})</span>
+                  <span className={classesForStyle({ fontSize: '0.95rem', color: '#16a34a', fontWeight: 700 })}>({getPct(data?.gestion?.controladas || 0)})</span>
                 </div>
                 <small className={styles.kpiSubtext}>Controles vigentes en los últimos 40 días</small>
               </div>
 
               <div className={styles.kpiCardCompact}>
-                <span className={styles.kpiLabel} style={{ color: '#0b6aa8e0' }}>Total Seguimiento Adecuado</span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
-                  <span className={styles.kpiSubValue} style={{ color: '#1276b8e0', margin: 0 }}>
+                <span className={mergeClassNames(styles.kpiLabel, classesForStyle({ color: '#0b6aa8e0' }))} >Total Seguimiento Adecuado</span>
+                <div className={classesForStyle({ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' })}>
+                  <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: '#1276b8e0', margin: 0 }))} >
                     {(data?.gestion?.seguimientoAdecuado || 0).toLocaleString('es-AR')}
                   </span>
-                  <span style={{ fontSize: '0.95rem', color: '#207ae9c7', fontWeight: 700 }}>
+                  <span className={classesForStyle({ fontSize: '0.95rem', color: '#207ae9c7', fontWeight: 700 })}>
                     ({getPct(data?.gestion?.seguimientoAdecuado || 0)})
                   </span>
                 </div>
-                <small className={styles.kpiSubtext} style={{ color: '#0b6aa8e0' }}>Seguimiento adecuado durante el embarazo</small>
+                <small className={mergeClassNames(styles.kpiSubtext, classesForStyle({ color: '#0b6aa8e0' }))} >Seguimiento adecuado durante el embarazo</small>
               </div>
             </div>
 
             {/* 🌟 FILA 2: DEPARTAMENTO CAPITAL (CALCULADO SOBRE PADRÓN CAPITAL) */}
             <div className={styles.kpiGridAdmin}>
-              <KpiDesgloseCard 
-                label="Padrón Capital" 
-                pct={getPct(data?.general?.desgloseZona?.capital || 0)} 
-                value={data?.general?.desgloseZona?.capital || 0} 
-                valueColor="#0f172a" 
-                pctColor="#94a3b8" 
+              <KpiDesgloseCard
+                label="Padrón Capital"
+                pct={getPct(data?.general?.desgloseZona?.capital || 0)}
+                value={data?.general?.desgloseZona?.capital || 0}
+                valueColor="#0f172a"
+                pctColor="#94a3b8"
                 labelColor="#64748b"
                 subtext="del padrón provincial total"
               />
 
-              <KpiDesgloseCard 
-                label="Riesgo Capital" 
-                pct={getPctCapital(data?.riesgo?.desgloseZona?.capital || 0)} 
-                value={data?.riesgo?.desgloseZona?.capital || 0} 
-                valueColor="#dc2626" 
-                pctColor="#f87171" 
-                labelColor="#991b1b" 
+              <KpiDesgloseCard
+                label="Riesgo Capital"
+                pct={getPctCapital(data?.riesgo?.desgloseZona?.capital || 0)}
+                value={data?.riesgo?.desgloseZona?.capital || 0}
+                valueColor="#dc2626"
+                pctColor="#f87171"
+                labelColor="#991b1b"
                 subtext="Alto riesgo sobre padrón Capital"
               />
 
-              <KpiDesgloseCard 
-                label="Riesgo Controlado Capital" 
+              <KpiDesgloseCard
+                label="Riesgo Controlado Capital"
                 /* 🌟 CORREGIDO: Denominador = Riesgo Capital (data?.riesgo?.desgloseZona?.capital) */
                 pct={getPctRiesgo(
-                  data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0, 
+                  data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0,
                   data?.riesgo?.desgloseZona?.capital || 0
-                )} 
-                value={data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0} 
-                valueColor="#f18913" 
-                pctColor="#f1a23a" 
-                labelColor="#c76d07" 
+                )}
+                value={data?.gestion?.desgloseZona?.riesgoControladas?.capital || 0}
+                valueColor="#f18913"
+                pctColor="#f1a23a"
+                labelColor="#c76d07"
                 subtext="Riesgo con control al día en Capital"
               />
 
-              <KpiDesgloseCard 
-                label="Controladas Capital" 
-                pct={getPctCapital(data?.gestion?.desgloseZona?.controladas?.capital || 0)} 
-                value={data?.gestion?.desgloseZona?.controladas?.capital || 0} 
-                className={styles.kpiCardVerde} 
-                valueColor="#15803d" 
-                pctColor="#16a34a" 
+              <KpiDesgloseCard
+                label="Controladas Capital"
+                pct={getPctCapital(data?.gestion?.desgloseZona?.controladas?.capital || 0)}
+                value={data?.gestion?.desgloseZona?.controladas?.capital || 0}
+                className={styles.kpiCardVerde}
+                valueColor="#15803d"
+                pctColor="#16a34a"
                 labelColor="#166534"
                 subtext="Cobertura de controles en Capital"
               />
 
-              <KpiDesgloseCard 
-                label="Seguimiento Adecuado Capital" 
-                pct={getPctCapital(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)} 
-                value={data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0} 
-                valueColor="#1276b8e0" 
-                pctColor="#207ae9c7" 
+              <KpiDesgloseCard
+                label="Seguimiento Adecuado Capital"
+                pct={getPctCapital(data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0)}
+                value={data?.gestion?.desgloseZona?.seguimientoAdecuado?.capital || 0}
+                valueColor="#1276b8e0"
+                pctColor="#207ae9c7"
                 labelColor="#0b6aa8e0"
                 subtext="Continuidad clínica en Capital"
               />
@@ -947,7 +948,7 @@ export default function StatsPage() {
             </div>
 
             {/* 🌟 SEGUNDA FILA: Gestión, Logros y Calidad */}
-            <div className={styles.kpiGridAdmin} style={{ marginTop: '1rem' }}>
+            <div className={mergeClassNames(styles.kpiGridAdmin, classesForStyle({ marginTop: '1rem' }))} >
               <KpiCardConTooltip
                 label="Seguimiento Adecuado"
                 value={data?.gestion?.desgloseZona?.seguimientoAdecuadoCaps || 0}
@@ -980,27 +981,27 @@ export default function StatsPage() {
                     <span className={styles.tooltipText}>Porcentaje de contactos efectivos (llamadas, mensajes) que resultaron en un turno agendado en los últimos 30 días.</span>
                   </div>
                 </div>
-                <span className={styles.kpiSubValue} style={{ color: '#15803d' }}>{efectividadContactoPct}%</span>
-                <small className={styles.kpiSubtext} style={{marginTop: '4px'}}>{`(${contactosConTurno} de ${contactosTotales} embarazadas)`}</small>
+                <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: '#15803d' }))} >{efectividadContactoPct}%</span>
+                <small className={mergeClassNames(styles.kpiSubtext, classesForStyle({marginTop: '4px'}))} >{`(${contactosConTurno} de ${contactosTotales} embarazadas)`}</small>
               </div>
             </div>
 
             <h2 className={styles.sectionTitle}>Cobertura de Controles Médicos</h2>
             <div className={styles.kpiGridCentered}>
-              <div className={styles.kpiCardCompact} style={{ textAlign: 'center' }}>
+              <div className={mergeClassNames(styles.kpiCardCompact, classesForStyle({ textAlign: 'center' }))} >
                 <span className={styles.kpiLabel}>Último Día</span>
                 <small className={styles.kpiSubtext}>({textoHoy})</small>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>{(data?.actividad?.hoy || 0).toLocaleString('es-AR')}</span>
+                <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: '#769FD3', marginTop: '0.5rem' }))} >{(data?.actividad?.hoy || 0).toLocaleString('es-AR')}</span>
               </div>
-              <div className={styles.kpiCardCompact} style={{ textAlign: 'center' }}>
+              <div className={mergeClassNames(styles.kpiCardCompact, classesForStyle({ textAlign: 'center' }))} >
                 <span className={styles.kpiLabel}>Última Semana</span>
                 <small className={styles.kpiSubtext}>({textoSemana})</small>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>{(data?.actividad?.semana || 0).toLocaleString('es-AR')}</span>
+                <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: '#769FD3', marginTop: '0.5rem' }))} >{(data?.actividad?.semana || 0).toLocaleString('es-AR')}</span>
               </div>
-              <div className={styles.kpiCardCompact} style={{ textAlign: 'center' }}>
+              <div className={mergeClassNames(styles.kpiCardCompact, classesForStyle({ textAlign: 'center' }))} >
                 <span className={styles.kpiLabel}>Último Mes</span>
                 <small className={styles.kpiSubtext}>({textoMes})</small>
-                <span className={styles.kpiSubValue} style={{ color: '#769FD3', marginTop: '0.5rem' }}>{(data?.actividad?.mes || 0).toLocaleString('es-AR')}</span>
+                <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: '#769FD3', marginTop: '0.5rem' }))} >{(data?.actividad?.mes || 0).toLocaleString('es-AR')}</span>
               </div>
             </div>
           </>
@@ -1010,16 +1011,16 @@ export default function StatsPage() {
         {isAdminOrCoord && (
           <>
             {/* 🌟 SELECTOR DE PESTAÑAS (FUERA DE LA TABLA) */}
-            <div style={{ 
-              display: 'flex', 
-              gap: '0.6rem', 
+            <div className={classesForStyle({
+              display: 'flex',
+              gap: '0.6rem',
               marginTop: '2rem',
-              marginBottom: '0.8rem' 
-            }}>
+              marginBottom: '0.8rem'
+            })}>
               <button
                 type="button"
                 onClick={() => setTipoEfectorTabla('CAPS')}
-                style={{
+                className={classesForStyle({
                   padding: '0.65rem 1.6rem',
                   borderRadius: '10px',
                   fontSize: '0.925rem',
@@ -1030,7 +1031,7 @@ export default function StatsPage() {
                   color: tipoEfectorTabla === 'CAPS' ? '#ffffff' : '#475569',
                   boxShadow: tipoEfectorTabla === 'CAPS' ? '0 4px 12px rgba(88, 123, 168, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)',
                   transition: 'all 0.2s ease'
-                }}
+                })}
               >
                 Centros Provinciales (CAPS)
               </button>
@@ -1038,7 +1039,7 @@ export default function StatsPage() {
               <button
                 type="button"
                 onClick={() => setTipoEfectorTabla('SAPS')}
-                style={{
+                className={classesForStyle({
                   padding: '0.65rem 1.6rem',
                   borderRadius: '10px',
                   fontSize: '0.925rem',
@@ -1049,26 +1050,26 @@ export default function StatsPage() {
                   color: tipoEfectorTabla === 'SAPS' ? '#ffffff' : '#475569',
                   boxShadow: tipoEfectorTabla === 'SAPS' ? '0 4px 12px rgba(88, 123, 168, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)',
                   transition: 'all 0.2s ease'
-                }}
+                })}
               >
                 Centros Municipales (SAPS)
               </button>
             </div>
 
             {/* CAJA BLANCA DE LA TABLA */}
-          <div className={styles.tableContainerCaps} style={{ marginTop: '2rem', marginBottom: '2.5rem' }}>
-            <div className={styles.tableHeaderArea} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div className={mergeClassNames(styles.tableContainerCaps, classesForStyle({ marginTop: '2rem', marginBottom: '2.5rem' }))} >
+            <div className={mergeClassNames(styles.tableHeaderArea, classesForStyle({ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }))} >
               <div>
-                <h2 style={{ margin: 0 }}>Desempeño y Evolución de Cobertura por {tipoEfectorTabla}</h2>
+                <h2 className={classesForStyle({ margin: 0 })}>Desempeño y Evolución de Cobertura por {tipoEfectorTabla}</h2>
 
-                
-                <p style={{ margin: '4px 0 0.5rem 0', color: '#64748b' }}>
+
+                <p className={classesForStyle({ margin: '4px 0 0.5rem 0', color: '#64748b' })}>
                   Monitoreo integral de padrón activo, controles médicos al día, gestión proactiva y variación de cobertura.
                 </p>
 
                 {/* 🌟 CÁPSULA EXPLICATIVA DE FECHAS DE CORTE DINÁMICAS */}
                 {sortedCaps.length > 0 && sortedCaps[0]?.fechaT1 && (
-                  <div style={{
+                  <div className={classesForStyle({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '12px',
@@ -1080,14 +1081,14 @@ export default function StatsPage() {
                     color: '#334155',
                     marginTop: '0.25rem',
                     marginBottom: '0.65rem'
-                  }}>
-                    <span style={{ fontWeight: 600, color: '#475569' }}>
+                  })}>
+                    <span className={classesForStyle({ fontWeight: 600, color: '#475569' })}>
                       Período comparado ({periodoComparativa} días):
                     </span>
                     <span>
                       Corte Anterior (<strong>{new Date(sortedCaps[0].fechaT0).toLocaleDateString('es-AR')}</strong>)
                     </span>
-                    <span style={{ color: '#94a3b8' }}>→</span>
+                    <span className={classesForStyle({ color: '#94a3b8' })}>→</span>
                     <span>
                       Corte Actual (<strong>{new Date(sortedCaps[0].fechaT1).toLocaleDateString('es-AR')}</strong>)
                     </span>
@@ -1096,11 +1097,11 @@ export default function StatsPage() {
               </div>
 
               {/* 🌟 SELECTOR DE PERÍODO ACTIVO (7, 14, 30 DÍAS) */}
-              <div style={{ display: 'flex', gap: '6px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div className={classesForStyle({ display: 'flex', gap: '6px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0' })}>
                 <button
                   type="button"
                   onClick={() => setPeriodoComparativa(7)}
-                  style={{
+                  className={classesForStyle({
                     padding: '6px 14px',
                     borderRadius: '6px',
                     border: 'none',
@@ -1111,14 +1112,14 @@ export default function StatsPage() {
                     color: periodoComparativa === 7 ? '#fff' : '#64748b',
                     boxShadow: periodoComparativa === 7 ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
                     transition: 'all 0.2s ease'
-                  }}
+                  })}
                 >
                   Últimos 7 días
                 </button>
                 <button
                   type="button"
                   onClick={() => setPeriodoComparativa(14)}
-                  style={{
+                  className={classesForStyle({
                     padding: '6px 14px',
                     borderRadius: '6px',
                     border: 'none',
@@ -1129,14 +1130,14 @@ export default function StatsPage() {
                     color: periodoComparativa === 14 ? '#fff' : '#64748b',
                     boxShadow: periodoComparativa === 14 ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
                     transition: 'all 0.2s ease'
-                  }}
+                  })}
                 >
                   Últimos 14 días
                 </button>
                 <button
                   type="button"
                   onClick={() => setPeriodoComparativa(30)}
-                  style={{
+                  className={classesForStyle({
                     padding: '6px 14px',
                     borderRadius: '6px',
                     border: 'none',
@@ -1147,7 +1148,7 @@ export default function StatsPage() {
                     color: periodoComparativa === 30 ? '#fff' : '#64748b',
                     boxShadow: periodoComparativa === 30 ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
                     transition: 'all 0.2s ease'
-                  }}
+                  })}
                 >
                   Últimos 30 días
                 </button>
@@ -1165,17 +1166,17 @@ export default function StatsPage() {
                       </div>
                     </th>
                     <th onClick={() => handleSortCaps('padronAct')} className={styles.sortableHeader} title="Evolución del padrón de embarazadas activas entre ambos cortes.">
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ justifyContent: 'center' }))} >
                         <span>Padrón Evolutivo</span>
                         <span className={styles.sortIcon}>{sortConfigCaps.key === 'padronAct' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
                       </div>
                     </th>
-                    <th 
-                      onClick={() => handleSortCaps('ctrlAct')} 
-                      className={styles.sortableHeader} 
+                    <th
+                      onClick={() => handleSortCaps('ctrlAct')}
+                      className={styles.sortableHeader}
                       title="Embarazadas con control médico vigente: valor gris (corte anterior) y valor verde (corte actual)."
                     >
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ justifyContent: 'center' }))} >
                         <span>Controladas</span>
                         <span className={styles.sortIcon}>
                           {sortConfigCaps.key === 'ctrlAct' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}
@@ -1183,25 +1184,25 @@ export default function StatsPage() {
                       </div>
                     </th>
                     <th onClick={() => handleSortCaps('cobAct')} className={styles.sortableHeader} title="% de controladas sobre el padrón activo actual y variación en puntos porcentuales contra el período anterior.">
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ justifyContent: 'center' }))} >
                         <span>% Cobertura</span>
                         <span className={styles.sortIcon}>{sortConfigCaps.key === 'cobAct' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
                       </div>
                     </th>
                     <th onClick={() => handleSortCaps('pctSeguimientoAdecuado')} className={styles.sortableHeader} title="Cumplen con captación temprana (1er trimestre) y frecuencia adecuada de controles según EG.">
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ justifyContent: 'center' }))} >
                         <span>% Seg. Adecuado</span>
                         <span className={styles.sortIcon}>{sortConfigCaps.key === 'pctSeguimientoAdecuado' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
                       </div>
                     </th>
                     <th onClick={() => handleSortCaps('pctGestion')} className={styles.sortableHeader} title="% de embarazadas controladas que tuvieron un contacto previo registrado desde el tablero (Gestión Proactiva).">
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ justifyContent: 'center' }))} >
                         <span>% Gestión Proactiva</span>
                         <span className={styles.sortIcon}>{sortConfigCaps.key === 'pctGestion' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
                       </div>
                     </th>
                     <th onClick={() => handleSortCaps('turnosAsignadosCaps')} className={styles.sortableHeader} title="Pacientes con fecha de próximo turno agendada a partir de hoy.">
-                      <div className={styles.headerContent} style={{ justifyContent: 'center' }}>
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ justifyContent: 'center' }))} >
                         <span>Próximos Turnos</span>
                         <span className={styles.sortIcon}>{sortConfigCaps.key === 'turnosAsignadosCaps' ? (sortConfigCaps.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
                       </div>
@@ -1218,55 +1219,55 @@ export default function StatsPage() {
                       return (
                         <tr key={idx}>
                           {/* Centro de Salud */}
-                          <td style={{ fontWeight: 550, color: '#334155' }}>
+                          <td className={classesForStyle({ fontWeight: 550, color: '#334155' })}>
                             {caps.displayName}
                           </td>
 
                           {/* 🌟 Padrón Evolutivo con Tooltip */}
-                          <td 
-                            style={{ textAlign: 'center', cursor: 'help' }}
+                          <td
+                            className={classesForStyle({ textAlign: 'center', cursor: 'help' })}
                             title={`Evolución del Padrón:\n• Corte Anterior: ${caps.padronAnt} embarazadas activas\n• Corte Actual: ${caps.padronAct} embarazadas activas\n• Variación neta: ${signoPadron} pacientes`}
                           >
-                            <span style={{ color: '#94a3b8' }}>{caps.padronAnt}</span>
-                            <span style={{ color: '#cbd5e1', margin: '0 4px' }}>→</span>
-                            <span style={{ fontWeight: 700, color: '#0f172a' }}>{caps.padronAct}</span>
+                            <span className={classesForStyle({ color: '#94a3b8' })}>{caps.padronAnt}</span>
+                            <span className={classesForStyle({ color: '#cbd5e1', margin: '0 4px' })}>→</span>
+                            <span className={classesForStyle({ fontWeight: 700, color: '#0f172a' })}>{caps.padronAct}</span>
                           </td>
 
                           {/* 🌟 Controladas Evolutivo con Tooltip en toda la celda */}
-                          <td 
-                            style={{ textAlign: 'center', cursor: 'help' }}
+                          <td
+                            className={classesForStyle({ textAlign: 'center', cursor: 'help' })}
                             title={`Control Médico Vigente (últimos 40 días):\n• Corte Anterior: ${caps.ctrlAnt} controladas\n• Corte Actual: ${caps.ctrlAct} controladas\n\nDesglose Corte Actual:\n• ${caps.controladasGestion} por Gestión Proactiva (llamada/turno previo)\n• ${caps.controladasEspontaneas} por Asistencia Espontánea`}
                           >
-                            <span style={{ color: '#94a3b8' }}>{caps.ctrlAnt}</span>
-                            <span style={{ color: '#cbd5e1', margin: '0 4px' }}>→</span>
-                            <span style={{ fontWeight: 700, color: '#15803d' }}>{caps.ctrlAct}</span>
+                            <span className={classesForStyle({ color: '#94a3b8' })}>{caps.ctrlAnt}</span>
+                            <span className={classesForStyle({ color: '#cbd5e1', margin: '0 4px' })}>→</span>
+                            <span className={classesForStyle({ fontWeight: 700, color: '#15803d' })}>{caps.ctrlAct}</span>
                           </td>
 
                           {/* 🌟 % Cobertura + Variación con Tooltip detallado */}
-                          <td 
-                            style={{ textAlign: 'center', cursor: 'help' }}
+                          <td
+                            className={classesForStyle({ textAlign: 'center', cursor: 'help' })}
                             title={`Cobertura de Controles:\n• Actual: ${caps.cobAct}% (${caps.ctrlAct} de ${caps.padronAct} pacientes)\n• Anterior: ${caps.cobAnt}% (${caps.ctrlAnt} de ${caps.padronAnt} pacientes)\n• Variación: ${isPositive ? `+${caps.variacionCob}` : caps.variacionCob} p.p.`}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            <div className={classesForStyle({ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' })}>
                               <span className={getSemaforoBadgeClass(caps.cobAct)}>
                                 {caps.cobAct}%
                               </span>
-                              <span style={{
+                              <span className={classesForStyle({
                                 padding: '2px 6px',
                                 borderRadius: '4px',
                                 fontSize: '0.75rem',
                                 fontWeight: 700,
                                 backgroundColor: isPositive ? '#dcfce7' : '#fee2e2',
                                 color: isPositive ? '#15803d' : '#b91c1c'
-                              }}>
+                              })}>
                                 {isPositive ? `+${caps.variacionCob}` : caps.variacionCob} p.p.
                               </span>
                             </div>
                           </td>
 
                           {/* % Seguimiento Adecuado */}
-                          <td 
-                            style={{ textAlign: 'center', cursor: 'help' }}
+                          <td
+                            className={classesForStyle({ textAlign: 'center', cursor: 'help' })}
                             title={`${caps.absSeguimientoAdecuado} de ${caps.padronAct} pacientes cumplen con la captación precoz y continuidad esperada.`}
                           >
                             <span className={styles.badgeAmarillo}>
@@ -1275,8 +1276,8 @@ export default function StatsPage() {
                           </td>
 
                           {/* % Gestión Proactiva */}
-                          <td 
-                            style={{ textAlign: 'center', cursor: 'help' }}
+                          <td
+                            className={classesForStyle({ textAlign: 'center', cursor: 'help' })}
                             title={`${caps.controladasGestion} de las ${caps.ctrlAct} controladas fueron contactadas desde el tablero.`}
                           >
                             <span className={styles.badgeCeleste}>
@@ -1285,8 +1286,8 @@ export default function StatsPage() {
                           </td>
 
                           {/* Próximos Turnos */}
-                          <td 
-                            style={{ textAlign: 'center', fontWeight: 600, color: '#334155', cursor: 'help' }}
+                          <td
+                            className={classesForStyle({ textAlign: 'center', fontWeight: 600, color: '#334155', cursor: 'help' })}
                             title={`${caps.turnosAsignadosCaps} pacientes tienen turno agendado desde hoy en adelante.`}
                           >
                             {caps.turnosAsignadosCaps}
@@ -1296,7 +1297,7 @@ export default function StatsPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                      <td colSpan={7} className={classesForStyle({ textAlign: 'center', padding: '2rem', color: '#64748b' })}>
                         No se encontraron registros de CAPS para el período seleccionado.
                       </td>
                     </tr>
@@ -1306,31 +1307,31 @@ export default function StatsPage() {
                   <tfoot>
                     <tr className={styles.totalRow}>
                       <td>TOTAL {tipoEfectorTabla} ({totalCaps.capsCount})</td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td className={classesForStyle({ textAlign: 'center' })}>
                         <span>{totalCaps.padronAnt}</span>
-                        <span style={{ color: '#94a3b8', margin: '0 4px' }}>→</span>
+                        <span className={classesForStyle({ color: '#94a3b8', margin: '0 4px' })}>→</span>
                         <span>{totalCaps.padronAct}</span>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td className={classesForStyle({ textAlign: 'center' })}>
                         <span>{totalCaps.ctrlAnt}</span>
-                        <span style={{ color: '#94a3b8', margin: '0 4px' }}>→</span>
+                        <span className={classesForStyle({ color: '#94a3b8', margin: '0 4px' })}>→</span>
                         <span>{totalCaps.ctrlAct}</span>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <td className={classesForStyle({ textAlign: 'center' })}>
+                        <div className={classesForStyle({ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' })}>
                           <span className={getSemaforoBadgeClass(totalCaps.cobAct)}>{totalCaps.cobAct}%</span>
                           <span className={totalCaps.variacionCob >= 0 ? styles.totalPositive : styles.totalNegative}>
                             {totalCaps.variacionCob >= 0 ? '+' : ''}{totalCaps.variacionCob} p.p.
                           </span>
                         </div>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td className={classesForStyle({ textAlign: 'center' })}>
                         <span className={styles.badgeAmarillo}>{totalCaps.pctSeguimientoAdecuado}%</span>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td className={classesForStyle({ textAlign: 'center' })}>
                         <span className={styles.badgeCeleste}>{totalCaps.pctGestion}%</span>
                       </td>
-                      <td style={{ textAlign: 'center' }}>{totalCaps.turnosAsignadosCaps}</td>
+                      <td className={classesForStyle({ textAlign: 'center' })}>{totalCaps.turnosAsignadosCaps}</td>
                     </tr>
                   </tfoot>
                 )}
@@ -1350,40 +1351,40 @@ export default function StatsPage() {
 
             {/* Los filtros de zona solo son para Admin/Coordinador y se deshabilitan mientras se filtra */}
             {isAdminOrCoord && (
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', justifyContent: 'center' }}>
-                <button style={getBtnStyle('Todos')} onClick={() => setZonaChart('Todos')}>Toda la Provincia</button>
-                <button style={getBtnStyle('Capital')} onClick={() => setZonaChart('Capital')}>Solo Capital</button>
-                <button style={getBtnStyle('Interior')} onClick={() => setZonaChart('Interior')}>Solo Interior</button>
-                <button style={getBtnStyle('CAPS')} onClick={() => setZonaChart('CAPS')}>Solo CAPS</button>
-                <button style={getBtnStyle('SAPS')} onClick={() => setZonaChart('SAPS')}>Solo SAPS</button>
+              <div className={classesForStyle({ display: 'flex', gap: '10px', marginBottom: '1.5rem', justifyContent: 'center' })}>
+                <button className={classesForStyle(getBtnStyle('Todos'))} onClick={() => setZonaChart('Todos')}>Toda la Provincia</button>
+                <button className={classesForStyle(getBtnStyle('Capital'))} onClick={() => setZonaChart('Capital')}>Solo Capital</button>
+                <button className={classesForStyle(getBtnStyle('Interior'))} onClick={() => setZonaChart('Interior')}>Solo Interior</button>
+                <button className={classesForStyle(getBtnStyle('CAPS'))} onClick={() => setZonaChart('CAPS')}>Solo CAPS</button>
+                <button className={classesForStyle(getBtnStyle('SAPS'))} onClick={() => setZonaChart('SAPS')}>Solo SAPS</button>
               </div>
             )}
 
             {/* 🌟 GRÁFICOS PRINCIPALES EN PARALELO */}
-            <div className={styles.chartsGrid} style={{ marginBottom: '1.5rem' }}>
+            <div className={mergeClassNames(styles.chartsGrid, classesForStyle({ marginBottom: '1.5rem' }))} >
               {/* Gráfico de semanas de gestación */}
-              <div className={styles.chartCard} style={{ paddingBottom: '2.5rem' }}>
+              <div className={mergeClassNames(styles.chartCard, classesForStyle({ paddingBottom: '2.5rem' }))} >
                 <h3 className={styles.chartTitle}>
                   Distribución por Semanas de Embarazo (EG)
                 </h3>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' }}>
+                <p className={classesForStyle({ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' })}>
                   Captación y controles de control prenatal según edad gestacional.
                 </p>
-                <div className={styles.chartWrapper} style={{ height: '350px' }}>
+                <div className={mergeClassNames(styles.chartWrapper, classesForStyle({ height: '350px' }))} >
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data?.distribucionEG || []} margin={{ top: 20, right: 10, left: 10, bottom: 25 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis 
-                        dataKey="rango" 
+                      <XAxis
+                        dataKey="rango"
                         tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }}
                       >
-                        <Label value="Semanas de Edad Gestacional (EG)" offset={-15} position="insideBottom" fill="#475569" style={{ fontWeight: 600, fontSize: 11 }} />
+                        <Label value="Semanas de Edad Gestacional (EG)" offset={-15} position="insideBottom" fill="#475569" className={classesForStyle({ fontWeight: 600, fontSize: 11 })} />
                       </XAxis>
                       <YAxis tick={{ fill: '#475569', fontSize: 11 }}>
-                        <Label value="Embarazadas" angle={-90} position="insideLeft" offset={0} fill="#475569" style={{ fontWeight: 600, fontSize: 11 }} />
+                        <Label value="Embarazadas" angle={-90} position="insideLeft" offset={0} fill="#475569" className={classesForStyle({ fontWeight: 600, fontSize: 11 })} />
                       </YAxis>
-                      <Tooltip 
-                        cursor={{ fill: '#f1f5f9' }} 
+                      <Tooltip
+                        cursor={{ fill: '#f1f5f9' }}
                         labelFormatter={(label) => `${label} semanas`}
                       />
                       <Bar dataKey="Embarazos Activos" fill="#608bc4" radius={[4, 4, 0, 0]} barSize={18} />
@@ -1394,16 +1395,16 @@ export default function StatsPage() {
               </div>
 
               {/* Gráfico de Obras Sociales (Mamá Mbareté) */}
-              <div className={styles.chartCard} style={{ paddingBottom: '2.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  <h3 className={styles.chartTitle} style={{ margin: 0, paddingRight: '1rem' }}>
+              <div className={mergeClassNames(styles.chartCard, classesForStyle({ paddingBottom: '2.5rem' }))} >
+                <div className={classesForStyle({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' })}>
+                  <h3 className={mergeClassNames(styles.chartTitle, classesForStyle({ margin: 0, paddingRight: '1rem' }))} >
                     Distribución de Coberturas de Salud
                   </h3>
                 </div>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' }}>
+                <p className={classesForStyle({ fontSize: '0.85rem', color: '#64748b', margin: '-0.5rem 0 1.5rem 0' })}>
                   Distribución de cobertura de salud y elegibilidad del programa.
                 </p>
-                <div className={styles.chartWrapper} style={{ height: '350px' }}>
+                <div className={mergeClassNames(styles.chartWrapper, classesForStyle({ height: '350px' }))} >
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -1421,14 +1422,14 @@ export default function StatsPage() {
                         ))}
                       </Pie>
                       <Tooltip formatter={(value) => [Number(value ?? 0), "Cantidad"]} />
-                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', fontWeight: 600 }} />
+                      <Legend verticalAlign="bottom" height={36} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             </div>
-            
-            
+
+
 
           </div>
         )}
@@ -1441,18 +1442,18 @@ export default function StatsPage() {
 // Componente unificado con la misma jerarquía y estilo que las cards principales
 const KpiDesgloseCard = ({ label, pct, value, className, valueColor, pctColor, labelColor, subtext }: any) => (
   <div className={`${styles.kpiCardCompact} ${className || ''}`}>
-    <span className={styles.kpiLabel} style={{ color: labelColor }}>
+    <span className={mergeClassNames(styles.kpiLabel, classesForStyle({ color: labelColor }))} >
       {label}
     </span>
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' }}>
-      <span className={styles.kpiSubValue} style={{ color: valueColor || '#0f172a', margin: 0 }}>
+    <div className={classesForStyle({ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0.25rem' })}>
+      <span className={mergeClassNames(styles.kpiSubValue, classesForStyle({ color: valueColor || '#0f172a', margin: 0 }))} >
         {pct}
       </span>
-      <span style={{ fontSize: '0.95rem', color: pctColor || '#94a3b8', fontWeight: 700 }}>
+      <span className={classesForStyle({ fontSize: '0.95rem', color: pctColor || '#94a3b8', fontWeight: 700 })}>
         ({(value || 0).toLocaleString('es-AR')})
       </span>
     </div>
-    <small className={styles.kpiSubtext} style={{ color: labelColor || '#94a3b8' }}>
+    <small className={mergeClassNames(styles.kpiSubtext, classesForStyle({ color: labelColor || '#94a3b8' }))} >
       {subtext || "Métrica Departamento Capital"}
     </small>
   </div>

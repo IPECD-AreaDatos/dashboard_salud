@@ -8,17 +8,18 @@ import Navbar from "@/components/Navbar";
 import { generarReporteStatsPDF } from "@/lib/pdfReporteStats";
 import { exportarReporteStatsExcel } from "@/lib/excelReporteStats";
 import { generarReporteTerritorialPDF } from "@/lib/pdfTerritorial";
-import { 
-  Download, 
-  ArrowRight, 
-  Building2, 
-  BarChart2, 
+import {
+  Download,
+  ArrowRight,
+  Building2,
+  BarChart2,
   Loader2,
-  ChevronDown, 
-  FileText, 
+  ChevronDown,
+  FileText,
   Sheet
 } from "lucide-react";
 import styles from "./StatsV2.module.css";
+import { classesForStyle, mergeClassNames } from "@/lib/cspStyles";
 
 type DepartamentoTerritorial = {
   nombre: string;
@@ -62,7 +63,7 @@ export default function StatsV2Page() {
     }
   }, [status, esAutorizadoV2, router]);
 
-  
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -90,7 +91,7 @@ export default function StatsV2Page() {
 
   const [fechaDesde, setFechaDesde] = useState("");
 
-  
+
 
   // 1. Función para consultar las estadísticas con las fechas reales
   const fetchStats = async (diasNum = periodoDias, fDesde = fechaDesde, fHasta = fechaHasta) => {
@@ -253,7 +254,7 @@ export default function StatsV2Page() {
   const cobSalud = v2?.coberturaSalud || { publica: 0, obraSocial: 0, sinRegistro: 0 };
 
 
-  
+
   // Datos de histograma de Edad Gestacional
   const egList = v2?.edadGestacional || [];
 
@@ -353,8 +354,8 @@ export default function StatsV2Page() {
     }
 
     const toPoints = (s: number[]) => s.map((v, i) => `${evoX(i).toFixed(1)},${evoY(v).toFixed(1)}`).join(" ");
-    
-    
+
+
     return {
       hasSelection,
       selectedCenter,
@@ -486,23 +487,23 @@ export default function StatsV2Page() {
           <div className={styles.filtersGroup}>
             <label className={styles.dateLabel}>
               Desde
-              <input 
-                type="date" 
-                value={fechaDesde} 
+              <input
+                type="date"
+                value={fechaDesde}
                 max={fechaHasta || undefined}
                 onChange={(e) => handleFechaManualChange(e.target.value)}
-                className={styles.dateInput} 
+                className={styles.dateInput}
               />
             </label>
 
             <label className={styles.dateLabel}>
               Hasta
-              <input 
-                type="date" 
-                value={fechaHasta} 
+              <input
+                type="date"
+                value={fechaHasta}
                 readOnly
                 aria-label="Fecha de corte"
-                className={styles.dateInput} 
+                className={styles.dateInput}
               />
             </label>
 
@@ -520,11 +521,11 @@ export default function StatsV2Page() {
             </div>
 
             {/* Botón Desplegable Multiformato Estilizado */}
-            <div style={{ position: "relative" }}>
+            <div className={classesForStyle({ position: "relative" })}>
               <button
                 type="button"
                 onClick={() => setMenuDescargaAbierto(!menuDescargaAbierto)}
-                style={{
+                className={classesForStyle({
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
@@ -538,7 +539,7 @@ export default function StatsV2Page() {
                   cursor: "pointer",
                   boxShadow: "0 2px 4px rgba(0, 0, 0, 0.08)",
                   transition: "background-color 0.2s ease, transform 0.1s ease",
-                }}
+                })}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#35537F")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#456A9D")}
               >
@@ -547,22 +548,22 @@ export default function StatsV2Page() {
                 <ChevronDown
                   size={15}
                   strokeWidth={2.2}
-                  style={{
+                  className={classesForStyle({
                     transform: menuDescargaAbierto ? "rotate(180deg)" : "none",
                     transition: "transform 0.2s ease",
-                  }}
+                  })}
                 />
               </button>
 
               {menuDescargaAbierto && (
                 <>
                   <div
-                    style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                    className={classesForStyle({ position: "fixed", inset: 0, zIndex: 40 })}
                     onClick={() => setMenuDescargaAbierto(false)}
                   />
 
                   <div
-                    style={{
+                    className={classesForStyle({
                       position: "absolute",
                       right: 0,
                       top: "calc(100% + 6px)",
@@ -576,13 +577,13 @@ export default function StatsV2Page() {
                       display: "flex",
                       flexDirection: "column",
                       gap: "2px",
-                    }}
+                    })}
                   >
                     {/* Opción PDF */}
                     <button
                       type="button"
                       onClick={() => handleDescargar("pdf")}
-                      style={{
+                      className={classesForStyle({
                         display: "flex",
                         alignItems: "center",
                         gap: "10px",
@@ -596,12 +597,12 @@ export default function StatsV2Page() {
                         color: "#1E293B",
                         cursor: "pointer",
                         transition: "background-color 0.15s ease",
-                      }}
+                      })}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                     >
                       <div
-                        style={{
+                        className={classesForStyle({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -609,7 +610,7 @@ export default function StatsV2Page() {
                           height: "26px",
                           borderRadius: "6px",
                           backgroundColor: "#FEE2E2",
-                        }}
+                        })}
                       >
                         <FileText size={15} color="#DC2626" />
                       </div>
@@ -620,7 +621,7 @@ export default function StatsV2Page() {
                     <button
                       type="button"
                       onClick={() => handleDescargar("xlsx")}
-                      style={{
+                      className={classesForStyle({
                         display: "flex",
                         alignItems: "center",
                         gap: "10px",
@@ -634,12 +635,12 @@ export default function StatsV2Page() {
                         color: "#1E293B",
                         cursor: "pointer",
                         transition: "background-color 0.15s ease",
-                      }}
+                      })}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                     >
                       <div
-                        style={{
+                        className={classesForStyle({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -647,7 +648,7 @@ export default function StatsV2Page() {
                           height: "26px",
                           borderRadius: "6px",
                           backgroundColor: "#DCFCE7",
-                        }}
+                        })}
                       >
                         <Sheet size={15} color="#16A34A" />
                       </div>
@@ -661,119 +662,119 @@ export default function StatsV2Page() {
         </section>
 
         {/* 2. Padrón Provincial y Alcance (Diseño exacto de Aye) */}
-        <section style={{ background: "#FFFFFF", border: "1px solid #EDEDED", borderRadius: "14px", padding: "22px 26px" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "28px 40px", alignItems: "center" }}>
-            
+        <section className={classesForStyle({ background: "#FFFFFF", border: "1px solid #EDEDED", borderRadius: "14px", padding: "22px 26px" })}>
+          <div className={classesForStyle({ display: "flex", flexWrap: "wrap", gap: "28px 40px", alignItems: "center" })}>
+
             {/* Columna Total Provincial */}
-            <div style={{ flex: "0 0 auto", minWidth: "200px", display: "flex", flexDirection: "column", gap: "4px", paddingRight: "40px", borderRight: "1px solid #EDEDED" }}>
-              <h2 style={{ margin: 0, fontSize: "13px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#5E5D5B" }}>
+            <div className={classesForStyle({ flex: "0 0 auto", minWidth: "200px", display: "flex", flexDirection: "column", gap: "4px", paddingRight: "40px", borderRight: "1px solid #EDEDED" })}>
+              <h2 className={classesForStyle({ margin: 0, fontSize: "13px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#5E5D5B" })}>
                 Padrón provincial
               </h2>
-              <p style={{ margin: 0, fontSize: "48px", lineHeight: 1.05, fontWeight: 700, color: "#2E2D2C", fontVariantNumeric: "tabular-nums" }}>
+              <p className={classesForStyle({ margin: 0, fontSize: "48px", lineHeight: 1.05, fontWeight: 700, color: "#2E2D2C", fontVariantNumeric: "tabular-nums" })}>
                 {padronProvincial.toLocaleString("es-AR")}
               </p>
-              <p style={{ margin: 0, fontSize: "15px", color: "#2E2D2C" }}>
+              <p className={classesForStyle({ margin: 0, fontSize: "15px", color: "#2E2D2C" })}>
                 embarazadas activas
               </p>
-              <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#5E5D5B" }}>
+              <p className={classesForStyle({ margin: "6px 0 0", fontSize: "13px", color: "#5E5D5B" })}>
                 Datos al {formatDateDisplay(data?.fechaCorte)}
               </p>
             </div>
 
             {/* Contenedor de Barras Proporcionales (Capital e Interior) */}
-            <div style={{ flex: "1 1 520px", minWidth: 0, display: "flex", flexWrap: "wrap", gap: "20px" }}>
-              
+            <div className={classesForStyle({ flex: "1 1 520px", minWidth: 0, display: "flex", flexWrap: "wrap", gap: "20px" })}>
+
               {/* Bloque Capital (proporción 40.7%) */}
-              <div style={{ flex: "40.7 1 280px", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #2B4C7E", paddingBottom: "6px" }}>
-                  <span style={{ fontSize: "15px", fontWeight: 700, color: "#2E2D2C" }}>Capital</span>
-                  <span style={{ fontSize: "14px", color: "#5E5D5B", display: "flex", alignItems: "baseline", gap: "8px" }}>
-                    <b style={{ fontSize: "22px", color: "#2E2D2C", fontVariantNumeric: "tabular-nums" }}>
+              <div className={classesForStyle({ flex: "40.7 1 280px", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px" })}>
+                <div className={classesForStyle({ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #2B4C7E", paddingBottom: "6px" })}>
+                  <span className={classesForStyle({ fontSize: "15px", fontWeight: 700, color: "#2E2D2C" })}>Capital</span>
+                  <span className={classesForStyle({ fontSize: "14px", color: "#5E5D5B", display: "flex", alignItems: "baseline", gap: "8px" })}>
+                    <b className={classesForStyle({ fontSize: "22px", color: "#2E2D2C", fontVariantNumeric: "tabular-nums" })}>
                       {capital.TOTAL.toLocaleString("es-AR")}
                     </b>
                     {pctCapital}%
                   </span>
                 </div>
-                <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 }} title={`CAPS: ${capital.CAPS} · SAPS: ${capital.SAPS} · Hospitales: ${capital.HOSPITAL} · Otros: ${capital.OTRO}`}>
-                  <div 
-                    style={{ width: `${(capital.CAPS * 100) / capital.TOTAL}%`, background: "#2B4C7E", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
+                <div className={classesForStyle({ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 })} title={`CAPS: ${capital.CAPS} · SAPS: ${capital.SAPS} · Hospitales: ${capital.HOSPITAL} · Otros: ${capital.OTRO}`}>
+                  <div
+                    className={classesForStyle({ width: `${(capital.CAPS * 100) / capital.TOTAL}%`, background: "#2B4C7E", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" })}
                     title={`CAPS: ${capital.CAPS}`}
                   >
                     CAPS {capital.CAPS}
                   </div>
-                  <div 
-                    style={{ width: `${(capital.SAPS * 100) / capital.TOTAL}%`, background: "#4E79B5", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
+                  <div
+                    className={classesForStyle({ width: `${(capital.SAPS * 100) / capital.TOTAL}%`, background: "#4E79B5", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" })}
                     title={`SAPS: ${capital.SAPS}`}
                   >
                     SAPS {capital.SAPS}
                   </div>
-                  <div 
-                    style={{ width: `${(capital.HOSPITAL * 100) / capital.TOTAL}%`, background: "#719AD4", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" }}
+                  <div
+                    className={classesForStyle({ width: `${(capital.HOSPITAL * 100) / capital.TOTAL}%`, background: "#719AD4", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden" })}
                     title={`Hospitales: ${capital.HOSPITAL}`}
                   >
                     Hosp. {capital.HOSPITAL}
                   </div>
                   {capital.OTRO > 0 && (
                     <div
-                      style={{ width: `${(capital.OTRO * 100) / capital.TOTAL}%`, background: "#A7A9AC", flexShrink: 0 }}
+                      className={classesForStyle({ width: `${(capital.OTRO * 100) / capital.TOTAL}%`, background: "#A7A9AC", flexShrink: 0 })}
                       title={`Otros efectores sin clasificación CAPS/SAPS: ${capital.OTRO}`}
                       aria-label={`Otros efectores sin clasificación CAPS/SAPS: ${capital.OTRO}`}
                     />
                   )}
                 </div>
                 {capital.OTRO > 0 && (
-                  <span style={{ fontSize: 12, color: "#5E5D5B" }}>
+                  <span className={classesForStyle({ fontSize: 12, color: "#5E5D5B" })}>
                     Otros sin clasificación CAPS/SAPS: {capital.OTRO}
                   </span>
                 )}
               </div>
 
               {/* Bloque Interior (Unificado visualmente en la barra, desglosado en el tooltip) */}
-              <div style={{ flex: "59.3 1 360px", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #2B4C7E", paddingBottom: "6px" }}>
-                  <span style={{ fontSize: "15px", fontWeight: 700, color: "#2E2D2C" }}>Interior</span>
-                  <span style={{ fontSize: "14px", color: "#5E5D5B", display: "flex", alignItems: "baseline", gap: "8px" }}>
-                    <b style={{ fontSize: "22px", color: "#2E2D2C", fontVariantNumeric: "tabular-nums" }}>
+              <div className={classesForStyle({ flex: "59.3 1 360px", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px" })}>
+                <div className={classesForStyle({ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #2B4C7E", paddingBottom: "6px" })}>
+                  <span className={classesForStyle({ fontSize: "15px", fontWeight: 700, color: "#2E2D2C" })}>Interior</span>
+                  <span className={classesForStyle({ fontSize: "14px", color: "#5E5D5B", display: "flex", alignItems: "baseline", gap: "8px" })}>
+                    <b className={classesForStyle({ fontSize: "22px", color: "#2E2D2C", fontVariantNumeric: "tabular-nums" })}>
                       {interior.TOTAL.toLocaleString("es-AR")}
                     </b>
                     {pctInterior}%
                   </span>
                 </div>
-                <div style={{ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 }}>
+                <div className={classesForStyle({ display: "flex", height: "34px", borderRadius: "8px", overflow: "hidden", gap: "2px", fontSize: "12px", fontWeight: 600 })}>
 
                   {/* Tramo Único CAPS/SAPS con el tooltip detallado */}
-                  <div 
-                    style={{ 
-                      width: `${((interior.CAPS + interior.SAPS) * 100) / interior.TOTAL}%`, 
-                      background: "#2B4C7E", 
-                      color: "#FFFFFF", 
-                      display: "flex", 
-                      alignItems: "center", 
-                      justifyContent: "center", 
-                      padding: "0 6px", 
-                      whiteSpace: "nowrap", 
+                  <div
+                    className={classesForStyle({
+                      width: `${((interior.CAPS + interior.SAPS) * 100) / interior.TOTAL}%`,
+                      background: "#2B4C7E",
+                      color: "#FFFFFF",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "0 6px",
+                      whiteSpace: "nowrap",
                       overflow: "hidden",
                       cursor: "help"
-                    }}
+                    })}
                     title={`Interior (CAPS y SAPS): ${interior.CAPS + interior.SAPS}\n• CAPS: ${interior.CAPS}\n• SAPS: ${interior.SAPS}`}
                   >
                     CAPS/SAPS {interior.CAPS + interior.SAPS}
                   </div>
 
                   {/* Tramo Hospitales */}
-                  <div 
-                    style={{ 
-                      width: `${(interior.HOSPITAL * 100) / interior.TOTAL}%`, 
-                      background: "#719AD4", 
-                      color: "#FFFFFF", 
-                      display: "flex", 
-                      alignItems: "center", 
-                      justifyContent: "center", 
-                      padding: "0 8px", 
-                      whiteSpace: "nowrap", 
+                  <div
+                    className={classesForStyle({
+                      width: `${(interior.HOSPITAL * 100) / interior.TOTAL}%`,
+                      background: "#719AD4",
+                      color: "#FFFFFF",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "0 8px",
+                      whiteSpace: "nowrap",
                       overflow: "hidden",
                       cursor: "help"
-                    }}
+                    })}
                     title={`Hospitales Interior: ${interior.HOSPITAL}`}
                   >
                     Hosp. {interior.HOSPITAL}
@@ -820,81 +821,81 @@ export default function StatsV2Page() {
           <div className={styles.sectionContextTitle}>
             <Building2 size={18} />
             <span>
-              <b style={{ color: "#2E2D2C" }}>Indicadores {tipoEfector}</b> · base {totalBase} embarazadas · período de {periodoDias} días
+              <b className={classesForStyle({ color: "#2E2D2C" })}>Indicadores {tipoEfector}</b> · base {totalBase} embarazadas · período de {periodoDias} días
             </span>
           </div>
 
           <div className={styles.kpiRowGrid}>
             <div className={styles.indicadorCard}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: "#5E5D5B" }}>Controles al día</span>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-                <span style={{ fontSize: 44, fontWeight: 700, color: getCoverageColor(parseFloat(pctCoberturaTotal.replace(",", "."))) }}>
+              <span className={classesForStyle({ fontSize: 15, fontWeight: 600, color: "#5E5D5B" })}>Controles al día</span>
+              <div className={classesForStyle({ display: "flex", alignItems: "baseline", gap: 12 })}>
+                <span className={classesForStyle({ fontSize: 44, fontWeight: 700, color: getCoverageColor(parseFloat(pctCoberturaTotal.replace(",", "."))) })}>
                   {totalCtrl}
                 </span>
-                <span style={{ fontSize: 20, fontWeight: 600, color: getCoverageColor(parseFloat(pctCoberturaTotal.replace(",", "."))) }}>
+                <span className={classesForStyle({ fontSize: 20, fontWeight: 600, color: getCoverageColor(parseFloat(pctCoberturaTotal.replace(",", "."))) })}>
                   {pctCoberturaTotal}%
                 </span>
               </div>
               <div className={styles.progressBarTrack}>
-                <div 
-                  className={styles.progressBarFill} 
-                  style={{ width: `${pctCoberturaTotal.replace(",", ".")}%`, background: "#8FB25A" }} 
+                <div
+                  className={mergeClassNames(styles.progressBarFill, classesForStyle({ width: `${pctCoberturaTotal.replace(",", ".")}%`, background: "#8FB25A" }))}
+
                 />
               </div>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>Control en los últimos 40 días</span>
+              <span className={classesForStyle({ fontSize: 13, color: "#5E5D5B" })}>Control en los últimos 40 días</span>
             </div>
 
-            <Link 
+            <Link
               href={`/dashboard?tipoGrupo=${tipoEfector}&controlesAtrasados=true`}
               className={styles.indicadorCardAtraso}
             >
               <div className={styles.cardHeaderRow}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: "#6F0603" }}>Controles atrasados</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#3F5F9E", display: "flex", alignItems: "center", gap: 4 }}>
+                <span className={classesForStyle({ fontSize: 15, fontWeight: 600, color: "#6F0603" })}>Controles atrasados</span>
+                <span className={classesForStyle({ fontSize: 14, fontWeight: 600, color: "#3F5F9E", display: "flex", alignItems: "center", gap: 4 })}>
                   Ver listado <ArrowRight size={16} />
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-                <span style={{ fontSize: 44, fontWeight: 700, color: "#6F0603" }}>{totalAtrasadas}</span>
-                <span style={{ fontSize: 20, fontWeight: 600, color: "#6F0603" }}>{pctAtrasadas}%</span>
-                <span style={{ fontSize: 15, color: "#5E5D5B" }}>sin control en más de 40 días</span>
+              <div className={classesForStyle({ display: "flex", alignItems: "baseline", gap: 12 })}>
+                <span className={classesForStyle({ fontSize: 44, fontWeight: 700, color: "#6F0603" })}>{totalAtrasadas}</span>
+                <span className={classesForStyle({ fontSize: 20, fontWeight: 600, color: "#6F0603" })}>{pctAtrasadas}%</span>
+                <span className={classesForStyle({ fontSize: 15, color: "#5E5D5B" })}>sin control en más de 40 días</span>
               </div>
               <div className={styles.progressBarTrack}>
-                <div 
-                  className={styles.progressBarFill} 
-                  style={{ width: `${pctAtrasadas.replace(",", ".")}%`, background: "#EE8B74" }} 
+                <div
+                  className={mergeClassNames(styles.progressBarFill, classesForStyle({ width: `${pctAtrasadas.replace(",", ".")}%`, background: "#EE8B74" }))}
+
                 />
               </div>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>
+              <span className={classesForStyle({ fontSize: 13, color: "#5E5D5B" })}>
                 Abre el listado nominal en Seguimiento, filtrado por {tipoEfector}
               </span>
             </Link>
           </div>
 
           <div className={styles.kpiRowGrid}>
-            <Link 
+            <Link
               href={`/dashboard?tipoGrupo=${tipoEfector}&porVencer=true`}
               className={styles.indicadorCardSmall}
             >
               <div className={styles.cardHeaderRow}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#2E2D2C" }}>Por vencer sin turno</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#3F5F9E" }}>Ver →</span>
+                <span className={classesForStyle({ fontSize: 14, fontWeight: 600, color: "#2E2D2C" })}>Por vencer sin turno</span>
+                <span className={classesForStyle({ fontSize: 13, fontWeight: 600, color: "#3F5F9E" })}>Ver →</span>
               </div>
-              <div style={{ fontSize: 32, fontWeight: 700, color: "#2E2D2C" }}>
+              <div className={classesForStyle({ fontSize: 32, fontWeight: 700, color: "#2E2D2C" })}>
                 {porVencerCount}
               </div>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>Control vence en 10 días · sin turno cargado</span>
+              <span className={classesForStyle({ fontSize: 13, color: "#5E5D5B" })}>Control vence en 10 días · sin turno cargado</span>
             </Link>
 
             <div className={styles.indicadorCardSmall}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "#5E5D5B" }}>Seguimiento adecuado</span>
-              <div style={{ fontSize: 36, fontWeight: 700, color: "#4E6FAE" }}>
+              <span className={classesForStyle({ fontSize: 14, fontWeight: 600, color: "#5E5D5B" })}>Seguimiento adecuado</span>
+              <div className={classesForStyle({ fontSize: 36, fontWeight: 700, color: "#4E6FAE" })}>
                 {pctSeguimientoAdecuadoTxt}
               </div>
-              <div className={styles.progressBarTrack} style={{ height: 8 }}>
-                <div 
-                  className={styles.progressBarFill} 
-                  style={{ width: `${Math.min(100, pctSeguimientoAdecuado)}%`, background: "#4E6FAE" }}
+              <div className={mergeClassNames(styles.progressBarTrack, classesForStyle({ height: 8 }))} >
+                <div
+                  className={mergeClassNames(styles.progressBarFill, classesForStyle({ width: `${Math.min(100, pctSeguimientoAdecuado)}%`, background: "#4E6FAE" }))}
+
                 />
               </div>
             </div>
@@ -905,28 +906,28 @@ export default function StatsV2Page() {
         <section className={styles.kpisSection}>
           <div className={styles.sectionContextTitle}>
             <BarChart2 size={18} />
-            <span><b style={{ color: "#2E2D2C" }}>Uso del tablero</b></span>
+            <span><b className={classesForStyle({ color: "#2E2D2C" })}>Uso del tablero</b></span>
           </div>
 
           <div className={styles.usoCard}>
             <div className={styles.usoActivosCol}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: "#5E5D5B" }}>{tipoEfector} activos</span>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                <span style={{ fontSize: 44, fontWeight: 700, color: "#3F5F9E" }}>
+              <span className={classesForStyle({ fontSize: 15, fontWeight: 600, color: "#5E5D5B" })}>{tipoEfector} activos</span>
+              <div className={classesForStyle({ display: "flex", alignItems: "baseline", gap: 10 })}>
+                <span className={classesForStyle({ fontSize: 44, fontWeight: 700, color: "#3F5F9E" })}>
                   {resumenEfectores.filter((r: any) => r.diasSinUso <= 7).length}
                 </span>
-                <span style={{ fontSize: 20, fontWeight: 600, color: "#5E5D5B" }}>
+                <span className={classesForStyle({ fontSize: 20, fontWeight: 600, color: "#5E5D5B" })}>
                   de {resumenEfectores.length}
                 </span>
               </div>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>
+              <span className={classesForStyle({ fontSize: 13, color: "#5E5D5B" })}>
                 Con al menos una acción en los últimos 7 días (llamada, turno o control cargado)
               </span>
             </div>
 
             <div className={styles.usoSinUsoCol}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "#6F0603" }}>Sin uso hace 7 días o más</span>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <span className={classesForStyle({ fontSize: 14, fontWeight: 600, color: "#6F0603" })}>Sin uso hace 7 días o más</span>
+              <div className={classesForStyle({ display: "flex", flexWrap: "wrap", gap: 8 })}>
                 {resumenEfectores.filter((r: any) => r.diasSinUso >= 7 && r.diasSinUso !== 999).length > 0 ? (
                   resumenEfectores
                     .filter((r: any) => r.diasSinUso >= 7 && r.diasSinUso !== 999)
@@ -934,7 +935,7 @@ export default function StatsV2Page() {
                       <span key={idx} className={styles.chip}>{u.name} · {u.diasSinUso} días</span>
                     ))
                 ) : (
-                  <span style={{ fontSize: "13px", color: "#356F23", fontWeight: 600 }}>
+                  <span className={classesForStyle({ fontSize: "13px", color: "#356F23", fontWeight: 600 })}>
                     ¡Excelente! Todos los efectores registraron actividad reciente.
                   </span>
                 )}
@@ -947,74 +948,74 @@ export default function StatsV2Page() {
         <section className={styles.desempenoCard}>
           <h2 className={styles.tableTitle}>Desempeño por {tipoEfector}</h2>
 
-          <div style={{ overflowX: "auto" }}>
-            <div style={{ minWidth: 760 }}>
+          <div className={classesForStyle({ overflowX: "auto" })}>
+            <div className={classesForStyle({ minWidth: 760 })}>
               <div className={styles.tableGridHeader}>
                 <button onClick={() => handleSort("name")} className={styles.btnColSort}>
                   CENTRO DE SALUD {sortKey === "name" ? (sortAsc ? "↑" : "↓") : "↕"}
                 </button>
-                <button onClick={() => handleSort("pad")} className={styles.btnColSort} style={{ justifyContent: "center" }}>
+                <button onClick={() => handleSort("pad")} className={mergeClassNames(styles.btnColSort, classesForStyle({ justifyContent: "center" }))} >
                   PADRÓN {sortKey === "pad" ? (sortAsc ? "↑" : "↓") : "↕"}
                 </button>
-                <button onClick={() => handleSort("cov")} className={styles.btnColSort} style={{ justifyContent: "center" }}>
+                <button onClick={() => handleSort("cov")} className={mergeClassNames(styles.btnColSort, classesForStyle({ justifyContent: "center" }))} >
                   COBERTURA {sortKey === "cov" ? (sortAsc ? "↑" : "↓") : "↕"}
                 </button>
-                <button onClick={() => handleSort("seg")} className={styles.btnColSort} style={{ justifyContent: "center" }}>
+                <button onClick={() => handleSort("seg")} className={mergeClassNames(styles.btnColSort, classesForStyle({ justifyContent: "center" }))} >
                   SEG. ADECUADO {sortKey === "seg" ? (sortAsc ? "↑" : "↓") : "↕"}
                 </button>
                 <span>ÚLTIMO USO</span>
               </div>
 
               {loading ? (
-                <div style={{ textAlign: "center", padding: "3rem", color: "#5E5D5B" }}>
-                  <Loader2 className="animate-spin" size={32} style={{ margin: "0 auto 8px" }} />
+                <div className={classesForStyle({ textAlign: "center", padding: "3rem", color: "#5E5D5B" })}>
+                  <Loader2 className={mergeClassNames("animate-spin", classesForStyle({ margin: "0 auto 8px" }))} size={32}  />
                   Cargando efectores...
                 </div>
               ) : (
                 sortedRows.map((r: any, idx: number) => (
                   <div key={idx} className={styles.tableGridRow}>
-                    <span style={{ fontWeight: 600 }}>{r.name}</span>
-                    <span style={{ textAlign: "center" }}>
-                      <span style={{ color: "#5E5D5B" }}>{r.p0} → </span>
+                    <span className={classesForStyle({ fontWeight: 600 })}>{r.name}</span>
+                    <span className={classesForStyle({ textAlign: "center" })}>
+                      <span className={classesForStyle({ color: "#5E5D5B" })}>{r.p0} → </span>
                       <b>{r.p1}</b>
                     </span>
-                    <span style={{ textAlign: "center", fontWeight: 600 }}>
-                      <span className={styles.pillCoverage} style={getCoveragePillStyle(r.cov)}>
+                    <span className={classesForStyle({ textAlign: "center", fontWeight: 600 })}>
+                      <span className={mergeClassNames(styles.pillCoverage, classesForStyle(getCoveragePillStyle(r.cov)))} >
                         {r.covTxt}
                       </span>{" "}
-                      <span style={{ color: r.trendColor, fontSize: 12 }}>{r.trend}</span>
+                      <span className={classesForStyle({ color: r.trendColor, fontSize: 12 })}>{r.trend}</span>
                     </span>
-                    <span style={{ textAlign: "center", fontWeight: 600 }}>
+                    <span className={classesForStyle({ textAlign: "center", fontWeight: 600 })}>
                       <span className={styles.pillSeguimiento}>{r.segTxt}</span>
                     </span>
-                    <span 
-                      className={styles.ultimoUsoWrapper}
+                    <span
+                      className={mergeClassNames(styles.ultimoUsoWrapper, classesForStyle({ cursor: "help" }))}
                       title={
-                        r.ultimoAcceso 
+                        r.ultimoAcceso
                           ? `Último ingreso: ${new Date(r.ultimoAcceso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })} a las ${new Date(r.ultimoAcceso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} hs`
                           : "Sin actividad registrada en el tablero"
                       }
-                      style={{ cursor: "help" }}
+
                     >
                       {r.diasSinUso === 999 || r.ultimoUsoTexto === "Sin dato" ? (
                         <>
                           <span className={styles.dotGris} />
-                          <span style={{ color: "#5E5D5B" }}>Sin dato</span>
+                          <span className={classesForStyle({ color: "#5E5D5B" })}>Sin dato</span>
                         </>
                       ) : r.diasSinUso <= 7 ? (
                         <>
                           <span className={styles.dotVerde} />
-                          <span style={{ color: "#356F23", fontWeight: 600 }}>{r.ultimoUsoTexto}</span>
+                          <span className={classesForStyle({ color: "#356F23", fontWeight: 600 })}>{r.ultimoUsoTexto}</span>
                         </>
                       ) : r.diasSinUso <= 12 ? (
                         <>
                           <span className={styles.dotAmbar} />
-                          <span style={{ color: "#8A5A00", fontWeight: 600 }}>{r.ultimoUsoTexto}</span>
+                          <span className={classesForStyle({ color: "#8A5A00", fontWeight: 600 })}>{r.ultimoUsoTexto}</span>
                         </>
                       ) : (
                         <>
                           <span className={styles.dotRojo} />
-                          <span style={{ color: "#6F0603", fontWeight: 600 }}>{r.ultimoUsoTexto}</span>
+                          <span className={classesForStyle({ color: "#6F0603", fontWeight: 600 })}>{r.ultimoUsoTexto}</span>
                         </>
                       )}
                     </span>
@@ -1024,13 +1025,13 @@ export default function StatsV2Page() {
 
               <div className={styles.tableGridFooter}>
                 <span>Total {tipoEfector} ({sortedRows.length})</span>
-                <span style={{ textAlign: "center" }}>
-                  <span style={{ color: "#5E5D5B", fontWeight: 500 }}>{totalP0} → </span>
+                <span className={classesForStyle({ textAlign: "center" })}>
+                  <span className={classesForStyle({ color: "#5E5D5B", fontWeight: 500 })}>{totalP0} → </span>
                   {totalBase}
                 </span>
-                <span style={{ textAlign: "center" }}>{pctCoberturaTotal}%</span>
-                <span style={{ textAlign: "center" }}>{pctSeguimientoAdecuadoTxt}</span>
-                <span style={{ color: "#5E5D5B", fontWeight: 500 }}>—</span>
+                <span className={classesForStyle({ textAlign: "center" })}>{pctCoberturaTotal}%</span>
+                <span className={classesForStyle({ textAlign: "center" })}>{pctSeguimientoAdecuadoTxt}</span>
+                <span className={classesForStyle({ color: "#5E5D5B", fontWeight: 500 })}>—</span>
               </div>
             </div>
           </div>
@@ -1054,57 +1055,57 @@ export default function StatsV2Page() {
                   <div key={idx} className={styles.rankingRow}>
                     <span className={styles.rankingName} title={c.name}>{c.short}</span>
                     <div className={styles.rankingBarTrack}>
-                      <div 
-                        className={styles.rankingBarFill} 
-                        style={{ width: `${Math.min(100, Math.max(0, c.cov))}%`, background: barColor }} 
+                      <div
+                        className={mergeClassNames(styles.rankingBarFill, classesForStyle({ width: `${Math.min(100, Math.max(0, c.cov))}%`, background: barColor }))}
+
                       />
-                      <div 
-                        className={styles.avgLine} 
-                        style={{ left: `${Math.min(100, Math.max(0, parseFloat(pctCoberturaTotal.replace(",", "."))))}%` }} 
+                      <div
+                        className={mergeClassNames(styles.avgLine, classesForStyle({ left: `${Math.min(100, Math.max(0, parseFloat(pctCoberturaTotal.replace(",", "."))))}%` }))}
+
                       />
                     </div>
-                    <span style={{ fontWeight: 700, color: textColor, textAlign: "right" }}>{c.covTxt}</span>
+                    <span className={classesForStyle({ fontWeight: 700, color: textColor, textAlign: "right" })}>{c.covTxt}</span>
                   </div>
                 );
               })}
             </div>
 
-            <div style={{ display: "flex", gap: 16, marginTop: 16, fontSize: 13, color: "#5E5D5B" }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 12, height: 10, borderRadius: 2, background: "#356F23" }} /> Bien (&ge;85%)
+            <div className={classesForStyle({ display: "flex", gap: 16, marginTop: 16, fontSize: 13, color: "#5E5D5B" })}>
+              <span className={classesForStyle({ display: "inline-flex", alignItems: "center", gap: 6 })}>
+                <span className={classesForStyle({ width: 12, height: 10, borderRadius: 2, background: "#356F23" })} /> Bien (&ge;85%)
               </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 12, height: 10, borderRadius: 2, background: "#FAAE05" }} /> Atención (70-84%)
+              <span className={classesForStyle({ display: "inline-flex", alignItems: "center", gap: 6 })}>
+                <span className={classesForStyle({ width: 12, height: 10, borderRadius: 2, background: "#FAAE05" })} /> Atención (70-84%)
               </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 12, height: 10, borderRadius: 2, background: "#EA2F09" }} /> Crítico (&lt;70%)
+              <span className={classesForStyle({ display: "inline-flex", alignItems: "center", gap: 6 })}>
+                <span className={classesForStyle({ width: 12, height: 10, borderRadius: 2, background: "#EA2F09" })} /> Crítico (&lt;70%)
               </span>
             </div>
           </div>
 
           {/* Cobertura de Salud */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className={classesForStyle({ display: "flex", flexDirection: "column", gap: 20 })}>
             <div className={styles.chartCard}>
               <h2 className={styles.chartTitle}>Cobertura de salud del padrón</h2>
               <p className={styles.chartSub}>{cobSalud.sinRegistro}% sin registro de cobertura</p>
-              
+
               <div className={styles.coberturaStackedBar}>
-                <div style={{ width: `${cobSalud.publica}%`, background: "#4E6FAE" }} />
-                <div style={{ width: `${cobSalud.obraSocial}%`, background: "#90B4E1" }} />
-                <div style={{ width: `${cobSalud.sinRegistro}%`, background: "#CFCECC" }} />
+                <div className={classesForStyle({ width: `${cobSalud.publica}%`, background: "#4E6FAE" })} />
+                <div className={classesForStyle({ width: `${cobSalud.obraSocial}%`, background: "#90B4E1" })} />
+                <div className={classesForStyle({ width: `${cobSalud.sinRegistro}%`, background: "#CFCECC" })} />
               </div>
 
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginTop: 14, fontSize: 13, color: "#2E2D2C" }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: "#4E6FAE" }} /> 
+              <div className={classesForStyle({ display: "flex", flexWrap: "wrap", gap: 18, marginTop: 14, fontSize: 13, color: "#2E2D2C" })}>
+                <span className={classesForStyle({ display: "flex", alignItems: "center", gap: 6 })}>
+                  <span className={classesForStyle({ width: 10, height: 10, borderRadius: 2, background: "#4E6FAE" })} />
                   Pública exclusiva {cobSalud.publica}%
                 </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: "#90B4E1" }} /> 
+                <span className={classesForStyle({ display: "flex", alignItems: "center", gap: 6 })}>
+                  <span className={classesForStyle({ width: 10, height: 10, borderRadius: 2, background: "#90B4E1" })} />
                   Con obra social {cobSalud.obraSocial}%
                 </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#5E5D5B" }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: "#CFCECC" }} /> 
+                <span className={classesForStyle({ display: "flex", alignItems: "center", gap: 6, color: "#5E5D5B" })}>
+                  <span className={classesForStyle({ width: 10, height: 10, borderRadius: 2, background: "#CFCECC" })} />
                   Sin registro {cobSalud.sinRegistro}%
                 </span>
               </div>
@@ -1120,39 +1121,39 @@ export default function StatsV2Page() {
           {/* Cards de Trimestres y Captación Dinámicos */}
           <div className={styles.egGridTri}>
             <div className={styles.egTriCard}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#5E5D5B" }}>1.º trimestre · hasta sem. 12</span>
-              <b style={{ fontSize: 28, color: "#2E2D2C" }}>
-                {trimestresEg.t1.pct}% <span style={{ fontSize: 14, color: "#5E5D5B", fontWeight: 400 }}>al día</span>
+              <span className={classesForStyle({ fontSize: 13, fontWeight: 600, color: "#5E5D5B" })}>1.º trimestre · hasta sem. 12</span>
+              <b className={classesForStyle({ fontSize: 28, color: "#2E2D2C" })}>
+                {trimestresEg.t1.pct}% <span className={classesForStyle({ fontSize: 14, color: "#5E5D5B", fontWeight: 400 })}>al día</span>
               </b>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>
+              <span className={classesForStyle({ fontSize: 13, color: "#5E5D5B" })}>
                 {trimestresEg.t1.ctrl} de {trimestresEg.t1.total} embarazadas
               </span>
             </div>
 
             <div className={styles.egTriCard}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#5E5D5B" }}>2.º trimestre · sem. 13 a 28</span>
-              <b style={{ fontSize: 28, color: "#2E2D2C" }}>
-                {trimestresEg.t2.pct}% <span style={{ fontSize: 14, color: "#5E5D5B", fontWeight: 400 }}>al día</span>
+              <span className={classesForStyle({ fontSize: 13, fontWeight: 600, color: "#5E5D5B" })}>2.º trimestre · sem. 13 a 28</span>
+              <b className={classesForStyle({ fontSize: 28, color: "#2E2D2C" })}>
+                {trimestresEg.t2.pct}% <span className={classesForStyle({ fontSize: 14, color: "#5E5D5B", fontWeight: 400 })}>al día</span>
               </b>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>
+              <span className={classesForStyle({ fontSize: 13, color: "#5E5D5B" })}>
                 {trimestresEg.t2.ctrl} de {trimestresEg.t2.total} embarazadas
               </span>
             </div>
 
             <div className={styles.egTriCard}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#5E5D5B" }}>3.º trimestre · sem. 29 o más</span>
-              <b style={{ fontSize: 28, color: "#2E2D2C" }}>
-                {trimestresEg.t3.pct}% <span style={{ fontSize: 14, color: "#5E5D5B", fontWeight: 400 }}>al día</span>
+              <span className={classesForStyle({ fontSize: 13, fontWeight: 600, color: "#5E5D5B" })}>3.º trimestre · sem. 29 o más</span>
+              <b className={classesForStyle({ fontSize: 28, color: "#2E2D2C" })}>
+                {trimestresEg.t3.pct}% <span className={classesForStyle({ fontSize: 14, color: "#5E5D5B", fontWeight: 400 })}>al día</span>
               </b>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>
+              <span className={classesForStyle({ fontSize: 13, color: "#5E5D5B" })}>
                 {trimestresEg.t3.ctrl} de {trimestresEg.t3.total} embarazadas
               </span>
             </div>
 
             <div className={styles.egTriCardDashed}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#3F5F9E" }}>Captación temprana</span>
-              <b style={{ fontSize: 28 }}>{trimestresEg.captacionPct}%</b>
-              <span style={{ fontSize: 13, color: "#5E5D5B" }}>primer control antes de la semana 13</span>
+              <span className={classesForStyle({ fontSize: 13, fontWeight: 600, color: "#3F5F9E" })}>Captación temprana</span>
+              <b className={classesForStyle({ fontSize: 28 })}>{trimestresEg.captacionPct}%</b>
+              <span className={classesForStyle({ fontSize: 13, color: "#5E5D5B" })}>primer control antes de la semana 13</span>
             </div>
           </div>
 
@@ -1178,23 +1179,23 @@ export default function StatsV2Page() {
                 const pct = total > 0 ? Math.round((controladas * 100) / total) : 0;
                 const trackHeight = Math.max(14, Math.round((total / maxEg) * 150));
 
-                const tooltipTexto = 
+                const tooltipTexto =
                   `${g.rango} semanas\n` +
                   `• Embarazos activos: ${total}\n` +
                   `• Controladas (al día): ${controladas} (${pct}%)\n` +
                   `• Sin control al día: ${sinControl}`;
 
                 return (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={idx}
                     className={styles.egBarCol}
                     title={tooltipTexto}
                   >
                     <span className={styles.egLabelPct}>{total > 0 ? `${pct}%` : "-"}</span>
                     <span className={styles.egLabelCount}>{total}</span>
 
-                    <div className={styles.egBarTrack} style={{ height: `${trackHeight}px` }}>
-                      <div className={styles.egBarFill} style={{ height: `${pct}%` }} />
+                    <div className={mergeClassNames(styles.egBarTrack, classesForStyle({ height: `${trackHeight}px` }))} >
+                      <div className={mergeClassNames(styles.egBarFill, classesForStyle({ height: `${pct}%` }))}  />
                     </div>
 
                     <span className={styles.egLabelRango}>{g.rango}</span>
@@ -1202,7 +1203,7 @@ export default function StatsV2Page() {
                 );
               })}
             </div>
-            <p style={{ margin: "14px 0 0", fontSize: 12, color: "#5E5D5B", textAlign: "center" }}>
+            <p className={classesForStyle({ margin: "14px 0 0", fontSize: 12, color: "#5E5D5B", textAlign: "center" })}>
               Semanas de edad gestacional · arriba de cada barra: % al día y embarazos activos
             </p>
           </div>
@@ -1213,7 +1214,7 @@ export default function StatsV2Page() {
           <div className={styles.evoHeader}>
             <div>
               <h2 className={styles.chartTitle}>Evolución de cobertura</h2>
-              <p className={styles.chartSub} style={{ margin: "4px 0 0" }}>
+              <p className={mergeClassNames(styles.chartSub, classesForStyle({ margin: "4px 0 0" }))} >
                 {evoData.hasSelection
                   ? `Cobertura semanal de ${evoData.selectedCenter.name} en el último trimestre, comparada con el total ${tipoEfector}`
                   : `Evolución de cobertura total de ${tipoEfector} del último trimestre`}
@@ -1314,12 +1315,12 @@ export default function StatsV2Page() {
           {/* Leyenda comparativa cuando se selecciona un centro puntual */}
           {evoData.hasSelection && (
             <div className={styles.evoLegend}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 18, height: 4, borderRadius: 2, background: "#4E6FAE" }} />
+              <span className={classesForStyle({ display: "inline-flex", alignItems: "center", gap: 6 })}>
+                <span className={classesForStyle({ width: 18, height: 4, borderRadius: 2, background: "#4E6FAE" })} />
                 {evoData.selectedCenter.short}
               </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#5E5D5B" }}>
-                <span style={{ width: 18, height: 0, borderTop: "2px dashed #A3A2A0" }} />
+              <span className={classesForStyle({ display: "inline-flex", alignItems: "center", gap: 6, color: "#5E5D5B" })}>
+                <span className={classesForStyle({ width: 18, height: 0, borderTop: "2px dashed #A3A2A0" })} />
                 Total {tipoEfector}
               </span>
             </div>
@@ -1327,14 +1328,14 @@ export default function StatsV2Page() {
         </section>
 
         {/* 10. Alcance territorial e Interior */}
-        <section className={styles.chartCard} style={{ marginTop: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+        <section className={mergeClassNames(styles.chartCard, classesForStyle({ marginTop: 24 }))} >
+          <div className={classesForStyle({ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 })}>
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <div className={classesForStyle({ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 })}>
                 <Building2 size={20} color="#2B4C7E" />
-                <h2 className={styles.chartTitle} style={{ margin: 0 }}>Alcance territorial del seguimiento</h2>
+                <h2 className={mergeClassNames(styles.chartTitle, classesForStyle({ margin: 0 }))} >Alcance territorial del seguimiento</h2>
               </div>
-              <p className={styles.chartSub} style={{ margin: 0 }}>
+              <p className={mergeClassNames(styles.chartSub, classesForStyle({ margin: 0 }))} >
                 Corte {territorial?.fechaCorte ? new Date(`${String(territorial.fechaCorte).slice(0, 10)}T12:00:00`).toLocaleDateString("es-AR") : "no disponible"}
                 {territorial?.ventanaInicio && ` · controles desde ${new Date(`${String(territorial.ventanaInicio).slice(0, 10)}T12:00:00`).toLocaleDateString("es-AR")}`}
               </p>
@@ -1344,7 +1345,7 @@ export default function StatsV2Page() {
               type="button"
               onClick={handleDescargarTerritorial}
               disabled={!territorial || descargandoTerritorial}
-              style={{
+              className={classesForStyle({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
@@ -1357,76 +1358,76 @@ export default function StatsV2Page() {
                 fontWeight: 600,
                 cursor: !territorial || descargandoTerritorial ? "not-allowed" : "pointer",
                 opacity: !territorial ? 0.65 : 1,
-              }}
+              })}
             >
               <Download size={16} />
               <span>{descargandoTerritorial ? "Generando PDF..." : "Descargar informe territorial"}</span>
             </button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", marginTop: 20, borderTop: "1px solid #D9E0E7", borderBottom: "1px solid #D9E0E7" }}>
-            <div style={{ padding: "16px 18px 16px 0" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#64748B", textTransform: "uppercase" }}>Embarazos en curso</span>
-              <p style={{ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#1E293B", fontVariantNumeric: "tabular-nums" }}>
+          <div className={classesForStyle({ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", marginTop: 20, borderTop: "1px solid #D9E0E7", borderBottom: "1px solid #D9E0E7" })}>
+            <div className={classesForStyle({ padding: "16px 18px 16px 0" })}>
+              <span className={classesForStyle({ fontSize: 12, fontWeight: 600, color: "#64748B", textTransform: "uppercase" })}>Embarazos en curso</span>
+              <p className={classesForStyle({ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#1E293B", fontVariantNumeric: "tabular-nums" })}>
                 {(territorialResumen?.embarazos || 0).toLocaleString("es-AR")}
               </p>
             </div>
-            <div style={{ padding: "16px 18px", borderLeft: "1px solid #D9E0E7" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#15803D", textTransform: "uppercase" }}>Controladas en 40 días</span>
-              <p style={{ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#15803D", fontVariantNumeric: "tabular-nums" }}>
+            <div className={classesForStyle({ padding: "16px 18px", borderLeft: "1px solid #D9E0E7" })}>
+              <span className={classesForStyle({ fontSize: 12, fontWeight: 600, color: "#15803D", textTransform: "uppercase" })}>Controladas en 40 días</span>
+              <p className={classesForStyle({ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#15803D", fontVariantNumeric: "tabular-nums" })}>
                 {(territorialResumen?.controladas || 0).toLocaleString("es-AR")}
               </p>
             </div>
-            <div style={{ padding: "16px 18px", borderLeft: "1px solid #D9E0E7" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#2B4C7E", textTransform: "uppercase" }}>Cobertura reportada</span>
-              <p style={{ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#2B4C7E", fontVariantNumeric: "tabular-nums" }}>
+            <div className={classesForStyle({ padding: "16px 18px", borderLeft: "1px solid #D9E0E7" })}>
+              <span className={classesForStyle({ fontSize: 12, fontWeight: 600, color: "#2B4C7E", textTransform: "uppercase" })}>Cobertura reportada</span>
+              <p className={classesForStyle({ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#2B4C7E", fontVariantNumeric: "tabular-nums" })}>
                 {(territorialResumen?.cobertura || 0).toFixed(1).replace(".", ",")}%
               </p>
             </div>
-            <div style={{ padding: "16px 18px", borderLeft: "1px solid #D9E0E7" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#64748B", textTransform: "uppercase" }}>Centros con control reportado</span>
-              <p style={{ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#1E293B", fontVariantNumeric: "tabular-nums" }}>
-                {(territorialResumen?.efectoresConControl || 0).toLocaleString("es-AR")} <span style={{ fontSize: 16, fontWeight: 500, color: "#64748B" }}>/ {(territorialResumen?.efectoresConEmbarazos || 0).toLocaleString("es-AR")}</span>
+            <div className={classesForStyle({ padding: "16px 18px", borderLeft: "1px solid #D9E0E7" })}>
+              <span className={classesForStyle({ fontSize: 12, fontWeight: 600, color: "#64748B", textTransform: "uppercase" })}>Centros con control reportado</span>
+              <p className={classesForStyle({ margin: "5px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 700, color: "#1E293B", fontVariantNumeric: "tabular-nums" })}>
+                {(territorialResumen?.efectoresConControl || 0).toLocaleString("es-AR")} <span className={classesForStyle({ fontSize: 16, fontWeight: 500, color: "#64748B" })}>/ {(territorialResumen?.efectoresConEmbarazos || 0).toLocaleString("es-AR")}</span>
               </p>
             </div>
           </div>
 
-          <div style={{ marginTop: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 16, color: "#2B4C7E" }}>Embarazos en curso por departamento</h3>
-              <span style={{ fontSize: 12, color: "#64748B" }}>Interior y Capital · ordenados por volumen</span>
+          <div className={classesForStyle({ marginTop: 20 })}>
+            <div className={classesForStyle({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 10 })}>
+              <h3 className={classesForStyle({ margin: 0, fontSize: 16, color: "#2B4C7E" })}>Embarazos en curso por departamento</h3>
+              <span className={classesForStyle({ fontSize: 12, color: "#64748B" })}>Interior y Capital · ordenados por volumen</span>
             </div>
-            <div style={{ overflowX: "auto" }}>
-              <div style={{ minWidth: 640 }}>
+            <div className={classesForStyle({ overflowX: "auto" })}>
+              <div className={classesForStyle({ minWidth: 640 })}>
                 {/* Cabecera Interactiva con Ordenamiento */}
-                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 90px 90px 1.4fr 70px", gap: 10, padding: "6px 10px", background: "#2B4C7E", color: "#FFFFFF", borderRadius: "6px 6px 0 0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
-                  <button 
-                    onClick={() => handleTerritorialSort("nombre")} 
-                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", padding: 0, display: "flex", alignItems: "center", gap: 4 }}
+                <div className={classesForStyle({ display: "grid", gridTemplateColumns: "1.4fr 90px 90px 1.4fr 70px", gap: 10, padding: "6px 10px", background: "#2B4C7E", color: "#FFFFFF", borderRadius: "6px 6px 0 0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" })}>
+                  <button
+                    onClick={() => handleTerritorialSort("nombre")}
+                    className={classesForStyle({ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", padding: 0, display: "flex", alignItems: "center", gap: 4 })}
                   >
                     Departamento {territorialSortKey === "nombre" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
                   </button>
-                  <button 
-                    onClick={() => handleTerritorialSort("embarazos")} 
-                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "right", padding: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}
+                  <button
+                    onClick={() => handleTerritorialSort("embarazos")}
+                    className={classesForStyle({ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "right", padding: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 })}
                   >
                     En curso {territorialSortKey === "embarazos" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
                   </button>
-                  <button 
-                    onClick={() => handleTerritorialSort("controladas")} 
-                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "right", padding: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}
+                  <button
+                    onClick={() => handleTerritorialSort("controladas")}
+                    className={classesForStyle({ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "right", padding: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 })}
                   >
                     Controladas {territorialSortKey === "controladas" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
                   </button>
-                  <button 
-                    onClick={() => handleTerritorialSort("cobertura")} 
-                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "center", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  <button
+                    onClick={() => handleTerritorialSort("cobertura")}
+                    className={classesForStyle({ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "center", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 })}
                   >
                     Cobertura {territorialSortKey === "cobertura" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
                   </button>
-                  <button 
-                    onClick={() => handleTerritorialSort("efectores")} 
-                    style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "right", padding: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}
+                  <button
+                    onClick={() => handleTerritorialSort("efectores")}
+                    className={classesForStyle({ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textAlign: "right", padding: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 })}
                   >
                     Efectores {territorialSortKey === "efectores" ? (territorialSortAsc ? "↑" : "↓") : "↕"}
                   </button>
@@ -1436,52 +1437,52 @@ export default function StatsV2Page() {
                   const cobertura = row.embarazos > 0 ? (row.controladas * 100) / row.embarazos : 0;
                   const isEven = idx % 2 === 0;
                   return (
-                    <div 
-                      key={row.nombre} 
-                      style={{ 
-                        display: "grid", 
-                        gridTemplateColumns: "1.4fr 90px 90px 1.4fr 70px", 
-                        gap: 10, 
-                        alignItems: "center", 
-                        padding: "8px 10px", 
+                    <div
+                      key={row.nombre}
+                      className={classesForStyle({
+                        display: "grid",
+                        gridTemplateColumns: "1.4fr 90px 90px 1.4fr 70px",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: "8px 10px",
                         background: isEven ? "#FFFFFF" : "#F8FAFC",
-                        borderBottom: "1px solid #E2E8F0", 
-                        fontSize: 12.5 
-                      }}
+                        borderBottom: "1px solid #E2E8F0",
+                        fontSize: 12.5
+                      })}
                     >
-                      <span style={{ fontWeight: 600, color: "#1E293B" }}>{row.nombre}</span>
-                      <span style={{ textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#334155" }}>{row.embarazos.toLocaleString("es-AR")}</span>
-                      <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", color: "#15803D", fontWeight: 600 }}>{row.controladas.toLocaleString("es-AR")}</span>
-                      
+                      <span className={classesForStyle({ fontWeight: 600, color: "#1E293B" })}>{row.nombre}</span>
+                      <span className={classesForStyle({ textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#334155" })}>{row.embarazos.toLocaleString("es-AR")}</span>
+                      <span className={classesForStyle({ textAlign: "right", fontVariantNumeric: "tabular-nums", color: "#15803D", fontWeight: 600 })}>{row.controladas.toLocaleString("es-AR")}</span>
+
                       {/* Cobertura compacta: Porcentaje y barrita con escala correcta */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
-                        <span style={{ width: 42, textAlign: "right", fontWeight: 700, fontSize: "12px", color: "#1E293B", fontVariantNumeric: "tabular-nums" }}>
+                      <div className={classesForStyle({ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" })}>
+                        <span className={classesForStyle({ width: 42, textAlign: "right", fontWeight: 700, fontSize: "12px", color: "#1E293B", fontVariantNumeric: "tabular-nums" })}>
                           {cobertura.toFixed(1).replace(".", ",")}%
                         </span>
-                        <div style={{ width: 70, height: 8, background: "#E2E8F0", borderRadius: 2, overflow: "hidden" }}>
-                          <div 
-                            style={{ 
-                              width: `${Math.min(100, Math.max(0, cobertura))}%`, 
-                              height: "100%", 
+                        <div className={classesForStyle({ width: 70, height: 8, background: "#E2E8F0", borderRadius: 2, overflow: "hidden" })}>
+                          <div
+                            className={classesForStyle({
+                              width: `${Math.min(100, Math.max(0, cobertura))}%`,
+                              height: "100%",
                               background: cobertura >= 85 ? "#356F23" : cobertura >= 70 ? "#FAAE05" : "#EA2F09",
                               borderRadius: 2
-                            }} 
+                            })}
                           />
                         </div>
                       </div>
 
-                      <span style={{ textAlign: "right", color: "#64748B", fontVariantNumeric: "tabular-nums" }}>{row.efectores}</span>
+                      <span className={classesForStyle({ textAlign: "right", color: "#64748B", fontVariantNumeric: "tabular-nums" })}>{row.efectores}</span>
                     </div>
                   );
                 })}
                 {departamentosOrdenados.length === 0 && (
-                  <p style={{ margin: 0, padding: "16px 10px", color: "#64748B", fontSize: 13 }}>Sin datos territoriales disponibles para el corte.</p>
+                  <p className={classesForStyle({ margin: 0, padding: "16px 10px", color: "#64748B", fontSize: 13 })}>Sin datos territoriales disponibles para el corte.</p>
                 )}
               </div>
             </div>
           </div>
 
-          <p style={{ margin: "16px 0 0", fontSize: 12, lineHeight: 1.5, color: "#64748B" }}>
+          <p className={classesForStyle({ margin: "16px 0 0", fontSize: 12, lineHeight: 1.5, color: "#64748B" })}>
             Fuente: snapshot final {territorial?.batchId || "sin lote informado"} · {territorialResumen?.embarazosSinSisa || 0} embarazos sin código SISA y {territorialResumen?.codigosSinCatalogo || 0} códigos sin coincidencia en el catálogo. La ausencia de control reportado no demuestra ausencia de atención.
           </p>
         </section>

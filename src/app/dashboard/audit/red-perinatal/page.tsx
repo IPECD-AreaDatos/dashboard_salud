@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar";
 import { apiFetch } from "@/lib/api";
 import { registrarLog } from "@/lib/analytics";
 import styles from "../Audit.module.css";
+import { classesForStyle, mergeClassNames } from "@/lib/cspStyles";
 
 interface PacienteRedPerinatal {
   id: number;
@@ -160,7 +161,7 @@ export default function RedPerinatalAuditPage() {
     return (
       <>
         <Navbar />
-        <div className={styles.container} style={{ padding: "2rem", minHeight: "72vh" }}>
+        <div className={mergeClassNames(styles.container, classesForStyle({ padding: "2rem", minHeight: "72vh" }))} >
           <div className={styles.placeholderCard}>
             <div className={styles.iconWrapper}><ShieldAlert className={styles.mainIcon} size={32} /></div>
             <h2>Acceso denegado</h2>
@@ -182,8 +183,8 @@ export default function RedPerinatalAuditPage() {
                 <a className={styles.auditTab} href="/salud-dashboard/dashboard/audit">Revisar Datos</a>
                 <a className={styles.auditTabActive} href="/salud-dashboard/dashboard/audit/red-perinatal">Fuera de Red Perinatal MSP</a>
             </div>
-            <button 
-                className={styles.auditBackButton} 
+            <button
+                className={styles.auditBackButton}
                 onClick={() => window.location.assign("/salud-dashboard/dashboard/audit")}
             >
                 ← Volver a Revisar Datos
@@ -206,13 +207,13 @@ export default function RedPerinatalAuditPage() {
             </div>
 
             {isGestion ? (
-              <div className={styles.filterGroup} style={{ position: "relative" }}>
+              <div className={mergeClassNames(styles.filterGroup, classesForStyle({ position: "relative" }))} >
                 <label className={styles.filterLabel}>Establecimiento</label>
                 <div className={styles.selectWrapper}>
                   <input
-                    type="text" className={styles.selectInput}
+                    type="text" className={mergeClassNames(styles.selectInput, classesForStyle(filterEst !== "Todos" ? { paddingRight: "2.2rem" } : undefined))}
                     placeholder="Buscar establecimiento..."
-                    style={filterEst !== "Todos" ? { paddingRight: "2.2rem" } : undefined}
+
                     value={isOpen ? searchTerm : (filterEst === "Todos" ? `Todos los centros (${pacientes.length})` : filterEst)}
                     onFocus={() => { setIsOpen(true); setSearchTerm(""); }}
                     onChange={(event) => setSearchTerm(event.target.value)}
@@ -224,14 +225,14 @@ export default function RedPerinatalAuditPage() {
                 </div>
                 {isOpen && (
                   <div className={styles.customDropdown}>
-                    <div className={styles.dropdownOption} onClick={() => { setFilterEst("Todos"); setSearchTerm(""); setIsOpen(false); fetchPacientes(filterDNI, "Todos"); }} style={{ fontWeight: 700, color: "#0284c7", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px", marginBottom: "4px", display: "flex", justifyContent: "space-between" }}>
-                      <span>Todos los establecimientos</span><span style={{ fontSize: "0.75rem", color: "#64748b" }}>({totalAbsoluto ?? globalTotal} casos)</span>
+                    <div className={mergeClassNames(styles.dropdownOption, classesForStyle({ fontWeight: 700, color: "#0284c7", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px", marginBottom: "4px", display: "flex", justifyContent: "space-between" }))} onClick={() => { setFilterEst("Todos"); setSearchTerm(""); setIsOpen(false); fetchPacientes(filterDNI, "Todos"); }} >
+                      <span>Todos los establecimientos</span><span className={classesForStyle({ fontSize: "0.75rem", color: "#64748b" })}>({totalAbsoluto ?? globalTotal} casos)</span>
                     </div>
                     {filteredEstablecimientos.length === 0 ? (
-                      searchTerm && <div className={styles.dropdownOption} style={{ color: "#94a3b8", fontStyle: "italic" }}>No hay centros que coincidan</div>
+                      searchTerm && <div className={mergeClassNames(styles.dropdownOption, classesForStyle({ color: "#94a3b8", fontStyle: "italic" }))} >No hay centros que coincidan</div>
                     ) : filteredEstablecimientos.map((est) => (
-                      <div key={est.value} className={styles.dropdownOption} onClick={() => { setFilterEst(est.value); setSearchTerm(est.label); setIsOpen(false); fetchPacientes(filterDNI, est.value); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
-                        <span>{est.label}</span><span style={{ fontSize: "0.75rem", color: "#64748b", whiteSpace: "nowrap" }}>({est.cantidad} {est.cantidad === 1 ? "caso" : "casos"})</span>
+                      <div key={est.value} className={mergeClassNames(styles.dropdownOption, classesForStyle({ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }))} onClick={() => { setFilterEst(est.value); setSearchTerm(est.label); setIsOpen(false); fetchPacientes(filterDNI, est.value); }} >
+                        <span>{est.label}</span><span className={classesForStyle({ fontSize: "0.75rem", color: "#64748b", whiteSpace: "nowrap" })}>({est.cantidad} {est.cantidad === 1 ? "caso" : "casos"})</span>
                       </div>
                     ))}
                   </div>
@@ -240,7 +241,7 @@ export default function RedPerinatalAuditPage() {
             ) : (
               <div className={styles.filterGroup}>
                 <label className={styles.filterLabel}>Establecimiento responsable</label>
-                <div style={{ backgroundColor: "#f0f7ff", border: "1px solid #e0f2fe", padding: "0.75rem 1rem", borderRadius: "0.5rem", fontSize: "0.85rem", fontWeight: 600, color: "#0369a1" }}>
+                <div className={classesForStyle({ backgroundColor: "#f0f7ff", border: "1px solid #e0f2fe", padding: "0.75rem 1rem", borderRadius: "0.5rem", fontSize: "0.85rem", fontWeight: 600, color: "#0369a1" })}>
                   🏢 {centroNombreOId}
                 </div>
               </div>
@@ -263,9 +264,9 @@ export default function RedPerinatalAuditPage() {
 
             <div className={styles.tableHeader}>
               <h2 className={styles.tableTitle}>Detalle de derivación <span className={styles.filtrosBadge}>Red Perinatal</span></h2>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                {ultimaActualizacion && <span style={{ fontSize: "1rem", color: "#64748b", fontWeight: 550 }}>Datos al: {new Date(ultimaActualizacion).toLocaleDateString("es-AR")}</span>}
-                <button className={styles.btnRefresh} onClick={handleExport} disabled={pacientes.length === 0} style={{ backgroundColor: "#769FD3", color: "white", borderColor: "#769FD3" }} title="Descargar listado en Excel"><Download size={16} /></button>
+              <div className={classesForStyle({ display: "flex", alignItems: "center", gap: "0.75rem" })}>
+                {ultimaActualizacion && <span className={classesForStyle({ fontSize: "1rem", color: "#64748b", fontWeight: 550 })}>Datos al: {new Date(ultimaActualizacion).toLocaleDateString("es-AR")}</span>}
+                <button className={mergeClassNames(styles.btnRefresh, classesForStyle({ backgroundColor: "#769FD3", color: "white", borderColor: "#769FD3" }))} onClick={handleExport} disabled={pacientes.length === 0}  title="Descargar listado en Excel"><Download size={16} /></button>
                 <button className={styles.btnRefresh} onClick={() => fetchPacientes(filterDNI, filterEst)} disabled={loading}><RefreshCcw size={16} className={loading ? "animate-spin" : ""} />{loading ? "Actualizando..." : "Actualizar"}</button>
               </div>
             </div>
@@ -280,7 +281,7 @@ export default function RedPerinatalAuditPage() {
                     <th onClick={() => handleSort("dni")} className={styles.sortableHeader}>DNI {sortConfig?.key === "dni" ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↕"}</th>
                     <th onClick={() => handleSort("fecha_nacimiento")} className={styles.sortableHeader}>Fecha de nacimiento {sortConfig?.key === "fecha_nacimiento" ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↕"}</th>
                     <th onClick={() => handleSort("fpp")} className={styles.sortableHeader}>FPP {sortConfig?.key === "fpp" ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↕"}</th>
-                    <th onClick={() => handleSort("eg_actual")} className={styles.sortableHeader} style={{ textAlign: "center" }}>Edad gestacional {sortConfig?.key === "eg_actual" ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↕"}</th>
+                    <th onClick={() => handleSort("eg_actual")} className={mergeClassNames(styles.sortableHeader, classesForStyle({ textAlign: "center" }))} >Edad gestacional {sortConfig?.key === "eg_actual" ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↕"}</th>
                     <th>Motivo de derivación</th>
                     <th>Revisión</th>
                     <th>Fuente</th>
@@ -288,14 +289,14 @@ export default function RedPerinatalAuditPage() {
                 </thead>
                 <tbody>
                   {sortedPacientes.length === 0 ? (
-                    <tr><td colSpan={8} style={{ padding: "3rem 1rem", textAlign: "center" }}><div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}><strong style={{ color: "#334155", fontSize: "1rem" }}>No se encontraron registros</strong><p style={{ color: "#64748b", margin: 0, fontSize: "0.85rem" }}>Pruebe con otros filtros o espere a que se ingrese un nuevo batch.</p></div></td></tr>
+                    <tr><td colSpan={8} className={classesForStyle({ padding: "3rem 1rem", textAlign: "center" })}><div className={classesForStyle({ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" })}><strong className={classesForStyle({ color: "#334155", fontSize: "1rem" })}>No se encontraron registros</strong><p className={classesForStyle({ color: "#64748b", margin: 0, fontSize: "0.85rem" })}>Pruebe con otros filtros o espere a que se ingrese un nuevo batch.</p></div></td></tr>
                   ) : sortedPacientes.map((paciente) => (
-                    <tr key={paciente.id} onClick={() => setSelectedPaciente(paciente)} style={{ cursor: "pointer" }}>
-                      <td><div className={styles.pacienteInfo}><div className={styles.pacienteNombre}>{paciente.nombre}</div><div className={styles.pacienteSub}><span style={{ marginRight: "8px", color: "#64748b", fontWeight: 600 }}>🏢 {paciente.establecimiento}</span><span style={{ color: "#64748b" }}>{paciente.telefono}</span></div></div></td>
-                      <td style={{ color: "#475569", fontWeight: 500 }}>{paciente.dni !== "S/D" ? Number(paciente.dni).toLocaleString("es-AR") : "S/D"}</td>
-                      <td style={{ color: "#475569" }}>{formatDate(paciente.fecha_nacimiento)}</td>
-                      <td className={styles.fppCell} style={{ color: "#475569" }}>{formatDate(paciente.fpp)}</td>
-                      <td style={{ color: "#475569", textAlign: "center", fontWeight: 700 }}>{paciente.eg_actual !== null ? `${paciente.eg_actual}s` : "-"}</td>
+                    <tr key={paciente.id} onClick={() => setSelectedPaciente(paciente)} className={classesForStyle({ cursor: "pointer" })}>
+                      <td><div className={styles.pacienteInfo}><div className={styles.pacienteNombre}>{paciente.nombre}</div><div className={styles.pacienteSub}><span className={classesForStyle({ marginRight: "8px", color: "#64748b", fontWeight: 600 })}>🏢 {paciente.establecimiento}</span><span className={classesForStyle({ color: "#64748b" })}>{paciente.telefono}</span></div></div></td>
+                      <td className={classesForStyle({ color: "#475569", fontWeight: 500 })}>{paciente.dni !== "S/D" ? Number(paciente.dni).toLocaleString("es-AR") : "S/D"}</td>
+                      <td className={classesForStyle({ color: "#475569" })}>{formatDate(paciente.fecha_nacimiento)}</td>
+                      <td className={mergeClassNames(styles.fppCell, classesForStyle({ color: "#475569" }))} >{formatDate(paciente.fpp)}</td>
+                      <td className={classesForStyle({ color: "#475569", textAlign: "center", fontWeight: 700 })}>{paciente.eg_actual !== null ? `${paciente.eg_actual}s` : "-"}</td>
                       <td className={styles.redPerinatalMotivo}>{paciente.motivo_derivacion}</td>
                       <td className={styles.redPerinatalRevision}>{paciente.motivo_revision}</td>
                       <td><span className={styles.redPerinatalBadge}>{paciente.fuente}</span></td>

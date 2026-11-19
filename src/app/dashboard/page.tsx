@@ -15,6 +15,7 @@ import Image from "next/image";
 import logoColorImg from "../../../public/logo_nuevo.png";
 
 import * as XLSX from 'xlsx';
+import { classesForStyle, mergeClassNames } from "@/lib/cspStyles";
 
 interface Paciente {
   id: number;
@@ -138,7 +139,7 @@ function SeguimientoPageContent() {
     setSortConfig({ key, direction });
   };
 
-  
+
 
   const [menuDescargaAbierto, setMenuDescargaAbierto] = useState(false);
 
@@ -200,12 +201,12 @@ function SeguimientoPageContent() {
   const [filterDni, setFilterDni] = useState("");
   const [filterEst, setFilterEst] = useState("Todos");
   const [filterRiesgo, setFilterRiesgo] = useState("Todas");
-  const [filterTrimestre, setFilterTrimestre] = useState("Todos"); 
+  const [filterTrimestre, setFilterTrimestre] = useState("Todos");
   const [aplicadoTrimestre, setAplicadoTrimestre] = useState("Todos");
 
-  const [filterAtrasados, setFilterAtrasados] = useState("Si"); 
+  const [filterAtrasados, setFilterAtrasados] = useState("Si");
   const [aplicadoAtrasados, setAplicadoAtrasados] = useState("Si");
-  
+
   // Estados que reflejan lo que REALMENTE está aplicado (se actualizan solo al presionar Aplicar)
   const [aplicadoRiesgo, setAplicadoRiesgo] = useState("Todas");
 
@@ -217,7 +218,7 @@ function SeguimientoPageContent() {
   // 🌟 Mapeo automático del nombre real del efector o nivel central
   const nombreInstitucionReal = useMemo(() => {
     let nombreCrudo = "";
-    
+
     // Si es Administrador o Coordinador
     if (!isRestrictedRole) {
       if (filterEst !== "Todos") {
@@ -455,10 +456,10 @@ function SeguimientoPageContent() {
       const trimestreABuscar = trimestreDirecto !== undefined ? trimestreDirecto : filterTrimestre;
       const riesgoABuscar = riesgoDirecto !== undefined ? riesgoDirecto : filterRiesgo;
       const atrasadosABuscar = atrasadosDirecto !== undefined ? atrasadosDirecto : filterAtrasados;
-      const excluirDerivadasABuscar = excluirDerivadasDirecto !== undefined 
-        ? excluirDerivadasDirecto 
+      const excluirDerivadasABuscar = excluirDerivadasDirecto !== undefined
+        ? excluirDerivadasDirecto
         : excluirDerivadas;
-      
+
       const grupoABuscar = tipoGrupoDirecto !== undefined ? tipoGrupoDirecto : filterTipoGrupo;
 
       const queryParams: any = {
@@ -529,13 +530,13 @@ function SeguimientoPageContent() {
     if (aplicadoAtrasados === "Si") {
       const clase = getSemaforoControlClass(p.dias);
       // Gris (dias===999 = sin fecha de control) ES atrasada, la más crítica
-      return clase === styles.semaforoRojo || 
-            clase === styles.semaforoAmarillo || 
+      return clase === styles.semaforoRojo ||
+            clase === styles.semaforoAmarillo ||
             clase === styles.semaforoGris;
-    } 
+    }
     return true;
   });
-  
+
   const sortedPacientes = [...pacientesFiltrados].sort((a, b) => {
     if (!sortConfig.key) return 0;
 
@@ -550,7 +551,7 @@ function SeguimientoPageContent() {
     if (sortConfig.key === 'fpp' || sortConfig.key === 'ult_control' || sortConfig.key === 'fecha_ultimo_contacto' || sortConfig.key === 'fecha_derivacion') {
       const timeA = new Date(aValue).getTime();
       const timeB = new Date(bValue).getTime();
-      
+
       // Si el parseo de fecha falla por algún string corrupto, lo mandamos al fondo
       if (isNaN(timeA)) return 1;
       if (isNaN(timeB)) return -1;
@@ -640,7 +641,7 @@ function SeguimientoPageContent() {
       [`📌 FILTROS APLICADOS EN EL SISTEMA: ${filtrosLimpios}`],
       [`📅 Fecha de generación del reporte: ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR')}`]
     ], { origin: `A${filaVacia}` }); // 👈 Arranca a escribir en la columna A abajo de la tabla
-    
+
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, hoja, "Listado de Seguimiento");
 
@@ -653,7 +654,7 @@ function SeguimientoPageContent() {
     // Nombre dinámico con la fecha de la descarga y el nombre del CAPS/Maternidad
     const nombreEfector = session?.user?.name?.replace(/\s+/g, '_') || 'Efector';
     const fechaDescarga = new Date().toISOString().split('T')[0];
-    
+
     XLSX.writeFile(libro, `Listado_Seguimiento_${nombreEfector}_${fechaDescarga}.xlsx`);
 
     // Inyección automática a tu capa de Logs de Auditoría
@@ -689,8 +690,8 @@ function SeguimientoPageContent() {
                   <input
                     type="text"
                     placeholder="DNI de la embarazada..."
-                    className={styles.searchInput}
-                    style={filterDni ? { paddingRight: '2.2rem' } : undefined}
+                    className={mergeClassNames(styles.searchInput, classesForStyle(filterDni ? { paddingRight: '2.2rem' } : undefined))}
+
                     value={filterDni}
                     onChange={(e) => {
                       setFilterDni(e.target.value);
@@ -723,18 +724,18 @@ function SeguimientoPageContent() {
             </div>
 
             {!isRestrictedRole && (
-              <div className={styles.filterGroup} style={{ position: 'relative' }}>
+              <div className={mergeClassNames(styles.filterGroup, classesForStyle({ position: 'relative' }))} >
                 <label className={styles.filterLabel}>Establecimiento</label>
 
                 <div className={styles.selectWrapper}>
                   <input
                     type="text"
-                    className={styles.selectInput}
+                    className={mergeClassNames(styles.selectInput, classesForStyle(filterEst !== "Todos" ? { paddingRight: '2.2rem' } : undefined))}
                     placeholder="Buscar establecimiento..."
-                    style={filterEst !== "Todos" ? { paddingRight: '2.2rem' } : undefined}
+
                     value={
-                      isOpen 
-                        ? searchTerm 
+                      isOpen
+                        ? searchTerm
                         : (() => {
                             if (filterTipoGrupo === "CAPS") return "Todos los CAPS";
                             if (filterTipoGrupo === "SAPS") return "Todos los SAPS";
@@ -766,8 +767,8 @@ function SeguimientoPageContent() {
                         return (
                           <div
                             key="Todos"
-                            className={styles.dropdownOption}
-                            style={{ padding: '8px 12px', fontWeight: 500 }}
+                            className={mergeClassNames(styles.dropdownOption, classesForStyle({ padding: '8px 12px', fontWeight: 500 }))}
+
                             onClick={() => {
                               setFilterEst("Todos");
                               setSearchTerm("");
@@ -783,14 +784,14 @@ function SeguimientoPageContent() {
                       return (
                         <div
                           key={est.value}
-                          className={styles.dropdownOption}
-                          style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'center', 
+                          className={mergeClassNames(styles.dropdownOption, classesForStyle({
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
                             gap: '8px',
                             padding: '8px 12px'
-                          }}
+                          }))}
+
                           onClick={() => {
                             const selectedValue = est.value || "Todos";
                             setFilterEst(selectedValue);
@@ -799,17 +800,17 @@ function SeguimientoPageContent() {
                             fetchPacientes(undefined, false, selectedValue);
                           }}
                         >
-                          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '5px' }}>
-                            <span style={{ fontWeight: 550, color: '#1e293b' }}>
+                          <div className={classesForStyle({ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '5px' })}>
+                            <span className={classesForStyle({ fontWeight: 550, color: '#1e293b' })}>
                               {romanToArabic(est.nombre || est.label.replace(/\s*\(\d+\s*riesgo\)/i, ''))}
                             </span>
                             {est.localidad && (
-                              <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 400 }}>
+                              <span className={classesForStyle({ fontSize: '0.78rem', color: '#64748b', fontWeight: 400 })}>
                                 • {est.localidad}
                               </span>
                             )}
                           </div>
-                          <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          <span className={classesForStyle({ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600, whiteSpace: 'nowrap' })}>
                             ({est.totalRiesgo ?? 0} riesgo)
                           </span>
                         </div>
@@ -830,7 +831,7 @@ function SeguimientoPageContent() {
                   </span>
                 </div>
               </div>
-              
+
               {/* 🌟 NUEVO BOTÓN TOGGLE PARA RIESGO */}
               <button
                 type="button"
@@ -838,20 +839,20 @@ function SeguimientoPageContent() {
                   // Si está en 'Si' pasa a 'Todas', y viceversa
                   const nuevoValorRiesgo = filterRiesgo === "Si" ? "Todas" : "Si";
                   setFilterRiesgo(nuevoValorRiesgo);
-                  
+
                   // Disparamos la búsqueda al instante pasando el nuevo valor directo
                   fetchPacientes(
-                    undefined, 
-                    false, 
-                    undefined, 
-                    filterTrimestre, 
+                    undefined,
+                    false,
+                    undefined,
+                    filterTrimestre,
                     nuevoValorRiesgo, // 👈 Pasamos el valor fresco recién calculado
-                    filterAtrasados, 
-                    excluirDerivadas, 
+                    filterAtrasados,
+                    excluirDerivadas,
                     false
                   );
                 }}
-                style={{
+                className={classesForStyle({
                   width: '100%',
                   padding: '0.5rem 1rem',
                   borderRadius: '8px',
@@ -863,7 +864,7 @@ function SeguimientoPageContent() {
                   fontSize: '0.85rem',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
-                }}
+                })}
               >
                 {filterRiesgo === "Si" ? 'Sí' : 'No'}
               </button>
@@ -884,9 +885,9 @@ function SeguimientoPageContent() {
 
             <div className={styles.filterGroup}>
               <label className={styles.filterLabel}>Trimestre Gesta</label>
-              <select 
-                className={styles.selectInput} 
-                value={filterTrimestre} 
+              <select
+                className={styles.selectInput}
+                value={filterTrimestre}
                 onChange={(e) => setFilterTrimestre(e.target.value)}
               >
                 <option value="Todos">Todos los trimestres</option>
@@ -904,7 +905,7 @@ function SeguimientoPageContent() {
                     setExcluirDerivadas(nuevoValor);
                     fetchPacientes(undefined, false, undefined, filterTrimestre, filterRiesgo, filterAtrasados, nuevoValor, false);
                   }}
-                  style={{
+                  className={classesForStyle({
                     width: '100%',
                     padding: '0.5rem 1rem',
                     borderRadius: '8px',
@@ -915,16 +916,16 @@ function SeguimientoPageContent() {
                     fontSize: '0.85rem',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease'
-                  }}
+                  })}
                 >
                   {excluirDerivadas ? 'No' : 'Sí'}
                 </button>
               </div>
-            
+
 
             <button
-              className={styles.btnAction}
-              style={{ width: '100%', marginTop: '1rem' }}
+              className={mergeClassNames(styles.btnAction, classesForStyle({ width: '100%', marginTop: '1rem' }))}
+
               onClick={() => {
                 setAplicadoRiesgo(filterRiesgo);
                 setAplicadoAtrasados(filterAtrasados);
@@ -967,34 +968,34 @@ function SeguimientoPageContent() {
                   {getFiltrosAplicadosTexto()}
                 </span>
                 {/* TÍTULO DINÁMICO E INTELIGENTE */}
-                <span style={{ 
-                  fontSize: '1rem', 
-                  color: filterDni && pacientes.length === 1 && pacientes[0].establecimiento !== session?.user?.name 
+                <span className={classesForStyle({
+                  fontSize: '1rem',
+                  color: filterDni && pacientes.length === 1 && pacientes[0].establecimiento !== session?.user?.name
                     ? '#e11d48' // Rojo si es de afuera
-                    : '#587ba8', 
-                  display: 'block', 
-                  fontWeight: '600' 
-                }}>
-                  {filterDni && pacientes.length === 1 
-                    ? ` — Paciente de: ${pacientes[0].establecimiento}` 
+                    : '#587ba8',
+                  display: 'block',
+                  fontWeight: '600'
+                })}>
+                  {filterDni && pacientes.length === 1
+                    ? ` — Paciente de: ${pacientes[0].establecimiento}`
                     : ` — Institución: ${nombreInstitucionReal || "Cargando..."}`
                   }
                 </span>
               </h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div className={classesForStyle({ display: 'flex', alignItems: 'center', gap: '1rem' })}>
                 {ultimaActualizacion && (
-                  <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: 550 }}>
+                  <span className={classesForStyle({ fontSize: '1rem', color: '#64748b', fontWeight: 550 })}>
                     Datos al: {new Date(ultimaActualizacion).toLocaleDateString('es-AR')}
                   </span>
                 )}
 
                 {/* Menú de Descarga Multiformato Seguimiento */}
-                <div style={{ position: "relative" }}>
+                <div className={classesForStyle({ position: "relative" })}>
                   <button
                     type="button"
                     onClick={() => setMenuDescargaAbierto(!menuDescargaAbierto)}
                     title="Descargar listado"
-                    style={{
+                    className={classesForStyle({
                       display: "flex",
                       alignItems: "center",
                       gap: "6px",
@@ -1008,7 +1009,7 @@ function SeguimientoPageContent() {
                       cursor: "pointer",
                       boxShadow: "0 2px 4px rgba(0, 0, 0, 0.08)",
                       transition: "background-color 0.2s ease",
-                    }}
+                    })}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#35537F")}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#456A9D")}
                   >
@@ -1016,22 +1017,22 @@ function SeguimientoPageContent() {
                     <span>Exportar</span>
                     <ChevronDown
                       size={14}
-                      style={{
+                      className={classesForStyle({
                         transform: menuDescargaAbierto ? "rotate(180deg)" : "none",
                         transition: "transform 0.2s ease",
-                      }}
+                      })}
                     />
                   </button>
 
                   {menuDescargaAbierto && (
                     <>
                       <div
-                        style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                        className={classesForStyle({ position: "fixed", inset: 0, zIndex: 40 })}
                         onClick={() => setMenuDescargaAbierto(false)}
                       />
 
                       <div
-                        style={{
+                        className={classesForStyle({
                           position: "absolute",
                           right: 0,
                           top: "calc(100% + 6px)",
@@ -1045,12 +1046,12 @@ function SeguimientoPageContent() {
                           display: "flex",
                           flexDirection: "column",
                           gap: "2px",
-                        }}
+                        })}
                       >
                         <button
                           type="button"
                           onClick={() => handleDescargar("pdf")}
-                          style={{
+                          className={classesForStyle({
                             display: "flex",
                             alignItems: "center",
                             gap: "10px",
@@ -1063,12 +1064,12 @@ function SeguimientoPageContent() {
                             fontWeight: 500,
                             color: "#1E293B",
                             cursor: "pointer",
-                          }}
+                          })}
                           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
                           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                         >
                           <div
-                            style={{
+                            className={classesForStyle({
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
@@ -1076,7 +1077,7 @@ function SeguimientoPageContent() {
                               height: "26px",
                               borderRadius: "6px",
                               backgroundColor: "#FEE2E2",
-                            }}
+                            })}
                           >
                             <FileText size={15} color="#DC2626" />
                           </div>
@@ -1086,7 +1087,7 @@ function SeguimientoPageContent() {
                         <button
                           type="button"
                           onClick={() => handleDescargar("xlsx")}
-                          style={{
+                          className={classesForStyle({
                             display: "flex",
                             alignItems: "center",
                             gap: "10px",
@@ -1099,12 +1100,12 @@ function SeguimientoPageContent() {
                             fontWeight: 500,
                             color: "#1E293B",
                             cursor: "pointer",
-                          }}
+                          })}
                           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F1F5F9")}
                           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                         >
                           <div
-                            style={{
+                            className={classesForStyle({
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
@@ -1112,7 +1113,7 @@ function SeguimientoPageContent() {
                               height: "26px",
                               borderRadius: "6px",
                               backgroundColor: "#DCFCE7",
-                            }}
+                            })}
                           >
                             <Sheet size={15} color="#16A34A" />
                           </div>
@@ -1137,10 +1138,10 @@ function SeguimientoPageContent() {
               <table className={styles.pacientesTable}>
                 <thead>
                   <tr>
-                    <th className={styles.sortableHeader} style={{ verticalAlign: 'middle' }}>Paciente</th>
+                    <th className={mergeClassNames(styles.sortableHeader, classesForStyle({ verticalAlign: 'middle' }))} >Paciente</th>
 
                     <th onClick={() => handleSort('dni')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ display: 'flex', alignItems: 'center', gap: '4px' }))} >
                         <span>DNI</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'dni' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
@@ -1149,7 +1150,7 @@ function SeguimientoPageContent() {
                     </th>
 
                     <th onClick={() => handleSort('fpp')} className={styles.sortableHeader}>
-                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ display: 'flex', alignItems: 'center', gap: '4px' }))} >
                         <span>FPP</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'fpp' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
@@ -1158,9 +1159,9 @@ function SeguimientoPageContent() {
                     </th>
 
                     {/* 👈 MODIFICADO: Agregamos ancho máximo y permitimos quiebre normal de línea */}
-                    <th onClick={() => handleSort('eg_actual')} className={styles.sortableHeader} style={{ maxWidth: '95px', whiteSpace: 'normal' }}>
-                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
-                        <span style={{ lineHeight: '1.2' }}>Edad<br />Gestacional</span>
+                    <th onClick={() => handleSort('eg_actual')} className={mergeClassNames(styles.sortableHeader, classesForStyle({ maxWidth: '95px', whiteSpace: 'normal' }))} >
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }))} >
+                        <span className={classesForStyle({ lineHeight: '1.2' })}>Edad<br />Gestacional</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'eg_actual' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
@@ -1168,9 +1169,9 @@ function SeguimientoPageContent() {
                     </th>
 
                     {/* 👈 MODIFICADO: Permitimos quiebre */}
-                    <th onClick={() => handleSort('ult_control')} className={styles.sortableHeader} style={{ maxWidth: '95px', whiteSpace: 'normal' }}>
-                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
-                        <span style={{ lineHeight: '1.2' }}>Último<br />Control</span>
+                    <th onClick={() => handleSort('ult_control')} className={mergeClassNames(styles.sortableHeader, classesForStyle({ maxWidth: '95px', whiteSpace: 'normal' }))} >
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }))} >
+                        <span className={classesForStyle({ lineHeight: '1.2' })}>Último<br />Control</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'ult_control' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
@@ -1178,9 +1179,9 @@ function SeguimientoPageContent() {
                     </th>
 
                     {/* 👈 MODIFICADO: Permitimos quiebre */}
-                    <th onClick={() => handleSort('fecha_ultimo_contacto')} className={styles.sortableHeader} style={{ maxWidth: '100px', whiteSpace: 'normal' }}>
-                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
-                        <span style={{ lineHeight: '1.2' }}>Último<br />Contacto</span>
+                    <th onClick={() => handleSort('fecha_ultimo_contacto')} className={mergeClassNames(styles.sortableHeader, classesForStyle({ maxWidth: '100px', whiteSpace: 'normal' }))} >
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }))} >
+                        <span className={classesForStyle({ lineHeight: '1.2' })}>Último<br />Contacto</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'fecha_ultimo_contacto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
@@ -1188,9 +1189,9 @@ function SeguimientoPageContent() {
                     </th>
 
                     {/* 👈 MODIFICADO: Permitimos quiebre */}
-                    <th onClick={() => handleSort('fecha_proximo_turno')} className={styles.sortableHeader} style={{ maxWidth: '95px', whiteSpace: 'normal' }}>
-                      <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
-                        <span style={{ lineHeight: '1.2' }}>Próximo<br />Turno</span>
+                    <th onClick={() => handleSort('fecha_proximo_turno')} className={mergeClassNames(styles.sortableHeader, classesForStyle({ maxWidth: '95px', whiteSpace: 'normal' }))} >
+                      <div className={mergeClassNames(styles.headerContent, classesForStyle({ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }))} >
+                        <span className={classesForStyle({ lineHeight: '1.2' })}>Próximo<br />Turno</span>
                         <span className={styles.sortIcon}>
                           {sortConfig.key === 'fecha_proximo_turno' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
@@ -1200,53 +1201,53 @@ function SeguimientoPageContent() {
                     {/* 🌟 Títulos de Maternidad con quiebres controlados */}
                     {verColumnasAmpliadas && (
                       <>
-                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '100px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                        <th className={mergeClassNames(styles.tableTh, classesForStyle({ whiteSpace: 'normal', maxWidth: '100px', lineHeight: '1.2', verticalAlign: 'middle' }))} >
                           Observación<br />Riesgo
                         </th>
-                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '120px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                        <th className={mergeClassNames(styles.tableTh, classesForStyle({ whiteSpace: 'normal', maxWidth: '120px', lineHeight: '1.2', verticalAlign: 'middle' }))} >
                           Establecimiento<br />Origen
                         </th>
-                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '100px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                        <th className={mergeClassNames(styles.tableTh, classesForStyle({ whiteSpace: 'normal', maxWidth: '100px', lineHeight: '1.2', verticalAlign: 'middle' }))} >
                           Centro<br />Derivado
                         </th>
-                        
-                        <th onClick={() => handleSort('fecha_derivacion')} className={styles.sortableHeader} style={{ maxWidth: '110px', whiteSpace: 'normal' }}>
-                          <div className={styles.headerContent} style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
-                            <span style={{ lineHeight: '1.2' }}>Fecha<br />Derivación</span>
+
+                        <th onClick={() => handleSort('fecha_derivacion')} className={mergeClassNames(styles.sortableHeader, classesForStyle({ maxWidth: '110px', whiteSpace: 'normal' }))} >
+                          <div className={mergeClassNames(styles.headerContent, classesForStyle({ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }))} >
+                            <span className={classesForStyle({ lineHeight: '1.2' })}>Fecha<br />Derivación</span>
                             <span className={styles.sortIcon}>
                               {sortConfig.key === 'fecha_derivacion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
                             </span>
                           </div>
                         </th>
 
-                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '110px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                        <th className={mergeClassNames(styles.tableTh, classesForStyle({ whiteSpace: 'normal', maxWidth: '110px', lineHeight: '1.2', verticalAlign: 'middle' }))} >
                           Motivo<br />Diagnóstico
                         </th>
-                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '90px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                        <th className={mergeClassNames(styles.tableTh, classesForStyle({ whiteSpace: 'normal', maxWidth: '90px', lineHeight: '1.2', verticalAlign: 'middle' }))} >
                           Médico<br />Deriva
                         </th>
-                        <th className={styles.tableTh} style={{ whiteSpace: 'normal', maxWidth: '90px', lineHeight: '1.2', verticalAlign: 'middle' }}>
+                        <th className={mergeClassNames(styles.tableTh, classesForStyle({ whiteSpace: 'normal', maxWidth: '90px', lineHeight: '1.2', verticalAlign: 'middle' }))} >
                           Médico<br />Recibe
                         </th>
                       </>
                     )}
 
-                    <th className={styles.tableTh} style={{ verticalAlign: 'middle' }}>Fuente</th>
-                    <th className={styles.tableTh} style={{ verticalAlign: 'middle' }}>Cobertura</th>
+                    <th className={mergeClassNames(styles.tableTh, classesForStyle({ verticalAlign: 'middle' }))} >Fuente</th>
+                    <th className={mergeClassNames(styles.tableTh, classesForStyle({ verticalAlign: 'middle' }))} >Cobertura</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={tableColumnCount} className={classesForStyle({ textAlign: 'center', padding: '3rem', color: '#64748b' })}>
                         Cargando base de datos Gold...
                       </td>
                     </tr>
                   ) : loadError ? (
                     <tr>
-                      <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: '3rem', color: '#475569' }}>
+                      <td colSpan={tableColumnCount} className={classesForStyle({ textAlign: 'center', padding: '3rem', color: '#475569' })}>
                         <AlertCircle className="w-8 h-8 text-orange-400 mx-auto mb-2" />
-                        <p role="alert" style={{ marginBottom: '1rem' }}>{loadError.message}</p>
+                        <p role="alert" className={classesForStyle({ marginBottom: '1rem' })}>{loadError.message}</p>
                         {loadError.sessionExpired ? (
                           <button className={styles.btnRefresh} onClick={() => router.replace('/')}>
                             Volver al ingreso
@@ -1268,12 +1269,12 @@ function SeguimientoPageContent() {
                         p.derivacion_maternidad_id
                       );
                       return (
-                        <tr 
-                          key={`${p.id}-${index}`} 
-                          onClick={() => setSelectedPaciente(p)} 
+                        <tr
+                          key={`${p.id}-${index}`}
+                          onClick={() => setSelectedPaciente(p)}
                           // 👈 INYECTAMOS LA CLASE CONDICIONAL DE TU HOJA DE ESTILOS Module
                           className={`${styles.tableRow} ${esDerivada ? styles.derivadaRow : ''}`}
-                        >                          
+                        >
                           <td>
                             <div className={styles.pacienteInfo}>
                               <div className={styles.pacienteNombre}>{p.nombre}</div>
@@ -1282,18 +1283,18 @@ function SeguimientoPageContent() {
                               </div>
                             </div>
                           </td>
-                          <td style={{ color: '#475569' }}>
+                          <td className={classesForStyle({ color: '#475569' })}>
                             {p.dni ? Number(p.dni).toLocaleString('es-AR') : "-"}
                           </td>
                           <td className={styles.fppCell}>
                             {p.fpp ? new Date(p.fpp).toLocaleDateString('es-AR') : "-"}
                           </td>
-                          <td style={{ color: '#475569', textAlign: 'center' }}>
+                          <td className={classesForStyle({ color: '#475569', textAlign: 'center' })}>
                             {p.eg_actual ? `${p.eg_actual}s` : "-"}
                           </td>
                           <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <span style={{ color: '#475569', fontWeight: 500 }}>
+                            <div className={classesForStyle({ display: 'flex', flexDirection: 'column', gap: '4px' })}>
+                              <span className={classesForStyle({ color: '#475569', fontWeight: 500 })}>
                                 {p.ult_control ? new Date(p.ult_control).toLocaleDateString('es-AR') : "-"}
                               </span>
                               <div>
@@ -1305,19 +1306,19 @@ function SeguimientoPageContent() {
                           </td>
 
                           <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <span style={{ color: '#475569', fontWeight: 500 }}>
+                            <div className={classesForStyle({ display: 'flex', flexDirection: 'column', gap: '4px' })}>
+                              <span className={classesForStyle({ color: '#475569', fontWeight: 500 })}>
                                 {p.fecha_ultimo_contacto
                                   ? new Date(p.fecha_ultimo_contacto).toLocaleDateString('es-AR')
                                   : "-"}
                               </span>
                               <div className={styles.semaforoWrapper}>
                                 <span className={getSemaforoContactoClass(diasSC)}>
-                                  {diasSC === 999 
-                                    ? "S/D" 
-                                    : diasSC <= 0 
+                                  {diasSC === 999
+                                    ? "S/D"
+                                    : diasSC <= 0
                                       ? "Hoy"       // 👈 Si es 0 o menor por algún desajuste, muestra Hoy
-                                      : diasSC === 1 
+                                      : diasSC === 1
                                         ? "Ayer"      // 👈 Si es 1, muestra Ayer
                                         : `${diasSC} días`
                                   }
@@ -1328,18 +1329,18 @@ function SeguimientoPageContent() {
 
                           {/* 👈 NUEVA CELDA: DATOS DEL TURNO Y SU SEMÁFORO INVERTIDO */}
                           <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <span style={{ color: '#475569', fontWeight: 500 }}>
+                            <div className={classesForStyle({ display: 'flex', flexDirection: 'column', gap: '4px' })}>
+                              <span className={classesForStyle({ color: '#475569', fontWeight: 500 })}>
                                 {p.fecha_proximo_turno ? new Date(p.fecha_proximo_turno).toLocaleDateString('es-AR') : "-"}
                               </span>
                               <div>
                                 <span className={getSemaforoTurnoClass(p.dias_para_turno)}>
-                                  {p.dias_para_turno === 999 
-                                    ? "Sin Turno" 
-                                    : p.dias_para_turno === 0 
-                                      ? "Hoy" 
-                                      : p.dias_para_turno === 1 
-                                        ? "Mañana" 
+                                  {p.dias_para_turno === 999
+                                    ? "Sin Turno"
+                                    : p.dias_para_turno === 0
+                                      ? "Hoy"
+                                      : p.dias_para_turno === 1
+                                        ? "Mañana"
                                         : `En ${p.dias_para_turno} días`
                                   }
                                 </span>
@@ -1350,26 +1351,26 @@ function SeguimientoPageContent() {
                           {/* 🌟 NUEVO: Celdas de datos clínicas exclusivas para rol Maternidad */}
                           {verColumnasAmpliadas && (
                             <>
-                              <td style={{ color: '#475569', fontSize: '0.85rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.observaciones_riesgo}>
+                              <td className={classesForStyle({ color: '#475569', fontSize: '0.85rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} title={p.observaciones_riesgo}>
                                 {p.observaciones_riesgo}
                               </td>
-                              <td style={{ color: '#475569', fontSize: '0.85rem' }}>{p.nombre_establecimiento}</td>
-                              <td style={{ color: '#475569', fontSize: '0.85rem' }}>{p.nombre_centro_derivado || "-"}</td>
-                              <td style={{ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{p.fecha_derivacion}</td>
-                              <td style={{ color: '#475569', fontSize: '0.85rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.motivo_diagnostico_derivacion}>
+                              <td className={classesForStyle({ color: '#475569', fontSize: '0.85rem' })}>{p.nombre_establecimiento}</td>
+                              <td className={classesForStyle({ color: '#475569', fontSize: '0.85rem' })}>{p.nombre_centro_derivado || "-"}</td>
+                              <td className={classesForStyle({ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' })}>{p.fecha_derivacion}</td>
+                              <td className={classesForStyle({ color: '#475569', fontSize: '0.85rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} title={p.motivo_diagnostico_derivacion}>
                                 {p.motivo_diagnostico_derivacion}
                               </td>
-                              <td style={{ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{p.medico_deriva}</td>
-                              <td style={{ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{p.medico_recibe}</td>
+                              <td className={classesForStyle({ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' })}>{p.medico_deriva}</td>
+                              <td className={classesForStyle({ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' })}>{p.medico_recibe}</td>
                             </>
                           )}
 
                           <td className={styles.tableTd}>
                             <span className={styles.fuenteBadge}>
-                              {p.fuente_principal === 'sumar' 
-                                ? 'SUMAR' 
-                                : p.fuente_principal === 'v_embarazosdw' 
-                                  ? 'POF' 
+                              {p.fuente_principal === 'sumar'
+                                ? 'SUMAR'
+                                : p.fuente_principal === 'v_embarazosdw'
+                                  ? 'POF'
                                   : p.fuente_principal}
                             </span>
                           </td>
@@ -1387,7 +1388,7 @@ function SeguimientoPageContent() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                      <td colSpan={tableColumnCount} className={classesForStyle({ textAlign: 'center', padding: '3rem', color: '#64748b' })}>
                         <AlertCircle className="w-8 h-8 text-orange-400 mx-auto mb-2" />
                         No se encontraron registros para estos filtros.
                       </td>
@@ -1398,9 +1399,9 @@ function SeguimientoPageContent() {
             </div>
           </main>
 
-          
+
         </div>
-        
+
       </div>
 
       {/* Modal de Contacto */}

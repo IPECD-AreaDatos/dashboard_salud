@@ -4,8 +4,8 @@ const CSP_SCRIPT_STYLE = [
   "default-src 'self'",
   "script-src 'self' 'nonce-{nonce}' 'strict-dynamic'",
   "style-src 'self' 'nonce-{nonce}'",
-  // Keep existing React style attributes working, without allowing inline <style> blocks.
-  "style-src-attr 'unsafe-inline'",
+  // Allow only the exact framework/library attributes; arbitrary style attributes stay blocked.
+  "style-src-attr 'unsafe-hashes' 'sha256-R0edqj818Q2GSChz9Bmf7NmpeMlCeetyXy/3cImG5wo=' 'sha256-pGJbEgswt/KHNxfXfXJZmuzGVyXVnOErjEK3NA/r1hg=' 'sha256-zlqnbDt84zf1iSefLU/ImC54isoprH/MRiVZGskwexk=' 'sha256-xc3Z6FlGcSw3eD/UUqzsUCCHMxhr9zyueta2gHlPiX8='",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'self'",

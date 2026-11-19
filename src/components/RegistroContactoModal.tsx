@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import styles from "./RegistroContactoModal.module.css";
 import { X, Save, Clock } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { useSession } from "next-auth/react"; // Importamos el hook de sesión
+import { useSession } from "next-auth/react";
+import { classesForStyle, mergeClassNames } from "@/lib/cspStyles"; // Importamos el hook de sesión
 
 export default function RegistroContactoModal({ paciente, onClose, onSuccess }: any) {
   const { data: session } = useSession(); // Obtenemos la sesión actual
-  
+
   const [formData, setFormData] = useState({
     contacto_logrado: true,
     medio_contacto: "llamada",
@@ -15,7 +16,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
     proxima_cita: "",
     observaciones: ""
   });
-  
+
   const [historial, setHistorial] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -48,14 +49,14 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    
+
     if (!session || !session.user) {
       alert("Tu sesión expiró o es inestable. Por favor, refrescá la página y volvé a iniciar sesión para guardar el contacto.");
       return;
     }
 
     setSaving(true);
-    
+
     try {
       const res = await apiFetch("/seguimientos", {
         method: "POST",
@@ -65,7 +66,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
           ...formData
         })
       });
-      
+
       if (res.ok) {
         onSuccess();
       } else {
@@ -95,34 +96,34 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
             <p><strong>DNI:</strong> {paciente.dni} | <strong>FPP:</strong> {paciente.fpp ? new Date(paciente.fpp).toLocaleDateString('es-AR') : '-'}</p>
             <p><strong>Teléfono:</strong> {paciente.telefono}</p>
             <p>
-              <strong>Domicilio:</strong> {paciente.domicilio} 
+              <strong>Domicilio:</strong> {paciente.domicilio}
               {paciente.localidad && ` (${paciente.localidad})`}
             </p>
 
             {/* 🌟 NUEVO: Módulo exclusivo para Maternidad con los bloques de texto completos */}
             {session?.user?.role === 'Maternidad' && (
-              <div style={{ 
-                marginTop: '12px', 
-                paddingTop: '12px', 
-                borderTop: '1px dashed #cbd5e1', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '8px' 
-              }}>
-                <div style={{ backgroundColor: '#fff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9b1734', display: 'block', marginBottom: '2px', textTransform: 'uppercase' }}>
+              <div className={classesForStyle({
+                marginTop: '12px',
+                paddingTop: '12px',
+                borderTop: '1px dashed #cbd5e1',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              })}>
+                <div className={classesForStyle({ backgroundColor: '#fff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' })}>
+                  <span className={classesForStyle({ fontSize: '0.75rem', fontWeight: 700, color: '#9b1734', display: 'block', marginBottom: '2px', textTransform: 'uppercase' })}>
                     Observación de Riesgo / Antecedentes:
                   </span>
-                  <p style={{ margin: 0, fontSize: '0.88rem', color: '#334155', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+                  <p className={classesForStyle({ margin: 0, fontSize: '0.88rem', color: '#334155', lineHeight: '1.4', whiteSpace: 'pre-wrap' })}>
                     {paciente.observaciones_riesgo || "Sin observaciones cargadas."}
                   </p>
                 </div>
 
-                <div style={{ backgroundColor: '#fff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3079ce', display: 'block', marginBottom: '2px', textTransform: 'uppercase' }}>
+                <div className={classesForStyle({ backgroundColor: '#fff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' })}>
+                  <span className={classesForStyle({ fontSize: '0.75rem', fontWeight: 700, color: '#3079ce', display: 'block', marginBottom: '2px', textTransform: 'uppercase' })}>
                     Motivo / Diagnóstico de Derivación:
                   </span>
-                  <p style={{ margin: 0, fontSize: '0.88rem', color: '#334155', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+                  <p className={classesForStyle({ margin: 0, fontSize: '0.88rem', color: '#334155', lineHeight: '1.4', whiteSpace: 'pre-wrap' })}>
                     {paciente.motivo_diagnostico_derivacion || "No se especificó motivo clínico."}
                   </p>
                 </div>
@@ -132,8 +133,8 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
 
           {/* Formulario de registro de llamadas queda exactamente igual abajo */}
           {session?.user?.role?.toLowerCase() === 'lectura' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{
+            <div className={classesForStyle({ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' })}>
+              <div className={classesForStyle({
                 padding: '1.2rem',
                 backgroundColor: '#f1f5f9',
                 border: '1px solid #cbd5e1',
@@ -146,11 +147,11 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px'
-              }}>
+              })}>
                 🔒 Modo de consulta: No posee permisos para registrar contactos o realizar modificaciones.
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={onClose} className={styles.btnCancel} style={{ padding: '0.6rem 1.5rem' }}>
+              <div className={classesForStyle({ display: 'flex', justifyContent: 'flex-end' })}>
+                <button type="button" onClick={onClose} className={mergeClassNames(styles.btnCancel, classesForStyle({ padding: '0.6rem 1.5rem' }))} >
                   Cerrar
                 </button>
               </div>
@@ -203,7 +204,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
               </div>
 
               <div className={styles.formRow}>
-                <div className={styles.formGroup} style={{maxWidth: '50%'}}>
+                <div className={mergeClassNames(styles.formGroup, classesForStyle({maxWidth: '50%'}))} >
                   <label className={styles.formLabel}>Próximo Turno (opcional):</label>
                   <input type="date" name="proxima_cita" value={formData.proxima_cita} onChange={handleChange} className={styles.input} />
                 </div>
@@ -217,7 +218,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
               <div className={styles.modalFooter}>
                 <button type="button" onClick={onClose} className={styles.btnCancel}>Cancelar</button>
                 <button type="submit" disabled={saving} className={styles.btnSave}>
-                  <Save size={16} style={{marginRight: '8px'}} />
+                  <Save size={16} className={classesForStyle({marginRight: '8px'})} />
                   {saving ? "Guardando..." : "Guardar"}
                 </button>
               </div>
@@ -242,7 +243,7 @@ export default function RegistroContactoModal({ paciente, onClose, onSuccess }: 
                         {h.contacto_logrado ? 'Logrado' : 'Fallido'}
                       </span>
                       {h.medio_contacto && (
-                        <span style={{ marginLeft: '0.75rem', color: '#475569', fontSize: '0.82rem' }}>
+                        <span className={classesForStyle({ marginLeft: '0.75rem', color: '#475569', fontSize: '0.82rem' })}>
                           Fuente: {h.medio_contacto.replace(/_/g, ' ')}
                         </span>
                       )}

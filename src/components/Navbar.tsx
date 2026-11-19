@@ -6,6 +6,7 @@ import { Activity, BarChart3, ShieldCheck, HeartHandshake, LogOut } from 'lucide
 import styles from "./Navbar.module.css";
 import Image from "next/image";
 import logoColorImg from "../../public/logo_nuevo.png";
+import { classesForStyle, mergeClassNames } from "@/lib/cspStyles";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -15,7 +16,7 @@ export default function Navbar() {
 
   const isSupervisora = userRole === 'Supervisora';
   const isPrimerosLatidos = userRole === 'Primeros Latidos';
-  
+
   // 🛡️ Perfiles con privilegios de gestión
   const isAdmin = userRole === 'Administrador';
   const isCoordinador = userRole === 'Coordinador';
@@ -44,9 +45,9 @@ export default function Navbar() {
 
     if (
       !isSupervisora &&
-      (esAdminOCoord || 
-      userRole === 'Centro de Salud' || 
-      userRole === 'Maternidad' || 
+      (esAdminOCoord ||
+      userRole === 'Centro de Salud' ||
+      userRole === 'Maternidad' ||
       userRole?.toLowerCase() === 'lectura')
     ) {
       menuItems.push({ name: 'Auditoría', href: '/dashboard/audit', icon: ShieldCheck });
@@ -93,28 +94,28 @@ export default function Navbar() {
       </div>
 
       <div className={styles.rightSection}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginRight: '1rem' }}>
-          <Image 
-            src={logoColorImg} 
-            alt="Modernización" 
-            style={{ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 }}
+        <div className={classesForStyle({ display: 'flex', alignItems: 'center', gap: '0.8rem', marginRight: '1rem' })}>
+          <Image
+            src={logoColorImg}
+            alt="Modernización"
+            className={classesForStyle({ height: '39px', width: 'auto', objectFit: 'contain', opacity: 0.9 })}
           />
-          
+
         </div>
 
         <div className={styles.userInfo}>
           <span className={styles.userRole}>{userRole || 'Personal'}</span>
           <span className={styles.userName}>{session?.user?.name || 'Usuario'}</span>
-          
+
           {esRolEfector && (session?.user as any)?.username && (
-            <span 
-              style={{ 
-                fontSize: '0.85rem', 
-                color: '#64748b', 
-                fontWeight: 550, 
-                marginTop: '1px', 
-                textAlign: 'right' 
-              }}
+            <span
+              className={classesForStyle({
+                fontSize: '0.85rem',
+                color: '#64748b',
+                fontWeight: 550,
+                marginTop: '1px',
+                textAlign: 'right'
+              })}
             >
               Usuario: {(session?.user as any)?.username}
             </span>
@@ -123,8 +124,8 @@ export default function Navbar() {
 
         <button
           onClick={async () => {
-            const basePath = window.location.pathname.startsWith('/salud-dashboard') 
-              ? '/salud-dashboard' 
+            const basePath = window.location.pathname.startsWith('/salud-dashboard')
+              ? '/salud-dashboard'
               : '';
             try {
               await fetch(`${basePath}/api/auth/logout-central`, {
