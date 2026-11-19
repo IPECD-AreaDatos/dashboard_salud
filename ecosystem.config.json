@@ -2,8 +2,10 @@
   "apps": [
     {
       "name": "salud-dashboard",
+      "cwd": "/home/ubuntu/ipecd-infra/apps/front/dashboard_salud",
       "script": "node_modules/next/dist/bin/next",
-      "args": "start -p 3005",
+      "args": "start",
+      "interpreter": "/home/ubuntu/.nvm/versions/node/v20.20.0/bin/node",
       "env": {
         "PORT": 3005,
         "NODE_ENV": "production"
