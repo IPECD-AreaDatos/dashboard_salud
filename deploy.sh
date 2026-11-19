@@ -81,9 +81,27 @@ modules_swapped=true
 rm -rf "$runtime_dir"
 
 echo "Reiniciando salud-dashboard en el puerto 3005..."
-if ! pm2 startOrReload ecosystem.config.json --only salud-dashboard --update-env; then
+pm2 save
+pm2_mode="$(pm2 show salud-dashboard | sed -n '/exec mode/p')"
+if [[ "$pm2_mode" == *cluster_mode* ]]; then
+  if pm2 startOrReload ecosystem.config.json --only salud-dashboard --update-env; then
+    restart_ok=true
+  else
+    restart_ok=false
+  fi
+else
+  pm2 delete salud-dashboard || true
+  if pm2 start ecosystem.config.json --only salud-dashboard --update-env; then
+    restart_ok=true
+  else
+    restart_ok=false
+  fi
+fi
+
+if [[ "$restart_ok" != true ]]; then
   restore_previous_build
-  pm2 restart salud-dashboard || true
+  pm2 delete salud-dashboard || true
+  pm2 resurrect || true
   echo "PM2 no pudo reiniciar salud-dashboard." >&2
   exit 1
 fi
@@ -103,6 +121,7 @@ for attempt in {1..30}; do
 done
 
 restore_previous_build
-pm2 restart salud-dashboard || true
+pm2 delete salud-dashboard || true
+pm2 resurrect || true
 printf 'El dashboard no respondió tras el reinicio (HTTP %s).\n' "$http_status" >&2
 exit 1
