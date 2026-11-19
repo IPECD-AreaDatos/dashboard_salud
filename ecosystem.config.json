@@ -3,15 +3,15 @@
     {
       "name": "salud-dashboard",
       "cwd": "/home/ubuntu/ipecd-infra/apps/front/dashboard_salud",
-      "script": "node_modules/next/dist/bin/next",
-      "args": "start",
+      "script": "/home/ubuntu/.nvm/versions/node/v20.20.0/bin/npm",
+      "args": ["run", "start", "--", "-p", "3005"],
       "interpreter": "/home/ubuntu/.nvm/versions/node/v20.20.0/bin/node",
       "env": {
         "PORT": 3005,
         "NODE_ENV": "production"
       },
-      "instances": 2,
-      "exec_mode": "cluster",
+      "instances": 1,
+      "exec_mode": "fork",
       "autorestart": true,
       "watch": false,
       "max_memory_restart": "1G"
