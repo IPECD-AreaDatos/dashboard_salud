@@ -81,7 +81,7 @@ modules_swapped=true
 rm -rf "$runtime_dir"
 
 echo "Reiniciando salud-dashboard en el puerto 3005..."
-if ! pm2 restart salud-dashboard; then
+if ! pm2 startOrReload ecosystem.config.json --only salud-dashboard --update-env; then
   restore_previous_build
   pm2 restart salud-dashboard || true
   echo "PM2 no pudo reiniciar salud-dashboard." >&2
